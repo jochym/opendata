@@ -1,7 +1,7 @@
 title:
-  - Thermal conductivity of 3C-SiC from configuration space sampling
+  - The full title of the paper
 short_title:
-  - 3C-SiC thhermal conductivity
+  - The short title of the paper
 authors:
   - name: Paweł T. Jochym
     id: jochym
@@ -14,27 +14,37 @@ authors:
     affiliations:
       - Institute of Nuclear Physics, Polish Academy of Sciences, Cracow, Poland
 abstract: >
-    Cubic silicon carbide phonon thermal conductivity has been 
-    calculated using anharmonic phonon analysis. The atomic 
-    interaction model was built using displacement-force data 
-    generated with High Efficiency Configuration Space Sampling 
-    (HECSS) technique and density functional theory calculated forces.
+  The abstract of the paper. This may be several lines long.
+  This is automatically continued to the subsequent lines.
+  The text is continued until the indentation is preserved.
+  So this is the last line of the abstract.
 bibliography:
   - paper/refs.bib
 keywords:
   - HECSS
   - Thermal conductivity
   - DFT
-opendata:
-  - publish: false
-  - doi: null
-  - paper: paper
-    doi: null
-    figures: fig-*.ipynb
-    text: main.tex
-    refs: refs.bib
-    pdf: main.pdf
-  - data: data
-  - analysis: analysis
+publish: false
+folders:
+  - data
+  - analysis
+  - paper
 
+# Metadata in DublinCore scheme
+# These are example data
+dublincore:
+  identifier: doi:10.57903/UJ/ID54W4
+  creator:
+    - First Author
+    - Second Author
+    - ...
+  contributor:
+    - First Contributor
+    - ...
+  title: The title of the paper
+  issued: 2024-10-24
+  temporal: 
+      start: 2023-02-01
+      end: 2024-02-01
+  license: CC-by-SA 3.0
   
