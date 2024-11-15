@@ -1,15 +1,16 @@
 title:
-  - The full title of the paper
+  - &TITLE The full title of the paper
 short_title:
   - The short title of the paper
+doi: &DOI doi:10.57903/UJ/ID54W4
 authors:
-  - name: Paweł T. Jochym
+  - name: &AUTHOR1 Paweł T. Jochym
     id: jochym
     affiliations:
       - Institute of Nuclear Physics, Polish Academy of Sciences, Cracow, Poland
     corresponding: true
     email: pawel.jochym@ifj.edu.pl
-  - name: Jan Łażewski
+  - name: &AUTHOR2 Jan Łażewski
     id: lazewski
     affiliations:
       - Institute of Nuclear Physics, Polish Academy of Sciences, Cracow, Poland
@@ -33,18 +34,19 @@ folders:
 # Metadata in DublinCore scheme
 # These are example data
 dublincore:
-  identifier: doi:10.57903/UJ/ID54W4
+  identifier: *DOI
   creator:
-    - First Author
-    - Second Author
+    - *AUTHOR1
+    - *AUTHOR2
     - ...
   contributor:
     - First Contributor
     - ...
-  title: The title of the paper
+  title: *TITLE
   issued: 2024-10-24
   temporal: 
-      start: 2023-02-01
-      end: 2024-02-01
+    start: 2023-02-01
+    end: 2024-02-01
   license: CC-by-SA 3.0
+
   

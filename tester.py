@@ -9,6 +9,18 @@ from pprint import pprint
 
 with open("example/OpenData.yaml") as stream:
     try:
-        pprint(yaml.safe_load(stream))
+        yml = yaml.load(stream, yaml.SafeLoader)  
+        pprint(yml)
     except yaml.YAMLError as exc:
-        pprint(exc)
+        print ("Error while parsing YAML file:")
+        if hasattr(exc, 'problem_mark'):
+            if exc.context != None:
+                print ('  parser says\n' + str(exc.problem_mark) + '\n  ' +
+                    str(exc.problem) + ' ' + str(exc.context) +
+                    '\nPlease correct data and retry.')
+            else:
+                print ('  parser says\n' + str(exc.problem_mark) + '\n  ' +
+                    str(exc.problem) + '\nPlease correct data and retry.')
+        else:
+            print ("Something went wrong while parsing yaml file")
+        
