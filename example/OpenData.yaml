@@ -1,0 +1,40 @@
+title:
+  - Thermal conductivity of 3C-SiC from configuration space sampling
+short_title:
+  - 3C-SiC thhermal conductivity
+authors:
+  - name: Paweł T. Jochym
+    id: jochym
+    affiliations:
+      - Institute of Nuclear Physics, Polish Academy of Sciences, Cracow, Poland
+    corresponding: true
+    email: pawel.jochym@ifj.edu.pl
+  - name: Jan Łażewski
+    id: lazewski
+    affiliations:
+      - Institute of Nuclear Physics, Polish Academy of Sciences, Cracow, Poland
+abstract: >
+    Cubic silicon carbide phonon thermal conductivity has been 
+    calculated using anharmonic phonon analysis. The atomic 
+    interaction model was built using displacement-force data 
+    generated with High Efficiency Configuration Space Sampling 
+    (HECSS) technique and density functional theory calculated forces.
+bibliography:
+  - paper/refs.bib
+keywords:
+  - HECSS
+  - Thermal conductivity
+  - DFT
+opendata:
+  - publish: false
+  - doi: null
+  - paper: paper
+    doi: null
+    figures: fig-*.ipynb
+    text: main.tex
+    refs: refs.bib
+    pdf: main.pdf
+  - data: data
+  - analysis: analysis
+
+  
