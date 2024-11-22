@@ -1,0 +1,39 @@
+%YAML 1.2
+---
+# Example of the metadata of the paper
+title: Full title of the paper
+short_title: Short title of the paper  # Optional
+doi: null
+
+authors:
+  - name: First Author
+    affiliations:
+      - &AFIL >
+        Institute of Nuclear Physics,
+        Polish Academy of Sciences, Cracow, Poland
+    email: first.author@ifj.edu.pl
+    corresponding: true
+  - name: Second Author
+    affiliations:
+      - *AFIL  # The affiliation is re-used from the first author
+
+abstract: >
+  The abstract of the paper. This may be several lines long.
+  This is automatically continued to the subsequent lines.
+  The text is continued until the indentation is preserved.
+  So this is the last line of the abstract.
+
+bibliography:
+  - refs.bib
+
+keywords:
+  - OpenData
+  - OpenScience
+  - Creative Commons
+
+publish: false
+license: CC-by-SA 3.0  # Recommended license
+
+figures: fig-*.ipynb
+text: main.tex
+pdf: main.pdf
