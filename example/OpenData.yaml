@@ -1,52 +1,82 @@
 %YAML 1.2
 ---
-title:
-  - &TITLE The full title of the paper
-short_title:
-  - The short title of the paper
-doi: &DOI doi:10.57903/UJ/ID54W4
+# This part concerns dataset as a whole.
+# The metadata of the paper(s) connected with the data
+# should be posted in sub-folders in similar OpenData.yaml files
+doi: AAA.BBB.CCC/dd/7654xyz
+title: The full title of the dataset
+title_alt: Alternative language title
+
 authors:
-  - name: &AUTHOR1 Paweł T. Jochym
-    id: jochym
-    affiliations:
-      - Institute of Nuclear Physics, Polish Academy of Sciences, Cracow, Poland
-    corresponding: true
-    email: pawel.jochym@ifj.edu.pl
-  - name: &AUTHOR2 Jan Łażewski
-    id: lazewski
-    affiliations:
-      - Institute of Nuclear Physics, Polish Academy of Sciences, Cracow, Poland
+  - name: &AUTHOR First Author  # Define a tag to re-use the name later
+    email: &EMAIL first.author@inst.edu.pl
+  - name: Second Author
+
+# Optional, for contributors not considered co-authors
+contributors:
+  - name: First Contributor
+  - name: Second Contributor
+
+publisher: Dataset publisher
+
+summary: >
+  A summary, describing the purpose,
+  nature and scope of the dataset.
+
 abstract: >
-  The abstract of the paper. This may be several lines long.
+  The description of the project. This may be several lines long.
   This is automatically continued to the subsequent lines.
   The text is continued until the indentation is preserved.
   So this is the last line of the abstract.
-bibliography:
-  - paper/refs.bib
+
 keywords:
-  - HECSS
-  - Thermal conductivity
-  - DFT
-publish: false
+  - Open Data
+  - Creative Commons
+  - Open Science
+
+datatype: spectroscopy  # The general type of data in the dataset
+
+language: english  # language of the dataset
+
+# Domain-specific categories corresponding to the thematic datasets
+branch:
+  MNiSW: science  # MNiSW (Ministry of Science and Higher Education)
+  OECD: science   # OECD (Organisation for Economic Cooperation and Development)
+
+funding:  # List of founding agencies and grants
+  - name: First agency
+    number: The grant number
+  - name: Second agency
+    number: The second grant
+
+# The person (Family Name, Given Name) or the name
+# of the organization that deposited this dataset to the repository
+depositor: *AUTHOR  # Here we use the name of the designated author
+contact: *EMAIL  # Contact person - again re-use the e-mail of the first author
+
+submitted: 2024-09-14  # Date of the submission of the dataset
+issued: 2024-10-24  # Publication date
+temporal:  # Optional, should contain date range of data collection
+  start: 2023-02-01
+  end: 2024-02-01
+varsion: 1  # Revision of the dataset
+embargo: 2025-12-31  # Date when embargo on data ends
+
+license: CC-by-SA 3.0  # Example, but recommended license
+publish: false  # True/False, flags if the dataset is ready to be published
+
+referenced:  # The list of publications (dois) referencing this dataset
+  - doi:xxx.yyy/zz/tt1234
+  - doi:aaa.bbb/cc/dd9876
+
+# These are organisational data.
+# They define list of sub-folders where the sub-sets of data reside
+# These can be folders with paper text, presentations, figures
+# Also source data, analysis software etc.
+# These folders will be scanned and included in the dataset
+# according to the metadata present in them
 folders:
   - data
   - analysis
   - paper
-
-# Metadata in DublinCore scheme
-# These are example data
-dublincore:
-  identifier: *DOI
-  creator:
-    - *AUTHOR1
-    - *AUTHOR2
-    - ...
-  contributor:
-    - First Contributor
-    - ...
-  title: *TITLE
-  issued: 2024-10-24
-  temporal:
-    start: 2023-02-01
-    end: 2024-02-01
-  license: CC-by-SA 3.0
+  - presentation
