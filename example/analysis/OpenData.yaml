@@ -1,0 +1,19 @@
+%YAML 1.2
+---
+description: >
+  These are analysis programs for the project ...
+  The files are organized as follows ...
+
+# Software required to run the analysis
+software:
+  - python >=3.9
+  - numpy
+  - matplotlib
+  - ...
+
+programs:
+  - name: first program
+    desc: This is a program to fit model to the data
+  - name: second program
+    desc: This program plots the figures for the paper
+  - ...

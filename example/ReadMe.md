@@ -1,4 +1,4 @@
-# Thermal conductivity of the 3C-SiC project
+# Open Data project
 
 > This project is a pilot for the OpenData program.
 
@@ -14,7 +14,7 @@
 ## Files in the root directory
 
 - **README.md** this file
-- **OpenData.yaml** metadata file in YAML format, it is shaped after MyST metadata and can be used directly as a header for the paper if it is written in [MyST](https://mystmd.org/). Only `authors` and `id` fields are used in the automatic creation of the project access data:
+- **OpenData.yaml** metadata file in YAML format, it is shaped following the DataVerse metadata used in the RODBUK repository. The further OpenData.yaml files in the `paper` sub-directory is shaped after MyST metadata and can be used directly as a header for the paper if it is written in [MyST](https://mystmd.org/). Here is a short example:
 
 ```yaml
 title: 
@@ -23,13 +23,11 @@ short_title:
   - OpenData project
 authors:
   - name: First Author
-    id: author_1
     affiliations:
       - Institute ...
-    corresponding: true
     email: author.one@ifj.edu.pl
+    corresponding: true
   - name: Second Author
-    id: author_2
     affiliations:
       - University ...
 bibliography:
@@ -39,3 +37,5 @@ keywords:
   - OpenAccess
   - CC-by-SA
 ```
+
+Each sub-directory should contain similar OpenData.yaml file describing its contents. See the examples in the subdirectories for more elaborated examples.

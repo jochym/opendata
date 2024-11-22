@@ -1,0 +1,19 @@
+%YAML 1.2
+---
+description: >
+  These are the data files of the project ...
+  The files are organized as follows ...
+
+software:
+  - Instrument control program
+  - Calculating Program
+
+hardware:
+  - Very Good Instrument
+  - Extremely Good Instrument
+  - Not So Good Instrument
+
+formats:
+  - CSV
+  - binary
+  - text
