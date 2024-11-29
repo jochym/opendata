@@ -3,7 +3,6 @@
 # This part concerns dataset as a whole.
 # The metadata of the paper(s) connected with the data
 # should be posted in sub-folders in similar OpenData.yaml files
-doi: AAA.BBB.CCC/dd/7654xyz
 title: The full title of the dataset
 title_alt: Alternative language title
 
@@ -59,11 +58,10 @@ issued: 2024-10-24  # Publication date
 temporal:  # Optional, should contain date range of data collection
   start: 2023-02-01
   end: 2024-02-01
-varsion: 1  # Revision of the dataset
+version: 1  # Revision of the dataset
 embargo: 2025-12-31  # Date when embargo on data ends
 
 license: CC-by-SA 3.0  # Example, but recommended license
-publish: false  # True/False, flags if the dataset is ready to be published
 
 referenced:  # The list of publications (dois) referencing this dataset
   - doi:xxx.yyy/zz/tt1234
