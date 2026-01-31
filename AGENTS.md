@@ -58,6 +58,9 @@ Every substantial step must have an accompanying automated test. Before completi
   - `DicomExtractor`: Lazy header parsing for medical physics datasets.
   - `BibtexExtractor`: Citation-based metadata harvesting.
   - `Hdf5Extractor`: Attribute-only peeking for large hierarchical datasets.
+  - `VaspExtractor`: System and version extraction for VASP calculations.
+  - `LatticeDynamicsExtractor`: Specialized support for Phonopy and ALAMODE.
+  - `ColumnarDataExtractor`: Detection of numeric text/CSV data clusters.
 - **Phase 3 AI & OAuth2 Scaffold [COMPLETE]:**
   - `AIService`: OAuth2 identity flow for frictionless "Sign in with Google".
   - `AI_SETUP.md`: Clear developer instructions for Cloud Console configuration.

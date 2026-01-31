@@ -26,12 +26,20 @@ class ProjectAnalysisAgent:
         from opendata.extractors.medical import DicomExtractor
         from opendata.extractors.citations import BibtexExtractor
         from opendata.extractors.hierarchical import Hdf5Extractor
+        from opendata.extractors.physics import (
+            VaspExtractor,
+            LatticeDynamicsExtractor,
+            ColumnarDataExtractor,
+        )
 
         self.registry.register(LatexExtractor())
         self.registry.register(DocxExtractor())
         self.registry.register(DicomExtractor())
         self.registry.register(BibtexExtractor())
         self.registry.register(Hdf5Extractor())
+        self.registry.register(VaspExtractor())
+        self.registry.register(LatticeDynamicsExtractor())
+        self.registry.register(ColumnarDataExtractor())
 
     def start_analysis(self, project_dir: Path) -> str:
         """Initial scan and heuristic extraction phase."""
