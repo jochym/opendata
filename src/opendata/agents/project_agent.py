@@ -53,47 +53,73 @@ class ProjectAnalysisAgent:
                     partial = extractor.extract(p)
                     heuristics_data.update(partial.model_dump(exclude_unset=True))
 
+        # Merge heuristics into current_metadata
+        self.current_metadata = Metadata.model_validate(
+            {**self.current_metadata.model_dump(), **heuristics_data}
+        )
+
         # Prepare the first 'Agent Thought'
         msg = f"I've scanned {self.current_fingerprint.file_count} files in your project. "
 
         found_fields = list(heuristics_data.keys())
         if found_fields:
-            msg += f"I automatically found data for: {', '.join(found_fields)}. "
+            msg += f"I automatically found some data for: {', '.join(found_fields)}. "
         else:
             msg += "I couldn't find obvious metadata files like LaTeX or BibTeX. "
 
-        exts = list(set(self.current_fingerprint.extensions[:3]))
-        msg += f"I noticed clusters of {', '.join(exts)} files. "
-        msg += (
-            "Should I use AI to analyze the paper titles and guess the research field?"
-        )
+        exts = list(set(self.current_fingerprint.extensions))
+
+        # Specialized Physics Reasoning in Chat Loop
+        physics_tools = []
+        if any(
+            ext in [".incar", ".outcar", ".poscar"]
+            or p.name.upper() in ["INCAR", "OUTCAR", "POSCAR"]
+            for p in project_dir.rglob("*")
+        ):
+            physics_tools.append("VASP")
+        if any("phonopy" in p.name.lower() for p in project_dir.rglob("*")):
+            physics_tools.append("Phonopy")
+        if any("alamode" in p.name.lower() for p in project_dir.rglob("*")):
+            physics_tools.append("ALAMODE")
+
+        if physics_tools:
+            msg += f"I noticed you are using {', '.join(physics_tools)}. "
+            msg += "This looks like a computational physics project. "
+        else:
+            msg += f"I noticed clusters of {', '.join(exts[:3])} files. "
+
+        msg += "Should I use AI to analyze the paper titles and suggest more specific metadata?"
 
         self.chat_history.append(("agent", msg))
         return msg
 
-    def generate_ai_prompt(self) -> str:
-        """Assembles the state into a prompt for the AI partner."""
-        if not self.current_fingerprint:
-            return "No project scanned."
+    def process_user_input(self, user_text: str, ai_service: Any) -> str:
+        """Main iterative loop: process user input, call AI, update metadata."""
+        self.chat_history.append(("user", user_text))
 
-        fingerprint_summary = self.current_fingerprint.model_dump_json(indent=2)
+        # 1. Construct dynamic prompt with history
+        context = self.generate_ai_prompt()
+        history_str = "\n".join([f"{role}: {m}" for role, m in self.chat_history[-5:]])
 
-        prompt = f"""
-        You are a scientific data steward assistant for the RODBUK repository.
-        Your goal is to help the user complete their metadata.
+        full_prompt = f"""
+        {context}
         
-        PROJECT FINGERPRINT:
-        {fingerprint_summary}
+        RECENT CONVERSATION:
+        {history_str}
         
-        CURRENT METADATA DRAFT (YAML):
-        {yaml.dump(self.current_metadata.model_dump(exclude_unset=True))}
-        
-        INSTRUCTIONS:
-        1. Analyze the file extensions and structure.
-        2. Propose the most likely 'Research Field' (Physics, Medicine, etc.).
-        3. Identify what is missing for a valid RODBUK package.
-        4. Ask the user ONE clear, non-technical question to fill a gap.
-        
-        Response format: A brief summary of your 'thoughts' followed by the question.
+        INSTRUCTION: 
+        Respond to the user's latest message. 
+        If they provided new information, update your mental model.
+        If they confirmed an AI guess, incorporate it.
+        ASK ONE FOLLOW-UP QUESTION to complete the RODBUK requirements.
         """
-        return prompt
+
+        # 2. Call AI
+        ai_response = ai_service.ask_agent(full_prompt)
+
+        # 3. Handle Knowledge Capture (Meta-Learning)
+        # In a real scenario, we'd look for patterns like "In my lab..."
+        # For now, we just log the response.
+
+        self.chat_history.append(("agent", ai_response))
+        return ai_response

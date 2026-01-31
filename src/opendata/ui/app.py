@@ -181,12 +181,17 @@ def start_ui():
                 type="negative",
             )
 
-    def handle_user_msg(text):
+    async def handle_user_msg(text):
         if not text:
             return
-        agent.chat_history.append(("user", text))
-        # Here we would trigger the Agent to generate a new AI response
+        state["scanning"] = True
         ui.notify("Agent is thinking...")
+
+        # Trigger the Agent iterative loop
+        await ui.run_javascript(f"console.log('Sending message: {text}')")
+        response = agent.process_user_input(text, ai)
+
+        state["scanning"] = False
         ui.navigate.to("/")
 
     def set_lang(l):
