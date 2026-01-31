@@ -1,32 +1,67 @@
-from google import genai
 import os
+import json
 from pathlib import Path
-from typing import Optional
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google import genai
 
 
 class AIService:
-    """Service to handle AI interactions without forcing manual API keys."""
+    """Handles frictionless AI access via OAuth2/Google Account."""
 
-    def __init__(self, provider: str = "google"):
-        self.provider = provider
+    SCOPES = ["https://www.googleapis.com/auth/generative-language"]
+
+    def __init__(self, workspace_path: Path):
+        self.token_path = workspace_path / "token.json"
+        self.creds = None
         self.client = None
-        self.api_key = os.getenv("GOOGLE_API_KEY")
-        if self.api_key:
-            self.client = genai.Client(api_key=self.api_key)
 
-    def extract_metadata(self, content: str) -> str:
-        """Extracts metadata using the best available frictionless method."""
+    def authenticate(self) -> bool:
+        """
+        Attempts to load existing credentials or triggers OAuth2 flow.
+        Checks current directory for client_secrets.json first (bundled mode).
+        """
+        if self.token_path.exists():
+            self.creds = Credentials.from_authorized_user_file(
+                str(self.token_path), self.SCOPES
+            )
+
+        if not self.creds or not self.creds.valid:
+            if self.creds and self.creds.expired and self.creds.refresh_token:
+                self.creds.refresh(Request())
+            else:
+                # Prioritize current directory for bundled client_secrets.json
+                secrets_path = Path("client_secrets.json")
+                if not secrets_path.exists():
+                    # Fallback to hidden workspace
+                    secrets_path = self.token_path.parent / "client_secrets.json"
+                    if not secrets_path.exists():
+                        return False
+
+                flow = InstalledAppFlow.from_client_secrets_file(
+                    str(secrets_path), self.SCOPES
+                )
+                self.creds = flow.run_local_server(port=0)
+
+            # Save the credentials for next time
+            with open(self.token_path, "w") as token:
+                token.write(self.creds.to_json())
+
+        if self.creds:
+            # Note: The new google-genai SDK uses api_key or credentials
+            # For now we use the credentials to initialize the client
+            self.client = genai.Client(credentials=self.creds)
+            return True
+
+        return False
+
+    def ask_agent(self, prompt: str) -> str:
+        """Sends a structured prompt to Gemini."""
         if not self.client:
-            return "AI provider not configured."
+            return "AI not authenticated."
 
         response = self.client.models.generate_content(
-            model="gemini-1.5-flash",
-            contents=f"Extract research metadata from this content and return YAML:\n\n{content}",
+            model="gemini-1.5-flash", contents=prompt
         )
         return response.text
-
-    def authenticate_interactive(self, ui_handler):
-        """Triggers a browser-based OAuth2 flow."""
-        # The ui_handler would be a NiceGUI component or callback
-        # to show the login prompt and handle the redirect.
-        pass
