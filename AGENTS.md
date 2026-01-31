@@ -42,6 +42,8 @@ This repository contains the OpenData Tool, designed for preparing metadata and 
 ## Code Style Guidelines
 
 ### 1. Multi-Platform Compatibility
+- **Python-Centric:** All core logic must be written in Python 3.10+.
+- **YAML-First:** Use **YAML** instead of JSON for all human-facing configuration files, metadata drafts, and Field Protocols to ensure high readability and error-forgiveness.
 - **Paths:** ALWAYS use `pathlib.Path`.
 - **Encoding:** Explicitly use `encoding="utf-8"` for all file operations.
 
