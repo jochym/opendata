@@ -39,6 +39,19 @@ This repository contains the OpenData Tool, designed for preparing metadata and 
 - **Single Executable (No Console):** `pyinstaller --noconsole --onefile src/opendata/main.py`
 - Running Tests: `pytest` (Must pass on Win/Mac/Linux).
 
+### Vibe-Coding Verification (CRITICAL)
+Every substantial step must have an accompanying automated test. Before completing a task, run the relevant test to verify the "vibe":
+- **Run all tests:** `pytest`
+- **Run specific test file:** `pytest tests/test_name.py`
+- **Run single test case:** `pytest tests/test_name.py -k "test_function_name"`
+
+## Registry of Accomplishments (Stage Log)
+- **Phase 1 Infrastructure [COMPLETE]:** 
+  - `WorkspaceManager`: Automated YAML-based persistence in `~/.opendata_tool/`.
+  - `ProtocolStore`: Meta-learning logic for field-specific rule accumulation.
+  - `Lazy Scanner`: TB-scale safe project fingerprinting (stat-only crawling).
+  - `RODBUK Models`: Pydantic V2 schema for mandatory scientific metadata.
+
 ## Code Style Guidelines
 
 ### 1. Multi-Platform Compatibility

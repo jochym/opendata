@@ -1,19 +1,21 @@
 from pathlib import Path
 import socket
-from typing import List, Set
+from typing import List, Set, Generator
 from opendata.models import ProjectFingerprint
 
+# ... (keep get_local_ip)
 
-def get_local_ip() -> str:
-    """Returns the local IP address."""
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except Exception:
-        return "127.0.0.1"
+
+def walk_project_files(root: Path) -> Generator[Path, None, None]:
+    """
+    Yields file paths while skipping common non-research directories.
+    """
+    skip_dirs = {".git", ".venv", "node_modules", "__pycache__", ".opendata_tool"}
+    for p in root.rglob("*"):
+        if any(part in skip_dirs for part in p.parts):
+            continue
+        if p.is_file():
+            yield p
 
 
 def scan_project_lazy(root: Path) -> ProjectFingerprint:
@@ -26,19 +28,17 @@ def scan_project_lazy(root: Path) -> ProjectFingerprint:
     extensions: Set[str] = set()
     structure_sample: List[str] = []
 
-    # rglob is lazy, but we still need to be careful with huge lists
-    for p in root.rglob("*"):
-        if p.is_file():
-            file_count += 1
-            # Get size without reading data
-            total_size += p.stat().st_size
-            extensions.add(p.suffix.lower())
+    for p in walk_project_files(root):
+        file_count += 1
+        # stat() is fast and doesn't read data
+        total_size += p.stat().st_size
+        extensions.add(p.suffix.lower())
 
-            if len(structure_sample) < 50:
-                structure_sample.append(str(p.relative_to(root)))
+        if len(structure_sample) < 100:
+            structure_sample.append(str(p.relative_to(root)))
 
     return ProjectFingerprint(
-        root_path=str(root),
+        root_path=str(root.resolve()),
         file_count=file_count,
         total_size_bytes=total_size,
         extensions=list(extensions),
