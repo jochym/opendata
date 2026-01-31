@@ -51,6 +51,13 @@ Every substantial step must have an accompanying automated test. Before completi
   - `ProtocolStore`: Meta-learning logic for field-specific rule accumulation.
   - `Lazy Scanner`: TB-scale safe project fingerprinting (stat-only crawling).
   - `RODBUK Models`: Pydantic V2 schema for mandatory scientific metadata.
+- **Phase 2 Extractor Registry [COMPLETE]:**
+  - `BaseExtractor`: Extensible architecture for heuristic metadata discovery.
+  - `LatexExtractor`: Regex-based discovery for physics papers.
+  - `DocxExtractor`: Core property extraction for Office-based research.
+  - `DicomExtractor`: Lazy header parsing for medical physics datasets.
+  - `BibtexExtractor`: Citation-based metadata harvesting.
+  - `Hdf5Extractor`: Attribute-only peeking for large hierarchical datasets.
 
 ## Code Style Guidelines
 
