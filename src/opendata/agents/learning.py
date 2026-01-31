@@ -1,31 +1,46 @@
-from typing import List
+from pydantic import BaseModel, Field
+from typing import List, Dict
 from pathlib import Path
-from opendata.models import UserSettings
+import yaml
 
 
-class ProtocolLearner:
-    """Agentic logic to extract and store field-specific knowledge."""
+class FieldProtocol(BaseModel):
+    """
+    A persistent instruction set for a specific scientific domain.
+    Learned from user interactions.
+    """
+
+    field_name: str
+    heuristics: List[str] = Field(
+        default_factory=list, description="Regex or pattern rules"
+    )
+    ai_prompts: List[str] = Field(
+        default_factory=list, description="Specific prompt snippets learned from user"
+    )
+
+
+class ProtocolStore:
+    """Manages the lifecycle of Field Protocols in YAML format."""
 
     def __init__(self, protocols_dir: Path):
         self.protocols_dir = protocols_dir
 
-    def extract_and_save_rule(self, field: str, user_rule: str):
-        """Crystallizes a user correction into a permanent instruction file.
+    def save_protocol(self, protocol: FieldProtocol):
+        """Saves a domain protocol to a YAML file."""
+        safe_name = protocol.field_name.lower().replace(" ", "_")
+        target_path = self.protocols_dir / f"{safe_name}.yaml"
 
-        Example:
-        field='Physics', user_rule='In our lab, .dat is always vacuum pressure.'
-        Result: Writes to protocols/physics.md
-        """
-        protocol_file = self.protocols_dir / f"{field.lower().replace(' ', '_')}.md"
+        with open(target_path, "w", encoding="utf-8") as f:
+            yaml.dump(protocol.model_dump(), f, allow_unicode=True, sort_keys=False)
 
-        content = f"\n# Learned Rule\n- {user_rule}\n"
+    def get_protocol(self, field_name: str) -> FieldProtocol | None:
+        """Retrieves a protocol by field name."""
+        safe_name = field_name.lower().replace(" ", "_")
+        target_path = self.protocols_dir / f"{safe_name}.yaml"
 
-        with open(protocol_file, "a", encoding="utf-8") as f:
-            f.write(content)
+        if not target_path.exists():
+            return None
 
-    def load_protocols(self, field: str) -> str:
-        """Reads the custom instructions for the specific field."""
-        protocol_file = self.protocols_dir / f"{field.lower().replace(' ', '_')}.md"
-        if protocol_file.exists():
-            return protocol_file.read_text(encoding="utf-8")
-        return ""
+        with open(target_path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+            return FieldProtocol.model_validate(data)
