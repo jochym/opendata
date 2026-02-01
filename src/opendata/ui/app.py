@@ -5,26 +5,25 @@ from opendata.utils import get_local_ip
 from opendata.workspace import WorkspaceManager
 from opendata.agents.project_agent import ProjectAnalysisAgent
 from opendata.ai.service import AIService
+from opendata.i18n.translator import setup_i18n, _
 
 
-def start_ui():
+def start_ui(host: str = "127.0.0.1", port: int = 8080):
     # 1. Initialize Backend
     wm = WorkspaceManager()
     settings = wm.get_settings()
+    
+    # Initialize i18n
+    setup_i18n(settings.language)
+    
     agent = ProjectAnalysisAgent(Path(settings.workspace_path))
     ai = AIService(Path(settings.workspace_path))
 
-    # 2. Reactive State
-    state = {
-        "step": "setup" if not settings.ai_consent_granted else "analyze",
-        "language": settings.language,
-        "messages": [],
-        "scanning": False,
-        "metadata_draft": agent.current_metadata,
-    }
-
     @ui.page("/")
     def index():
+        # Important: Sync translator with current user settings on page load
+        setup_i18n(settings.language)
+        
         ui.query("body").style("background-color: #f8f9fa;")
 
         # --- HEADER ---
@@ -33,38 +32,38 @@ def start_ui():
         ):
             with ui.row().classes("items-center gap-4"):
                 ui.icon("database", size="md")
-                ui.label("OpenData Agent").classes("text-h5 font-bold tracking-tight")
+                ui.label(_("OpenData Agent")).classes("text-h5 font-bold tracking-tight")
 
             with ui.row().classes("items-center gap-2"):
                 # Mobile QR Toggle
                 with ui.button(
                     icon="qr_code_2", on_click=lambda: qr_dialog.open()
                 ).props("flat color=white"):
-                    ui.tooltip("Open on Tablet/Mobile")
+                    ui.tooltip(_("Continue on Mobile"))
 
                 ui.separator().props("vertical color=white")
                 ui.button("EN", on_click=lambda: set_lang("en")).props(
                     "flat color=white text-xs"
-                )
+                ).classes("bg-slate-700" if settings.language == "en" else "")
                 ui.button("PL", on_click=lambda: set_lang("pl")).props(
                     "flat color=white text-xs"
-                )
+                ).classes("bg-slate-700" if settings.language == "pl" else "")
 
         # --- QR DIALOG ---
         with ui.dialog() as qr_dialog, ui.card().classes("p-6 items-center"):
-            ui.label("Continue on Mobile").classes("text-h6 q-mb-md")
-            url = f"http://{get_local_ip()}:8080"
+            ui.label(_("Continue on Mobile")).classes("text-h6 q-mb-md")
+            url = f"http://{get_local_ip()}:{port}"
             ui.interactive_image(
                 f"https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={url}"
             )
             ui.label(url).classes("text-caption text-slate-500 q-mt-md")
-            ui.button("Close", on_click=qr_dialog.close).props("flat")
+            ui.button(_("Close"), on_click=qr_dialog.close).props("flat")
 
         # --- MAIN CONTENT ---
         container = ui.column().classes("w-full items-center q-pa-xl max-w-7xl mx-auto")
 
         with container:
-            if state["step"] == "setup":
+            if not settings.ai_consent_granted:
                 render_setup_wizard()
             else:
                 render_analysis_dashboard()
@@ -73,22 +72,22 @@ def start_ui():
         with ui.card().classes(
             "w-full max-w-xl p-8 shadow-xl border-t-4 border-primary"
         ):
-            ui.label("AI Configuration").classes("text-h4 q-mb-md font-bold")
-            ui.markdown(
-                "This tool uses **Google Gemini** to help extract metadata safely. No API keys needed—just sign in."
-            )
+            ui.label(_("AI Configuration")).classes("text-h4 q-mb-md font-bold")
+            ui.markdown(_("This tool uses **Google Gemini** to help extract metadata safely. No API keys needed—just sign in."))
 
-            with ui.expansion("Security & Privacy FAQ", icon="security").classes(
+            with ui.expansion(_("Security & Privacy FAQ"), icon="security").classes(
                 "bg-blue-50 q-mb-lg"
             ):
-                ui.markdown("""
-                - **Read-Only:** We never modify your research files.
-                - **Local:** Analysis happens on your machine.
-                - **Consent:** We only send text snippets to AI with your permission.
-                """)
+                # Use a single markdown block with individual translations to fix spacing
+                faq_items = [
+                    _("Read-Only: We never modify your research files."),
+                    _("Local: Analysis happens on your machine."),
+                    _("Consent: We only send text snippets to AI with your permission.")
+                ]
+                ui.markdown("\n".join([f"- {item}" for item in faq_items]))
 
             ui.button(
-                "Sign in with Google", icon="login", on_click=handle_auth
+                _("Sign in with Google"), icon="login", on_click=handle_auth
             ).classes("w-full py-4 bg-primary text-white font-bold rounded-lg")
 
     def render_analysis_dashboard():
@@ -99,10 +98,8 @@ def start_ui():
                     with ui.header().classes(
                         "bg-slate-100 text-slate-800 p-3 flex justify-between"
                     ):
-                        ui.label("Agent Interaction").classes("font-bold")
-                        if state["scanning"]:
-                            ui.spinner(size="sm")
-
+                        ui.label(_("Agent Interaction")).classes("font-bold")
+                    
                     # Chat Messages Area
                     message_container = ui.column().classes(
                         "flex-grow overflow-y-auto q-pa-md gap-4"
@@ -122,7 +119,7 @@ def start_ui():
                     with ui.footer().classes("bg-white p-3 border-t"):
                         with ui.row().classes("w-full items-center no-wrap gap-2"):
                             user_input = ui.input(
-                                placeholder="Type your response..."
+                                placeholder=_("Type your response...")
                             ).classes("flex-grow")
                             ui.button(
                                 icon="send",
@@ -134,31 +131,29 @@ def start_ui():
                 with ui.card().classes(
                     "w-full p-4 shadow-md border-l-4 border-green-500"
                 ):
-                    ui.label("RODBUK Metadata").classes(
+                    ui.label(_("RODBUK Metadata")).classes(
                         "text-h6 font-bold q-mb-md text-green-800"
                     )
 
-                    ui.label("Project Path").classes("text-xs text-slate-400 uppercase")
-                    ui.label(
-                        agent.current_fingerprint.root_path
-                        if agent.current_fingerprint
-                        else "Not selected"
-                    ).classes("text-sm truncate q-mb-md")
+                    ui.label(_("Project Path")).classes("text-xs text-slate-400 uppercase")
+                    
+                    with ui.column().classes('gap-2 q-mb-md'):
+                        path_input = ui.input(label=_('Project Path'), placeholder='/path/to/research')
+                        ui.button(_('Analyze Directory'), icon='search', 
+                                  on_click=lambda: handle_scan(path_input.value)).classes('w-full')
 
                     with ui.scroll_area().classes("h-[400px]"):
                         render_metadata_fields()
 
-                    ui.button("Build Package", icon="archive", color="green").classes(
+                    ui.button(_("Build Package"), icon="archive", color="green").classes(
                         "w-full q-mt-md font-bold"
                     )
 
     def render_metadata_fields():
-        # Reactive display of the Pydantic model
         if not agent.current_metadata:
-            ui.label("No metadata yet").classes("italic text-slate-400")
+            ui.label(_("No metadata yet")).classes("italic text-slate-400")
             return
 
-        # Simple list of extracted fields
         fields = agent.current_metadata.model_dump(exclude_unset=True)
         for key, value in fields.items():
             with ui.column().classes("q-mb-sm"):
@@ -173,34 +168,35 @@ def start_ui():
         if ai.authenticate():
             settings.ai_consent_granted = True
             wm.save_yaml(settings, "settings.yaml")
-            state["step"] = "analyze"
             ui.navigate.to("/")
         else:
             ui.notify(
-                "Authorization failed. Please ensure client_secrets.json is present.",
+                _("Authorization failed. Please ensure client_secrets.json is present."),
                 type="negative",
             )
+
+    async def handle_scan(path: str):
+        if not path:
+            ui.notify(_('Please provide a path'), type='warning')
+            return
+        ui.notify(_('Scanning {path}...').format(path=path))
+        agent.start_analysis(Path(path))
+        ui.navigate.to('/')
 
     async def handle_user_msg(text):
         if not text:
             return
-        state["scanning"] = True
-        ui.notify("Agent is thinking...")
-
-        # Trigger the Agent iterative loop
-        await ui.run_javascript(f"console.log('Sending message: {text}')")
-        response = agent.process_user_input(text, ai)
-
-        state["scanning"] = False
+        ui.notify(_("Agent is thinking..."))
+        agent.process_user_input(text, ai)
         ui.navigate.to("/")
 
     def set_lang(l):
-        state["language"] = l
         settings.language = l
         wm.save_yaml(settings, "settings.yaml")
+        setup_i18n(l)
         ui.navigate.to("/")
 
-    ui.run(title="OpenData Agent", port=8080, show=False, reload=False)
+    ui.run(title="OpenData Agent", port=port, show=False, reload=False, host=host)
 
 
 if __name__ == "__main__":

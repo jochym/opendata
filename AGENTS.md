@@ -71,10 +71,16 @@ Every substantial step must have an accompanying automated test. Before completi
   - `Metadata Validator`: Domain-specific checks for scientific compliance.
   - **Read-Only Guarantee:** Verified that data is copied to workspace without modifying source.
 
+- **Phase 5 Internationalization (i18n) [COMPLETE]:**
+  - GNU gettext integration for Polish/English support.
+  - Reactive language switching in the NiceGUI dashboard.
+  - Dedicated `src/opendata/i18n/` module for translation management.
+
 ## Code Style Guidelines
 
-### 1. Multi-Platform Compatibility
+### 1. Multi-Platform Compatibility & i18n
 - **Python-Centric:** All core logic must be written in Python 3.10+.
+- **Internationalization:** All user-facing strings must be wrapped in `_()` using the `gettext` framework. The app must remain multilingual (PL/EN) during development.
 - **YAML-First:** Use **YAML** instead of JSON for all human-facing configuration files, metadata drafts, and Field Protocols to ensure high readability and error-forgiveness.
 - **Paths:** ALWAYS use `pathlib.Path`.
 - **Encoding:** Explicitly use `encoding="utf-8"` for all file operations.

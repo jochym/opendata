@@ -1,0 +1,3 @@
+SYSTEM = Superconductivity Test
+ENCUT = 520
+ISMEAR = 0

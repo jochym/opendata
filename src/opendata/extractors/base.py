@@ -1,7 +1,25 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Optional, Dict, Any
-from opendata.models import Metadata
+from typing import Optional, Dict, Any, List
+from pydantic import BaseModel
+from opendata.models import Metadata, PersonOrOrg, Contact
+
+
+class PartialMetadata(BaseModel):
+    """
+    Independent model where all fields are optional.
+    Used for merging results from multiple extractors.
+    """
+
+    title: Optional[str] = None
+    authors: Optional[List[PersonOrOrg]] = None
+    contacts: Optional[List[Contact]] = None
+    description: Optional[List[str]] = None
+    keywords: Optional[List[str]] = None
+    science_branches_mnisw: Optional[List[str]] = None
+    science_branches_oecd: Optional[List[str]] = None
+    languages: Optional[List[str]] = None
+    kind_of_data: Optional[str] = None
 
 
 class BaseExtractor(ABC):
@@ -21,23 +39,6 @@ class BaseExtractor(ABC):
         pass
 
 
-class PartialMetadata(Metadata):
-    """
-    Subclass of Metadata where all fields are optional.
-    Used for merging results from multiple extractors.
-    """
-
-    title: Optional[str] = None
-    authors: Optional[list] = None
-    contacts: Optional[list] = None
-    description: Optional[list] = None
-    keywords: Optional[list] = None
-    science_branches_mnisw: Optional[list] = None
-    science_branches_oecd: Optional[list] = None
-    languages: Optional[list] = None
-    kind_of_data: Optional[str] = None
-
-
 class ExtractorRegistry:
     """Registry to manage and trigger relevant extractors."""
 
@@ -47,5 +48,5 @@ class ExtractorRegistry:
     def register(self, extractor: BaseExtractor):
         self._extractors.append(extractor)
 
-    def get_extractors_for(self, filepath: Path) -> list[BaseExtractor]:
+    def get_extractors_for(self, filepath: Path) -> List[BaseExtractor]:
         return [e for e in self._extractors if e.can_handle(filepath)]
