@@ -29,7 +29,7 @@ JSON Requirements:
 
 Field Formats:
 - title: string (e.g., "Research Title")
-- authors: list of objects [{"name": "Full Name"}, ...]
+- authors: list of objects [{{"name": "Full Name"}}, ...]
 - description: string or list of strings (project abstract/summary)
 - keywords: list of strings ["keyword1", "keyword2", ...]
 - kind_of_data: string (e.g., "Experimental", "Simulation", "Columnar Numerical Data")

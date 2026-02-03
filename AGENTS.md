@@ -99,6 +99,11 @@ Every substantial step must have an accompanying automated test. Before completi
   - Implemented `PromptManager` for dynamic rendering of system prompts and chat wrappers.
   - Decoupled AI logic from Python code for easier behavioral tweaking and token optimization.
 
+- **Phase 8 State Control & Isolation [COMPLETE]:**
+  - Implemented "Clear Chat History" and "Reset Metadata" buttons in the UI.
+  - Added project state isolation logic to prevent cross-pollution during directory scans.
+  - Fixed literal brace escaping in Markdown templates for Python's `str.format()` compliance.
+
 ## Code Style Guidelines
 
 ### 1. Multi-Platform Compatibility & i18n

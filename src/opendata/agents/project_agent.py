@@ -69,6 +69,16 @@ class ProjectAnalysisAgent:
                 self.current_fingerprint,
             )
 
+    def clear_chat_history(self):
+        """Clears the chat history and persists the change."""
+        self.chat_history = []
+        self.save_state()
+
+    def clear_metadata(self):
+        """Resets the metadata to a fresh state and persists the change."""
+        self.current_metadata = Metadata.model_construct()
+        self.save_state()
+
     def start_analysis(
         self,
         project_dir: Path,
@@ -82,6 +92,11 @@ class ProjectAnalysisAgent:
             if progress_callback:
                 progress_callback("Loaded existing project state.")
             return self.chat_history[-1][1] if self.chat_history else "Project loaded."
+
+        # NEW PROJECT: Clear current state to avoid cross-pollution
+        self.current_metadata = Metadata.model_construct()
+        self.chat_history = []
+        self.current_fingerprint = None
 
         if progress_callback:
             progress_callback(f"Scanning {project_dir}...")

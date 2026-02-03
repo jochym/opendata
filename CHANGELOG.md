@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2026-02-03
+### Added
+- **Project Persistence & Management:**
+  - Automated project state saving (metadata, history, fingerprint) to `~/.opendata_tool/projects/`.
+  - Unique project identification via path hashing.
+  - Top-bar project selector for seamless switching between research directories.
+- **Prompt Factorization & Management:**
+  - Moved hardcoded AI prompts to external Markdown templates in `src/opendata/prompts/`.
+  - Implemented `PromptManager` for dynamic rendering of system prompts and chat wrappers.
+  - Decoupled AI logic from Python code for easier behavioral tweaking.
+
 ## [0.2.0] - 2026-02-02
 ### Added
 - **First Semi-Working Demo:**

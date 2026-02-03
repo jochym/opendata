@@ -206,9 +206,15 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
             with ui.column().classes("flex-grow"):
                 with ui.card().classes("w-full h-[700px] p-0 shadow-md flex flex-col"):
                     with ui.row().classes(
-                        "bg-slate-100 text-slate-800 p-3 w-full justify-between"
+                        "bg-slate-100 text-slate-800 p-3 w-full justify-between items-center"
                     ):
                         ui.label(_("Agent Interaction")).classes("font-bold")
+                        with ui.row().classes("gap-2"):
+                            ui.button(
+                                icon="delete_sweep",
+                                on_click=lambda: handle_clear_chat(),
+                            ).props("flat dense color=red").classes("text-xs")
+                            ui.tooltip(_("Clear Chat History"))
 
                     with ui.scroll_area().classes("flex-grow q-pa-md"):
                         chat_messages_ui()
@@ -231,9 +237,18 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                 with ui.card().classes(
                     "w-full p-4 shadow-md border-l-4 border-green-500"
                 ):
-                    ui.label(_("RODBUK Metadata")).classes(
-                        "text-h6 font-bold q-mb-md text-green-800"
-                    )
+                    with ui.row().classes(
+                        "w-full justify-between items-center q-mb-md"
+                    ):
+                        ui.label(_("RODBUK Metadata")).classes(
+                            "text-h6 font-bold text-green-800"
+                        )
+                        ui.button(
+                            icon="refresh",
+                            on_click=lambda: handle_clear_metadata(),
+                        ).props("flat dense color=orange")
+                        ui.tooltip(_("Reset Metadata"))
+
                     with ui.column().classes("gap-2 q-mb-md w-full"):
                         path_input = ui.input(
                             label=_("Project Path"), placeholder="/path/to/research"
@@ -320,6 +335,16 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
         metadata_preview_ui.refresh()
         # Scroll to bottom again after agent response
         ui.run_javascript("window.scrollTo(0, document.body.scrollHeight)")
+
+    async def handle_clear_chat():
+        agent.clear_chat_history()
+        chat_messages_ui.refresh()
+        ui.notify(_("Chat history cleared"))
+
+    async def handle_clear_metadata():
+        agent.clear_metadata()
+        metadata_preview_ui.refresh()
+        ui.notify(_("Metadata reset"))
 
     def set_lang(l):
         settings.language = l
