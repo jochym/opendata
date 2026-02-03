@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2026-02-03
+### Added
+- **Deep Analysis:**
+  - Implemented `FullTextReader` with recursive LaTeX `\input{}` resolution and Docx paragraph/table support.
+  - Added "One-Shot Extraction" using a specialized Mega-Prompt for single-pass metadata harvesting from principal publications.
+- **Enhanced UX:**
+  - Added "Cancel Scan" capability with threading support for safe interruption of directory crawlers.
+  - Reactive Project Path binding for seamless state synchronization.
+  - "Guarded Load" logic for project switching (prevents redundant expensive scans).
+- **Security:**
+  - Directory scanner now strictly ignores all hidden files and directories (`.*`).
+
+### Fixed
+- UI NameError when selecting projects from the top-bar dropdown.
+- Metadata pane synchronization issues during project switching.
+- Improved author list parsing in metadata updates.
+
 ## [0.3.0] - 2026-02-03
 ### Added
 - **Project Persistence & Management:**

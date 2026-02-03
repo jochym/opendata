@@ -71,7 +71,11 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                 ).classes("text-xs mt-2")
             return
 
+        # Explicitly refresh header/selector when metadata changes
+        project_selector_ui.refresh()
+
         fields = agent.current_metadata.model_dump(exclude_unset=True)
+
         for key, value in fields.items():
             with ui.column().classes("w-full q-mb-sm"):
                 ui.label(key.replace("_", " ").title()).classes(
@@ -114,6 +118,23 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                         "text-sm bg-slate-50 p-2 rounded border border-slate-100 w-full"
                     )
 
+    @ui.refreshable
+    def project_selector_ui():
+        if not settings.ai_consent_granted:
+            return
+
+        projects = wm.list_projects()
+        if not projects:
+            return
+
+        project_options = {p["path"]: f"{p['title']} ({p['path']})" for p in projects}
+
+        ui.select(
+            options=project_options,
+            label=_("Recent Projects"),
+            on_change=lambda e: handle_load_project(e.value),
+        ).props("dark dense options-dark behavior=menu").classes("w-64 text-xs")
+
     @ui.page("/")
     def index():
         setup_i18n(settings.language)
@@ -130,45 +151,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                 )
 
                 # PROJECT SELECTOR (In Top Bar)
-                if settings.ai_consent_granted:
-                    projects = wm.list_projects()
-                    if projects:
-                        project_options = {
-                            p["path"]: f"{p['title']} ({p['path']})" for p in projects
-                        }
-                        # Define path_input early, even if None, to be captured in closure
-                        # But wait, ui elements are created sequentially.
-                        # We need to defer the callback or use a container or bind after creation.
-                        # Easier solution: use a small helper function or simply don't try to update path_input
-                        # if it doesn't exist yet (though it is created below).
-                        # Actually, in NiceGUI/Python, path_input is local variable.
-                        # We can't reference it before assignment in the lambda unless we use nonlocal or a class.
-                        # Let's fix this by moving path_input definition UP, or handling the selection differently.
-
-                        # OPTION 2: Just call handle_scan. path_input will be updated by a separate mechanism or we ignore it for now.
-                        # If we want the input box to update, we need access to it.
-                        # Let's create path_input first, but it is in the sidebar...
-                        # We can store it in a context object.
-
-                        # Define handle_project_selection locally to close over path_input
-                        # But path_input is created LATER in the code (line 280+).
-                        # We need to restructure. Let's move the project selector INSIDE render_analysis_dashboard
-                        # OR create a global/shared state object for the UI.
-
-                        # Simpler fix: Remove the set_value from the top bar for now,
-                        # OR make path_input a global/class member of a UIState class.
-
-                        # Let's use the simplest approach: Just scan. The input box won't update,
-                        # but the scan will happen. The user sees the scan result.
-                        # Updating the input box is nice-to-have but causing scope issues.
-
-                        ui.select(
-                            options=project_options,
-                            label=_("Recent Projects"),
-                            on_change=lambda e: handle_load_project(e.value),
-                        ).props("dark dense options-dark behavior=menu").classes(
-                            "w-64 text-xs"
-                        )
+                project_selector_ui()
 
             with ui.row().classes("items-center gap-2"):
                 # MODEL SELECTOR
