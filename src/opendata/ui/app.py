@@ -14,7 +14,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
     settings = wm.get_settings()
     setup_i18n(settings.language)
 
-    agent = ProjectAnalysisAgent(Path(settings.workspace_path))
+    agent = ProjectAnalysisAgent(wm)
     ai = AIService(Path(settings.workspace_path))
 
     # Try Silent Auth
@@ -40,6 +40,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
     class ScanState:
         is_scanning = False
         progress = ""
+        progress_label: ui.label = None
 
     @ui.refreshable
     def metadata_preview_ui():
@@ -112,6 +113,21 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                 ui.label(_("OpenData Agent")).classes(
                     "text-h5 font-bold tracking-tight"
                 )
+
+                # PROJECT SELECTOR (In Top Bar)
+                if settings.ai_consent_granted:
+                    projects = wm.list_projects()
+                    if projects:
+                        project_options = {
+                            p["path"]: f"{p['title']} ({p['path']})" for p in projects
+                        }
+                        ui.select(
+                            options=project_options,
+                            label=_("Recent Projects"),
+                            on_change=lambda e: handle_scan(e.value),
+                        ).props("dark dense options-dark behavior=menu").classes(
+                            "w-64 text-xs"
+                        )
 
             with ui.row().classes("items-center gap-2"):
                 # MODEL SELECTOR

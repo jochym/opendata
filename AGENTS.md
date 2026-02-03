@@ -88,6 +88,12 @@ Every substantial step must have an accompanying automated test. Before completi
   - Reactive language switching in the NiceGUI dashboard.
   - Dedicated `src/opendata/i18n/` module for translation management.
 
+- **Phase 6 Project Management & Persistence [COMPLETE]:**
+  - Automated project state saving (metadata, history, fingerprint) in `~/.opendata_tool/projects/`.
+  - Unique project identification via path hashing.
+  - Top-bar project selector for seamless switching between research directories.
+  - Verified logic with `tests/test_workspace.py`.
+
 ## Code Style Guidelines
 
 ### 1. Multi-Platform Compatibility & i18n

@@ -8,16 +8,20 @@ from opendata.extractors.base import ExtractorRegistry, PartialMetadata
 from opendata.utils import scan_project_lazy
 
 
+from opendata.workspace import WorkspaceManager
+
+
 class ProjectAnalysisAgent:
     """
     Agent specialized in analyzing research directories and proposing metadata.
     Maintains the state of the 'Chat Loop' and uses external tools (arXiv, DOI, ORCID).
     """
 
-    def __init__(self, workspace_path: Path):
-        self.workspace = workspace_path
+    def __init__(self, wm: WorkspaceManager):
+        self.wm = wm
         self.registry = ExtractorRegistry()
         self._setup_extractors()
+        self.project_id: Optional[str] = None
         self.current_fingerprint: Optional[ProjectFingerprint] = None
         self.current_metadata = Metadata.model_construct()
         self.chat_history: List[Tuple[str, str]] = []  # (Role, Message)
@@ -43,12 +47,42 @@ class ProjectAnalysisAgent:
         self.registry.register(LatticeDynamicsExtractor())
         self.registry.register(ColumnarDataExtractor())
 
+    def load_project(self, project_path: Path):
+        """Loads an existing project or initializes a new one."""
+        self.project_id = self.wm.get_project_id(project_path)
+        metadata, history, fingerprint = self.wm.load_project_state(self.project_id)
+
+        if metadata:
+            self.current_metadata = metadata
+            self.chat_history = history
+            self.current_fingerprint = fingerprint
+            return True
+        return False
+
+    def save_state(self):
+        """Persists the current state to the workspace."""
+        if self.project_id:
+            self.wm.save_project_state(
+                self.project_id,
+                self.current_metadata,
+                self.chat_history,
+                self.current_fingerprint,
+            )
+
     def start_analysis(
         self,
         project_dir: Path,
         progress_callback: Optional[Callable[[str], None]] = None,
     ) -> str:
         """Initial scan and heuristic extraction phase."""
+        self.project_id = self.wm.get_project_id(project_dir)
+
+        # Try loading existing state first
+        if self.load_project(project_dir):
+            if progress_callback:
+                progress_callback("Loaded existing project state.")
+            return self.chat_history[-1][1] if self.chat_history else "Project loaded."
+
         if progress_callback:
             progress_callback(f"Scanning {project_dir}...")
         self.current_fingerprint = scan_project_lazy(
@@ -118,6 +152,7 @@ class ProjectAnalysisAgent:
             msg += "\n\nShould I use AI to analyze the paper titles or would you like to provide an arXiv/DOI link?"
 
         self.chat_history.append(("agent", msg))
+        self.save_state()
         return msg
 
     def process_user_input(
@@ -183,6 +218,7 @@ class ProjectAnalysisAgent:
         clean_msg = self._extract_metadata_from_ai_response(ai_response)
 
         self.chat_history.append(("agent", clean_msg))
+        self.save_state()
         return clean_msg
 
     def _extract_metadata_from_ai_response(self, response_text: str) -> str:
