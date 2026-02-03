@@ -83,17 +83,23 @@ class ProjectAnalysisAgent:
         self,
         project_dir: Path,
         progress_callback: Optional[Callable[[str], None]] = None,
+        force_rescan: bool = False,
+        stop_event: Optional[Any] = None,
     ) -> str:
         """Initial scan and heuristic extraction phase."""
         self.project_id = self.wm.get_project_id(project_dir)
 
-        # Try loading existing state first
-        if self.load_project(project_dir):
+        # Try loading existing state first, unless forced rescan
+        if not force_rescan and self.load_project(project_dir):
             if progress_callback:
                 progress_callback("Loaded existing project state.")
+
+            # Update current_metadata to the loaded one explicitly to ensure UI sees it
+            # (though load_project already sets self.current_metadata)
+
             return self.chat_history[-1][1] if self.chat_history else "Project loaded."
 
-        # NEW PROJECT: Clear current state to avoid cross-pollution
+        # NEW PROJECT or FORCED RESCAN: Clear current state
         self.current_metadata = Metadata.model_construct()
         self.chat_history = []
         self.current_fingerprint = None
@@ -101,15 +107,20 @@ class ProjectAnalysisAgent:
         if progress_callback:
             progress_callback(f"Scanning {project_dir}...")
         self.current_fingerprint = scan_project_lazy(
-            project_dir, progress_callback=progress_callback
+            project_dir, progress_callback=progress_callback, stop_event=stop_event
         )
+
+        if stop_event and stop_event.is_set():
+            return "Scan cancelled by user."
 
         # Run Heuristics
         heuristics_data = {}
         candidate_main_files = []
         from opendata.utils import walk_project_files
 
-        for p in walk_project_files(project_dir):
+        for p in walk_project_files(project_dir, stop_event=stop_event):
+            if stop_event and stop_event.is_set():
+                break
             if p.is_file():
                 if progress_callback:
                     progress_callback(f"Checking {p.name}...")
@@ -161,8 +172,9 @@ class ProjectAnalysisAgent:
             main_file = sorted(
                 candidate_main_files, key=lambda x: x.stat().st_size, reverse=True
             )[0]
+            # Use relative path for better UX and consistency
             rel_main_file = main_file.relative_to(project_dir)
-            msg += f"\n\nI think **{rel_main_file}** might be the main research paper. Is it okay to use it as the primary source for a first approximation of the metadata?"
+            msg += f"\n\nI found **{rel_main_file}**. This appears to be your principal publication. Shall I process the full text to extract all metadata at once? (This will send the full file content to the AI)."
         else:
             msg += "\n\nShould I use AI to analyze the paper titles or would you like to provide an arXiv/DOI link?"
 
@@ -176,6 +188,19 @@ class ProjectAnalysisAgent:
         """Main iterative loop with Context Persistence and Tool recognition."""
         if not skip_user_append:
             self.chat_history.append(("user", user_text))
+
+        # ZERO-TOKEN CONFIRMATION CHECK
+        # We check if the last agent message was the "Deep Read" proposal and user said "Yes"
+        last_agent_msg = (
+            self.chat_history[-2][1]
+            if len(self.chat_history) >= 2 and self.chat_history[-2][0] == "agent"
+            else ""
+        )
+        if (
+            "Shall I process the full text" in last_agent_msg
+            and user_text.strip().lower() in ["yes", "y", "sure", "ok", "okay"]
+        ):
+            return self.analyze_full_text(ai_service)
 
         # 1. TOOL RECOGNITION (arXiv/DOI/ORCID)
         arxiv_match = re.search(r"arxiv[:\s]*([\d\.]+)", user_text, re.IGNORECASE)
@@ -228,6 +253,73 @@ class ProjectAnalysisAgent:
         self.chat_history.append(("agent", clean_msg))
         self.save_state()
         return clean_msg
+
+    def analyze_full_text(self, ai_service: Any) -> str:
+        """
+        Executes the One-Shot Full Text Extraction.
+        """
+        if not self.current_fingerprint:
+            return "Error: No project context available."
+
+        # Identify the main file again (heuristic consistency)
+        # Note: We re-scan or rely on the fact that start_analysis just ran.
+        # Ideally, we should have stored the main file candidate path.
+        # For robustness, let's find it again quickly.
+        candidate_main_files = []
+        from opendata.utils import walk_project_files, FullTextReader
+
+        project_dir = Path(self.current_fingerprint.root_path)
+
+        for p in walk_project_files(project_dir):
+            if p.is_file() and p.suffix.lower() in [".tex", ".docx"]:
+                candidate_main_files.append(p)
+
+        if not candidate_main_files:
+            return "I couldn't find the main file anymore. Let's proceed with standard chat."
+
+        main_file = sorted(
+            candidate_main_files, key=lambda x: x.stat().st_size, reverse=True
+        )[0]
+
+        rel_main_file = main_file.relative_to(project_dir)
+
+        self.chat_history.append(
+            ("agent", f"[System] Reading full text of {rel_main_file}...")
+        )
+        self.save_state()
+
+        # Read content
+        full_text = FullTextReader.read_full_text(main_file)
+        if len(full_text) < 100:
+            return f"The file {rel_main_file} seems too empty. Please double check it."
+
+        # Construct Mega-Prompt
+        prompt = self.prompt_manager.render(
+            "full_text_extraction", {"document_text": full_text}
+        )
+
+        # Call AI
+        # Note: This might be a long context call.
+        ai_response = ai_service.ask_agent(prompt)
+
+        # The response should be Pure JSON (mostly).
+        # We reuse _extract_metadata_from_ai_response but need to handle if it returns just JSON without METADATA: tag
+        # The prompt asks for ONLY JSON.
+
+        # Wrap it to reuse the parser logic which expects specific format or just try parsing direct JSON
+        # Let's try to wrap it to be safe with our existing parser
+        wrapped_response = f"METADATA:\n```json\n{ai_response}\n```\nQUESTION: I have extracted the metadata from the full text."
+
+        clean_msg = self._extract_metadata_from_ai_response(wrapped_response)
+
+        final_msg = f"I've analyzed the full text of **{rel_main_file}**.\n\n"
+        final_msg += f"**Title Found:** {self.current_metadata.title}\n"
+        final_msg += f"**Authors:** {len(self.current_metadata.authors or [])} found.\n"
+        final_msg += "\nPlease review the metadata tab to see the details. What would you like to refine?"
+
+        self.chat_history.append(("agent", final_msg))
+        self.save_state()
+        return final_msg
 
     def _extract_metadata_from_ai_response(self, response_text: str) -> str:
         """
@@ -339,6 +431,14 @@ class ProjectAnalysisAgent:
                 updates["keywords"] = [updates["keywords"]]
                 print("[DEBUG] Converted keywords from str to list")
 
+            # Handle kind_of_data: ensure it's a string (AI might return list)
+            if "kind_of_data" in updates and isinstance(updates["kind_of_data"], list):
+                if len(updates["kind_of_data"]) > 0:
+                    updates["kind_of_data"] = str(updates["kind_of_data"][0])
+                else:
+                    updates["kind_of_data"] = None
+                print("[DEBUG] Converted kind_of_data from list to str")
+
             # Handle authors: ensure PersonOrOrg objects
             if "authors" in updates and isinstance(updates["authors"], list):
                 processed_authors = []
@@ -359,9 +459,6 @@ class ProjectAnalysisAgent:
 
         except json.JSONDecodeError as e:
             print(f"[ERROR] Failed to parse JSON in METADATA section: {e}")
-            print(
-                f"[ERROR] Attempted to parse: {json_str if 'json_str' in locals() else 'N/A'}"
-            )
             return response_text
         except Exception as e:
             print(f"[ERROR] Failed to extract metadata from AI response: {e}")

@@ -33,14 +33,26 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                 ).classes("bg-slate-100" if role == "agent" else ""):
                     ui.markdown(msg)
 
-            # Smart scrolling: if last message is agent, scroll to top of it if possible
-            # But simple scrollTo bottom is usually best for "user answer on bottom"
+            if ScanState.is_scanning:
+                with ui.chat_message(
+                    name=_("Agent"),
+                    sent=False,
+                    avatar=None,
+                ).classes("bg-slate-100 animate-pulse"):
+                    ui.markdown(_("Scanning project..."))
+                    ui.button(_("Cancel Scan"), on_click=handle_cancel_scan).props(
+                        "flat color=red icon=cancel"
+                    ).classes("text-xs mt-2")
+
+            # Smart scrolling
             ui.run_javascript("window.scrollTo(0, document.body.scrollHeight)")
 
     class ScanState:
         is_scanning = False
         progress = ""
         progress_label: ui.label = None
+        current_path = ""  # New state for path
+        stop_event = None  # Added for cancellation
 
     @ui.refreshable
     def metadata_preview_ui():
@@ -54,6 +66,9 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                     )
                     .style("direction: rtl; text-align: left;")
                 )
+                ui.button(_("Cancel Scan"), on_click=handle_cancel_scan).props(
+                    "flat color=red icon=cancel"
+                ).classes("text-xs mt-2")
             return
 
         fields = agent.current_metadata.model_dump(exclude_unset=True)
@@ -121,10 +136,36 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                         project_options = {
                             p["path"]: f"{p['title']} ({p['path']})" for p in projects
                         }
+                        # Define path_input early, even if None, to be captured in closure
+                        # But wait, ui elements are created sequentially.
+                        # We need to defer the callback or use a container or bind after creation.
+                        # Easier solution: use a small helper function or simply don't try to update path_input
+                        # if it doesn't exist yet (though it is created below).
+                        # Actually, in NiceGUI/Python, path_input is local variable.
+                        # We can't reference it before assignment in the lambda unless we use nonlocal or a class.
+                        # Let's fix this by moving path_input definition UP, or handling the selection differently.
+
+                        # OPTION 2: Just call handle_scan. path_input will be updated by a separate mechanism or we ignore it for now.
+                        # If we want the input box to update, we need access to it.
+                        # Let's create path_input first, but it is in the sidebar...
+                        # We can store it in a context object.
+
+                        # Define handle_project_selection locally to close over path_input
+                        # But path_input is created LATER in the code (line 280+).
+                        # We need to restructure. Let's move the project selector INSIDE render_analysis_dashboard
+                        # OR create a global/shared state object for the UI.
+
+                        # Simpler fix: Remove the set_value from the top bar for now,
+                        # OR make path_input a global/class member of a UIState class.
+
+                        # Let's use the simplest approach: Just scan. The input box won't update,
+                        # but the scan will happen. The user sees the scan result.
+                        # Updating the input box is nice-to-have but causing scope issues.
+
                         ui.select(
                             options=project_options,
                             label=_("Recent Projects"),
-                            on_change=lambda e: handle_scan(e.value),
+                            on_change=lambda e: handle_load_project(e.value),
                         ).props("dark dense options-dark behavior=menu").classes(
                             "w-64 text-xs"
                         )
@@ -173,6 +214,14 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                 render_setup_wizard()
             else:
                 render_analysis_dashboard()
+
+    # Shared reference for path input
+    # path_input_ref = {"element": None}
+
+    # def handle_project_selection(path: str):
+    #     if path_input_ref["element"]:
+    #         path_input_ref["element"].set_value(path)
+    #     handle_scan(path)
 
     def render_setup_wizard():
         with ui.card().classes(
@@ -250,13 +299,17 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                         ui.tooltip(_("Reset Metadata"))
 
                     with ui.column().classes("gap-2 q-mb-md w-full"):
-                        path_input = ui.input(
-                            label=_("Project Path"), placeholder="/path/to/research"
-                        ).classes("w-full")
+                        path_input = (
+                            ui.input(
+                                label=_("Project Path"), placeholder="/path/to/research"
+                            )
+                            .classes("w-full")
+                            .bind_value(ScanState, "current_path")
+                        )
                         ui.button(
                             _("Analyze Directory"),
                             icon="search",
-                            on_click=lambda: handle_scan(path_input.value),
+                            on_click=lambda: handle_scan(path_input.value, force=True),
                         ).classes("w-full")
 
                     with ui.scroll_area().classes("h-[450px] w-full"):
@@ -286,14 +339,42 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
         ui.notify(_("Logged out from AI"))
         ui.navigate.to("/")
 
-    async def handle_scan(path: str):
+    async def handle_load_project(path: str):
+        if not path:
+            return
+
+        ScanState.current_path = path
+        # Refresh UI to show the new path in input box
+        # We don't need a full refresh if it's bound, but we need to ensure the agent loads it
+
+        import asyncio
+
+        # We call start_analysis but with force_rescan=False (default)
+        # which loads existing state in the agent.
+        await asyncio.to_thread(agent.start_analysis, Path(path))
+
+        chat_messages_ui.refresh()
+        metadata_preview_ui.refresh()
+
+    async def handle_cancel_scan():
+        if ScanState.stop_event:
+            ScanState.stop_event.set()
+            ui.notify(_("Cancelling scan..."))
+
+    async def handle_scan(path: str, force: bool = False):
         if not path:
             ui.notify(_("Please provide a path"), type="warning")
             return
 
+        # Update global state if not already set (e.g. manual typing)
+        ScanState.current_path = path
+
         # Resolve ~ to home directory
         resolved_path = Path(path).expanduser()
 
+        import threading
+
+        ScanState.stop_event = threading.Event()
         ScanState.is_scanning = True
         ScanState.progress = _("Initializing...")
         metadata_preview_ui.refresh()
@@ -305,9 +386,16 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
         import asyncio
 
-        await asyncio.to_thread(agent.start_analysis, resolved_path, update_progress)
+        await asyncio.to_thread(
+            agent.start_analysis,
+            resolved_path,
+            update_progress,
+            force_rescan=force,
+            stop_event=ScanState.stop_event,
+        )
 
         ScanState.is_scanning = False
+        ScanState.stop_event = None
         chat_messages_ui.refresh()
         metadata_preview_ui.refresh()
 

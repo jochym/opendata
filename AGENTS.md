@@ -99,10 +99,17 @@ Every substantial step must have an accompanying automated test. Before completi
   - Implemented `PromptManager` for dynamic rendering of system prompts and chat wrappers.
   - Decoupled AI logic from Python code for easier behavioral tweaking and token optimization.
 
-- **Phase 8 State Control & Isolation [COMPLETE]:**
+- Phase 8 State Control & Isolation [COMPLETE]:
   - Implemented "Clear Chat History" and "Reset Metadata" buttons in the UI.
   - Added project state isolation logic to prevent cross-pollution during directory scans.
   - Fixed literal brace escaping in Markdown templates for Python's `str.format()` compliance.
+
+- **Phase 9 Deep Analysis & UX Refinement [COMPLETE]:**
+  - **Full-Text Reading:** Implemented `FullTextReader` with recursive LaTeX `\input{}` resolution and Docx support.
+  - **One-Shot Extraction:** Added specialized Mega-Prompt for single-pass metadata harvesting from principal publications.
+  - **Interactive UX:** Added "Cancel Scan" capability and reactive Project Path binding.
+  - **Security:** Enhanced scanner to strictly ignore hidden directories (`.*`) and their contents.
+  - **Navigation:** Seamless project switching with state persistence and "Guarded Load" logic.
 
 ## Code Style Guidelines
 
