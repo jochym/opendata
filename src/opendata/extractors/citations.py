@@ -22,8 +22,16 @@ class BibtexExtractor(BaseExtractor):
                     metadata.title = entry["title"].strip("{}")
                 if "author" in entry:
                     # Very simple author split
+                    from opendata.models import PersonOrOrg
+
                     authors = entry["author"].split(" and ")
-                    metadata.authors = [{"name": a.strip("{}")} for a in authors]
+                    metadata.authors = [
+                        PersonOrOrg(
+                            name=a.strip("{} ").replace("{", "").replace("}", "")
+                        )
+                        for a in authors
+                        if a.strip()
+                    ]
                 if "keywords" in entry:
                     metadata.keywords = [
                         k.strip() for k in entry["keywords"].split(",")

@@ -32,6 +32,15 @@ This repository contains the OpenData Tool, designed for preparing metadata and 
 - `src/opendata/utils.py`: Cross-platform, read-only file utilities.
 
 
+## Context Consistency & Chat Loop Best Practices (CRITICAL)
+- **Stateless Model, Stateful Agent:** Models are stateless. The agent must rebuild the full context (System Prompt + Field Protocols + Current Metadata Draft + History) for every request.
+- **Anchor Context with YAML:** The `current_metadata` draft (in YAML) is the "Source of Truth". Always inject it into the prompt. Never rely on the chat history for factual state.
+- **Prompt Ordering:** System Prompt -> Field Protocols -> Current State (Metadata) -> Recent History -> User Input.
+- **Immediate Extraction:** As soon as metadata is found or confirmed by the user, update the internal `Metadata` model. Do not leave it buried in the chat log.
+- **Text-First Approximation:** For scientific projects, the primary text (LaTeX/Docx/PDF-converted-text) is the richest source of metadata. 
+  - **First Prompt Strategy:** The first agent response should summarize gathered heuristics and propose the most likely "main paper" file. 
+  - **The Ask:** "I've gathered these initial details. Is it okay to use [file_name] as the primary source for a first approximation of the metadata?"
+
 ## Build, Lint, and Test Commands
 
 ### Setup & Build

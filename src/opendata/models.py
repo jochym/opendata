@@ -38,16 +38,20 @@ class RelatedResource(BaseModel):
 
 
 class Metadata(BaseModel):
-    # RODBUK Mandatory Fields
-    title: str = Field(..., description="Full dataset title")
-    authors: List[PersonOrOrg] = Field(..., min_length=1)
-    contacts: List[Contact] = Field(..., min_length=1)
-    description: List[str] = Field(..., min_length=1, description="Dataset summaries")
-    keywords: List[str] = Field(..., min_length=1)
-    science_branches_mnisw: List[str] = Field(..., min_length=1)
-    science_branches_oecd: List[str] = Field(..., min_length=1)
-    languages: List[str] = Field(default=["English"], min_length=1)
-    kind_of_data: str = Field(..., description="e.g., 'Experimental', 'Simulation'")
+    # RODBUK Mandatory Fields (Made optional for intermediate drafting)
+    title: Optional[str] = Field(None, description="Full dataset title")
+    authors: List[PersonOrOrg] = Field(default_factory=list)
+    contacts: List[Contact] = Field(default_factory=list)
+    description: List[str] = Field(
+        default_factory=list, description="Dataset summaries"
+    )
+    keywords: List[str] = Field(default_factory=list)
+    science_branches_mnisw: List[str] = Field(default_factory=list)
+    science_branches_oecd: List[str] = Field(default_factory=list)
+    languages: List[str] = Field(default=["English"])
+    kind_of_data: Optional[str] = Field(
+        None, description="e.g., 'Experimental', 'Simulation'"
+    )
 
     # Optional Fields
     alternative_titles: List[str] = Field(default_factory=list)
