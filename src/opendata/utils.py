@@ -84,3 +84,24 @@ def read_file_header(p: Path, max_bytes: int = 4096) -> str:
             return chunk.decode("utf-8", errors="replace")
     except Exception:
         return ""
+
+
+class PromptManager:
+    """Manages external Markdown-based prompt templates."""
+
+    def __init__(self, prompts_dir: Path | None = None):
+        if not prompts_dir:
+            # Assume src/opendata/prompts relative to this file
+            prompts_dir = Path(__file__).parent / "prompts"
+        self.prompts_dir = prompts_dir
+
+    def render(self, template_name: str, context: dict) -> str:
+        """Loads a .md template and renders it with the provided context."""
+        template_path = self.prompts_dir / f"{template_name}.md"
+        if not template_path.exists():
+            return f"Error: Template {template_name} not found."
+
+        with open(template_path, "r", encoding="utf-8") as f:
+            template = f.read()
+
+        return template.format(**context)

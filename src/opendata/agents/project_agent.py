@@ -5,10 +5,8 @@ import json
 import re
 from opendata.models import Metadata, ProjectFingerprint
 from opendata.extractors.base import ExtractorRegistry, PartialMetadata
-from opendata.utils import scan_project_lazy
-
-
 from opendata.workspace import WorkspaceManager
+from opendata.utils import scan_project_lazy, PromptManager
 
 
 class ProjectAnalysisAgent:
@@ -21,7 +19,9 @@ class ProjectAnalysisAgent:
         self.wm = wm
         self.registry = ExtractorRegistry()
         self._setup_extractors()
+        self.prompt_manager = PromptManager()
         self.project_id: Optional[str] = None
+
         self.current_fingerprint: Optional[ProjectFingerprint] = None
         self.current_metadata = Metadata.model_construct()
         self.chat_history: List[Tuple[str, str]] = []  # (Role, Message)
@@ -196,21 +196,14 @@ class ProjectAnalysisAgent:
             [f"{role}: {m}" for role, m in self.chat_history[-10:-1]]
         )
 
-        full_prompt = f"""
-        {context}
-        
-        RECENT CONVERSATION HISTORY:
-        {history_str}
-        
-        LATEST USER INPUT:
-        {enhanced_input}
-        
-        INSTRUCTION: 
-        Respond to the user. Maintain the existing metadata draft in your reasoning.
-        ASK ONE CLEAR FOLLOW-UP QUESTION.
-        If the user confirmed using a file for metadata extraction, the system should process it.
-        If the user asks to search for something (like an ORCID), use the tools provided.
-        """
+        full_prompt = self.prompt_manager.render(
+            "chat_wrapper",
+            {
+                "history": history_str,
+                "user_input": enhanced_input,
+                "context": context,  # This is the system prompt rendered in generate_ai_prompt
+            },
+        )
 
         ai_response = ai_service.ask_agent(full_prompt)
 
@@ -375,45 +368,13 @@ class ProjectAnalysisAgent:
         )
 
         # Domain protocols injection (if implemented/available)
-        # For now, we use a placeholder or injected global instructions
         protocols = "None active."
 
-        prompt = f"""
-        You are a scientific data steward assistant for the RODBUK repository.
-        
-        PROJECT FINGERPRINT:
-        {fingerprint_summary}
-        
-        FIELD PROTOCOLS:
-        {protocols}
-        
-        CURRENT METADATA DRAFT (YAML):
-        {current_data}
-        
-        INSTRUCTIONS:
-        1. Propose research metadata based on files and structure.
-        2. Identify what is missing for a valid RODBUK package.
-        3. NEVER ask for information already present in the CURRENT METADATA DRAFT.
-        4. Ask ONE clear, non-technical question to fill a missing gap.
-        5. If the user mentions a specific file for extraction, focus on that file's inferred content.
-        
-        Response format (STRICT):
-        THOUGHTS: <brief internal reasoning>
-        METADATA: <VALID JSON with new/updated metadata fields>
-        QUESTION: <the question to the user>
-        
-        JSON Requirements:
-        - Use DOUBLE quotes (") for all strings, NOT single quotes (')
-        - Use null for missing values, NOT None
-        - Use lowercase true/false, NOT True/False
-        - Ensure all JSON is valid and parseable
-        
-        Field Formats:
-        - title: string (e.g., "Research Title")
-        - authors: list of objects [{{"name": "Full Name"}}, ...]
-        - description: string or list of strings (project abstract/summary)
-        - keywords: list of strings ["keyword1", "keyword2", ...]
-        - kind_of_data: string (e.g., "Experimental", "Simulation", "Columnar Numerical Data")
-        - language: string (e.g., "en", "pl")
-        """
-        return prompt
+        return self.prompt_manager.render(
+            "system_prompt",
+            {
+                "fingerprint": fingerprint_summary,
+                "metadata": current_data,
+                "protocols": protocols,
+            },
+        )

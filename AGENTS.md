@@ -94,6 +94,11 @@ Every substantial step must have an accompanying automated test. Before completi
   - Top-bar project selector for seamless switching between research directories.
   - Verified logic with `tests/test_workspace.py`.
 
+- **Phase 7 Prompt Factorization & Management [COMPLETE]:**
+  - Moved hardcoded AI prompts to external Markdown templates in `src/opendata/prompts/`.
+  - Implemented `PromptManager` for dynamic rendering of system prompts and chat wrappers.
+  - Decoupled AI logic from Python code for easier behavioral tweaking and token optimization.
+
 ## Code Style Guidelines
 
 ### 1. Multi-Platform Compatibility & i18n
