@@ -3,29 +3,37 @@ from pathlib import Path
 from opendata.extractors.base import BaseExtractor, PartialMetadata
 from opendata.utils import read_file_header
 
-
 class LatexExtractor(BaseExtractor):
-    """Extracts metadata from LaTeX files using regex."""
+    """Extracts metadata from LaTeX files using robust regex for multiple authors."""
 
     def can_handle(self, filepath: Path) -> bool:
         return filepath.suffix.lower() == ".tex"
 
     def extract(self, filepath: Path) -> PartialMetadata:
-        # Read the first 8KB of the TeX file (usually contains the preamble)
-        content = read_file_header(filepath, max_bytes=8192)
-
+        content = read_file_header(filepath, max_bytes=16384) # Read more for large preambles
         metadata = PartialMetadata()
-
-        # Title extraction: \title{...}
+        
+        # 1. Title
         title_match = re.search(r"\\title\{([^}]+)\}", content)
         if title_match:
             metadata.title = title_match.group(1).strip()
 
-        # Author extraction: \author{...}
-        # Note: This is a simple regex, might need AI for complex cases
-        author_match = re.search(r"\\author\{([^}]+)\}", content)
-        if author_match:
-            # Placeholder for name parsing logic
-            metadata.authors = [{"name": author_match.group(1).strip()}]
+        # 2. Authors (Handling multiple formats)
+        # We look for all \author blocks and handle internal separators
+        authors = []
+        author_blocks = re.findall(r"\\author\{([^}]+)\}", content)
+        
+        for block in author_blocks:
+            # Clean up LaTeX macros like \and, \inst, \thanks, \orcidlink
+            clean_block = re.sub(r"\\[a-zA-Z]+(\[[^\]]*\])?(\{[^\}]*\})?", " ", block)
+            # Split by common separators: comma, 'and', \and
+            parts = re.split(r",|\band\b|\\and", clean_block)
+            for p in parts:
+                name = p.strip()
+                if name and len(name) > 2:
+                    authors.append({"name": name})
+        
+        if authors:
+            metadata.authors = authors
 
         return metadata

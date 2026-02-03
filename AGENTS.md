@@ -66,6 +66,9 @@ Every substantial step must have an accompanying automated test. Before completi
   - `AI_SETUP.md`: Clear developer instructions for Cloud Console configuration.
   - `ProjectAnalysisAgent`: Initial integration of heuristics and AI state.
   - **Iterative Chat Loop:** Implemented stateful conversation engine with 5-message context window and specialized physics reasoning (VASP/Phonopy/ALAMODE).
+  - **External Tools:** Added recognition and automated fetching for arXiv, DOI, and ORCID identifiers.
+  - **Google Search Grounding:** Enabled Gemini web search for factual verification.
+  - **Model Persistence:** Integrated real-time model switching with context awareness.
 - **Phase 4 Packaging & Validation [COMPLETE]:**
   - `PackagingService`: Zip-based RODBUK package generation.
   - `Metadata Validator`: Domain-specific checks for scientific compliance.

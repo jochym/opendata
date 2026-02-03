@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2026-02-02
+### Added
+- **First Semi-Working Demo:**
+  - Stable Gemini interaction using `google-generativeai` (v1).
+  - External Tools: Integrated arXiv API, DOI resolver, and ORCID search/profile lookup.
+  - Google Search Grounding: Agent can now verify facts via live web search.
+  - Multi-Author Extraction: Improved `LatexExtractor` to detect full author lists.
+  - Interactive Model Selector: Users can switch Gemini models in real-time.
+  - Advanced i18n: Polish/English support across all UI elements using GNU gettext.
+  - Physics Toolchain: Specialized detection for VASP, Phonopy, and ALAMODE.
+  - Reactive Dashboard: No-reload UI with smooth chat scrolling and metadata preview.
+  - Security: Force binding to 0.0.0.0 for VPN access (toggleable) and OAuth2 scope refinement.
+
 ## [0.1.0] - 2026-01-31
 ### Added
 - Initial project scaffolding with `src/opendata` structure.
