@@ -112,10 +112,10 @@ Every substantial step must have an accompanying automated test. Before completi
   - **Navigation:** Seamless project switching with state persistence and "Guarded Load" logic.
 
 - **Phase 10 UI/UX Enhancement [COMPLETE]:**
-  - **Metadata Preview:** Redesigned authors display with inline-icons and tooltip overlays for ORCID/affiliation details.
-  - **Keywords Display:** Updated to match authors' styling with compact, wrapped badge-like presentation.
-  - **Layout Optimization:** Improved space utilization with consistent label positioning and streamlined content blocks.
-  - **Chat Interface:** Overhauled with card-based bubbles, multiline input, and full-viewport height coordination.
+  - **Metadata Preview:** Redesigned authors/keywords with inline-icons, tooltips, and compact badges.
+  - **Layout Optimization:** Implemented "magazine-style" text truncation with "more..." toggles and full-viewport height coordination.
+  - **Chat Interface:** Overhauled with card-based bubbles, multiline input, and Ctrl+Enter submission.
+  - **Persistence:** Enabled per-project and global AI model selection memory.
 
 ## Code Style Guidelines
 

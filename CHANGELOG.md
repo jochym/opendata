@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.3] - 2026-02-04
+### Added
+- **UI Refinements:**
+  - Redesigned metadata text boxes with clean "magazine-style" truncation (1.5 line-height, 110px height).
+  - Implemented "more..." / "less..." toggle for long text fields with zero vertical padding.
+  - Centralized UI state management to resolve `NameError` and `UnboundLocalError` issues.
+- **Persistence:**
+  - Added per-project AI model persistence (`ai_model` in metadata).
+  - Added global AI model defaults (`google_model` in settings).
+  - Reactive header updates when restoring project-specific models.
+
 ## [0.4.2] - 2026-02-04
 ### Added
 - **Chat UI Overhaul:**
