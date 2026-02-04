@@ -131,7 +131,9 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                 ScanState.progress_label = temp_label  # type: ignore[attr-defined]
             return
 
-        project_selector_ui.refresh()  # type: ignore
+        # Explicitly refresh header when metadata changes to sync project selector
+        header_content_ui.refresh()  # type: ignore
+
         fields = agent.current_metadata.model_dump(exclude_unset=True)
 
         def create_expandable_text(text: str):
@@ -236,9 +238,14 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
         projects = wm.list_projects()
         if not projects:
             return
+
+        # Identify current project by path to set as default value
+        current_val = ScanState.current_path if ScanState.current_path else None
+
         project_options = {p["path"]: f"{p['title']} ({p['path']})" for p in projects}
         ui.select(
             options=project_options,
+            value=current_val,
             label=_("Recent Projects"),
             on_change=lambda e: handle_load_project(e.value),
         ).props("dark dense options-dark behavior=menu").classes("w-64 text-xs")
@@ -351,7 +358,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
     def render_analysis_dashboard():
         with ui.row().classes(
-            "w-full gap-6 no-wrap items-start h-[calc(100vh-100px)] min-h-[600px]"
+            "w-full gap-6 no-wrap items-start h-[calc(100vh-110px)] min-h-[600px]"
         ):
             with ui.column().classes("flex-grow h-full"):
                 with ui.card().classes("w-full h-full p-0 shadow-md flex flex-col"):

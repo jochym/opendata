@@ -12,6 +12,8 @@ All notable changes to this project will be documented in this file.
   - Added per-project AI model persistence (`ai_model` in metadata).
   - Added global AI model defaults (`google_model` in settings).
   - Reactive header updates when restoring project-specific models.
+- **Project Sync:**
+  - Fixed project selector state to correctly display the active project name after switching.
 
 ## [0.4.2] - 2026-02-04
 ### Added

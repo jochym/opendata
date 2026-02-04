@@ -116,6 +116,7 @@ Every substantial step must have an accompanying automated test. Before completi
   - **Layout Optimization:** Implemented "magazine-style" text truncation with "more..." toggles and full-viewport height coordination.
   - **Chat Interface:** Overhauled with card-based bubbles, multiline input, and Ctrl+Enter submission.
   - **Persistence:** Enabled per-project and global AI model selection memory.
+  - **State Sync:** Synchronized project and model selectors across all UI refreshes.
 
 ## Code Style Guidelines
 
