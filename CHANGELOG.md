@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.1] - 2026-02-04
+### Added
+- **UI Flexibility:**
+  - **Resizable Layout:** Implemented vertical splitter between Agent Interaction and Metadata panels.
+  - **Position Persistence:** Dashboard remembers the last used splitter position across sessions.
+- **Improved Scanner Feedback:**
+  - Unified header statistics (`[Size] - Current/Total`) during both scanning and checking phases.
+  - Fixed duplicate bracket formatting in progress messages.
+- **Robustness:**
+  - Refined project deletion fallback logic to ensure partially initialized projects are fully wiped.
+
 ## [0.6.0] - 2026-02-04
 ### Added
 - **Optimized Scanner:**

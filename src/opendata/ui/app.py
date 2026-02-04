@@ -539,86 +539,96 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                     )
 
     def render_analysis_dashboard():
-        with ui.row().classes(
-            "w-full gap-6 no-wrap items-start h-[calc(100vh-110px)] min-h-[600px]"
-        ):
-            with ui.column().classes("flex-grow h-full"):
-                with ui.card().classes("w-full h-full p-0 shadow-md flex flex-col"):
-                    with ui.row().classes(
-                        "bg-slate-100 text-slate-800 p-3 w-full justify-between items-center shrink-0"
-                    ):
-                        ui.label(_("Agent Interaction")).classes("font-bold")
-                        with ui.row().classes("gap-2"):
-                            ui.button(
-                                icon="delete_sweep", on_click=handle_clear_chat
-                            ).props("flat dense color=red").classes("text-xs")
-                            ui.tooltip(_("Clear Chat History"))
-                    with ui.scroll_area().classes("flex-grow w-full"):
-                        chat_messages_ui()
-                    with ui.row().classes(
-                        "bg-white p-3 border-t w-full items-center no-wrap gap-2 shrink-0"
-                    ):
-                        user_input = (
-                            ui.textarea(
-                                placeholder=_(
-                                    "Type your response (Ctrl+Enter or button to send)..."
+        def on_splitter_change(e):
+            settings.splitter_value = e.value
+            wm.save_yaml(settings, "settings.yaml")
+
+        with ui.splitter(
+            value=settings.splitter_value, on_change=on_splitter_change
+        ).classes("w-full h-[calc(100vh-110px)] min-h-[600px]") as splitter:
+            with splitter.before:
+                with ui.column().classes("w-full h-full pr-4"):
+                    with ui.card().classes("w-full h-full p-0 shadow-md flex flex-col"):
+                        with ui.row().classes(
+                            "bg-slate-100 text-slate-800 p-3 w-full justify-between items-center shrink-0"
+                        ):
+                            ui.label(_("Agent Interaction")).classes("font-bold")
+                            with ui.row().classes("gap-2"):
+                                ui.button(
+                                    icon="delete_sweep", on_click=handle_clear_chat
+                                ).props("flat dense color=red").classes("text-xs")
+                                ui.tooltip(_("Clear Chat History"))
+                        with ui.scroll_area().classes("flex-grow w-full"):
+                            chat_messages_ui()
+                        with ui.row().classes(
+                            "bg-white p-3 border-t w-full items-center no-wrap gap-2 shrink-0"
+                        ):
+                            user_input = (
+                                ui.textarea(
+                                    placeholder=_(
+                                        "Type your response (Ctrl+Enter or button to send)..."
+                                    )
                                 )
+                                .classes("flex-grow")
+                                .props("rows=3")
                             )
-                            .classes("flex-grow")
-                            .props("rows=3")
-                        )
 
-                        async def handle_ctrl_enter(e):
-                            if getattr(e.args, "ctrlKey", False):
-                                await handle_user_msg(user_input)
+                            async def handle_ctrl_enter(e):
+                                if getattr(e.args, "ctrlKey", False):
+                                    await handle_user_msg(user_input)
 
-                        user_input.on("keydown.enter", handle_ctrl_enter)
-                        ui.button(
-                            icon="send", on_click=lambda: handle_user_msg(user_input)
-                        ).props("round elevated color=primary")
+                            user_input.on("keydown.enter", handle_ctrl_enter)
+                            ui.button(
+                                icon="send",
+                                on_click=lambda: handle_user_msg(user_input),
+                            ).props("round elevated color=primary")
 
-            with ui.column().classes("w-96 shrink-0 h-full"):
-                with ui.card().classes(
-                    "w-full h-full p-4 shadow-md border-l-4 border-green-500 flex flex-col"
-                ):
-                    with ui.row().classes(
-                        "w-full justify-between items-center q-mb-md shrink-0"
+            with splitter.after:
+                with ui.column().classes("w-full h-full pl-4"):
+                    with ui.card().classes(
+                        "w-full h-full p-4 shadow-md border-l-4 border-green-500 flex flex-col"
                     ):
-                        ui.label(_("RODBUK Metadata")).classes(
-                            "text-h6 font-bold text-green-800"
-                        )
-                        ui.button(icon="refresh", on_click=handle_clear_metadata).props(
-                            "flat dense color=orange"
-                        )
-                        ui.tooltip(_("Reset Metadata"))
-                    with ui.column().classes("gap-2 q-mb-md w-full shrink-0"):
-                        path_input = (
-                            ui.input(
-                                label=_("Project Path"), placeholder="/path/to/research"
+                        with ui.row().classes(
+                            "w-full justify-between items-center q-mb-md shrink-0"
+                        ):
+                            ui.label(_("RODBUK Metadata")).classes(
+                                "text-h6 font-bold text-green-800"
                             )
-                            .classes("w-full")
-                            .bind_value(ScanState, "current_path")
-                        )
+                            ui.button(
+                                icon="refresh", on_click=handle_clear_metadata
+                            ).props("flat dense color=orange")
+                            ui.tooltip(_("Reset Metadata"))
+                        with ui.column().classes("gap-2 q-mb-md w-full shrink-0"):
+                            path_input = (
+                                ui.input(
+                                    label=_("Project Path"),
+                                    placeholder="/path/to/research",
+                                )
+                                .classes("w-full")
+                                .bind_value(ScanState, "current_path")
+                            )
+                            ui.button(
+                                _("Analyze Directory"),
+                                icon="search",
+                                on_click=lambda: handle_scan(
+                                    path_input.value, force=True
+                                ),
+                            ).classes("w-full").bind_visibility_from(
+                                ScanState, "is_scanning", backward=lambda x: not x
+                            )
+                            ui.button(
+                                _("Cancel Scan"),
+                                icon="stop",
+                                on_click=handle_cancel_scan,
+                                color="red",
+                            ).classes("w-full").bind_visibility_from(
+                                ScanState, "is_scanning"
+                            )
+                        with ui.scroll_area().classes("flex-grow w-full"):
+                            metadata_preview_ui()
                         ui.button(
-                            _("Analyze Directory"),
-                            icon="search",
-                            on_click=lambda: handle_scan(path_input.value, force=True),
-                        ).classes("w-full").bind_visibility_from(
-                            ScanState, "is_scanning", backward=lambda x: not x
-                        )
-                        ui.button(
-                            _("Cancel Scan"),
-                            icon="stop",
-                            on_click=handle_cancel_scan,
-                            color="red",
-                        ).classes("w-full").bind_visibility_from(
-                            ScanState, "is_scanning"
-                        )
-                    with ui.scroll_area().classes("flex-grow w-full"):
-                        metadata_preview_ui()
-                    ui.button(
-                        _("Build Package"), icon="archive", color="green"
-                    ).classes("w-full q-mt-md font-bold shrink-0")
+                            _("Build Package"), icon="archive", color="green"
+                        ).classes("w-full q-mt-md font-bold shrink-0")
 
     async def handle_auth_provider(provider: str):
         settings.ai_provider = provider

@@ -132,6 +132,11 @@ Every substantial step must have an accompanying automated test. Before completi
   - **Smart Path Shortening:** Improved path shortening (first two/last two components) with full-path tooltips.
   - **Robust Project Management:** Fixed deletion logic for partial/corrupt projects and ensured ID consistency via path resolution.
 
+- **Phase 13 Layout Flexibility [COMPLETE]:**
+  - **Resizable Dashboard:** Replaced static layout with `ui.splitter` for adjustable chat/metadata panels.
+  - **Layout Persistence:** Integrated real-time saving of splitter position to global user settings.
+  - **Enhanced UI Feedback:** Unified statistics and file-progress display in the scanner header.
+
 ## Code Style Guidelines
 
 ### 1. Multi-Platform Compatibility & i18n

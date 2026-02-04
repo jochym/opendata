@@ -6,6 +6,7 @@ from pathlib import Path
 class UserSettings(BaseModel):
     language: Literal["en", "pl"] = "en"
     ai_consent_granted: bool = False
+    splitter_value: float = 70.0  # Percentage for the chat/metadata split
 
     # AI Configuration
     ai_provider: Literal["google", "openai"] = "google"
