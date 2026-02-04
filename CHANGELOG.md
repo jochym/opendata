@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.2] - 2026-02-04
+### Added
+- **Chat UI Overhaul:**
+  - Modern, compact card-based design for chat messages.
+  - Aligned user/agent message widths with consistent right margins and left indentation for user prompts.
+  - Multiline `textarea` input with Ctrl+Enter submission.
+  - Agent messages use light grey background for clear distinction.
+- **Layout Coordination:**
+  - Dashboard panels now use 100% viewport height (`h-[calc(100vh-120px)]`).
+  - Synced vertical scrolling between chat and metadata preview panels.
+
 ## [0.4.1] - 2026-02-04
 ### Added
 - **Enhanced Metadata Preview:**

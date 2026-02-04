@@ -25,28 +25,42 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
     @ui.refreshable
     def chat_messages_ui():
-        with ui.column().classes("w-full gap-4"):
+        with ui.column().classes("w-full gap-2 overflow-x-hidden"):
             for role, msg in agent.chat_history:
-                with ui.chat_message(
-                    name=_("Agent") if role == "agent" else _("You"),
-                    sent=role == "user",
-                    avatar=None,
-                ).classes("bg-slate-100" if role == "agent" else ""):
-                    ui.markdown(msg)
+                if role == "user":
+                    # User message - padded from left, even right margin
+                    with ui.row().classes("w-full justify-start"):
+                        with ui.card().classes(
+                            "bg-blue-50 border border-blue-100 rounded-lg p-2 w-full ml-12 shadow-none"
+                        ):
+                            ui.markdown(msg).classes(
+                                "text-sm text-gray-800 m-0 p-0 break-words"
+                            )
+                else:
+                    # Agent message - full width (even right margin), light grey
+                    with ui.row().classes("w-full justify-start"):
+                        with ui.card().classes(
+                            "bg-gray-100 border border-gray-200 rounded-lg p-2 w-full shadow-none"
+                        ):
+                            ui.markdown(msg).classes(
+                                "text-sm text-gray-800 m-0 p-0 break-words"
+                            )
 
             if ScanState.is_scanning:
-                with ui.chat_message(
-                    name=_("Agent"),
-                    sent=False,
-                    avatar=None,
-                ).classes("bg-slate-100 animate-pulse"):
-                    ui.markdown(_("Scanning project..."))
-                    ui.button(_("Cancel Scan"), on_click=handle_cancel_scan).props(
-                        "flat color=red icon=cancel"
-                    ).classes("text-xs mt-2")
+                with ui.row().classes("w-full justify-start"):
+                    with ui.card().classes(
+                        "bg-gray-100 border border-gray-200 rounded-lg p-2 w-full shadow-none"
+                    ):
+                        with ui.row().classes("items-center gap-1"):
+                            ui.markdown(_("Scanning project...")).classes(
+                                "text-sm text-gray-800 m-0 p-0"
+                            )
+                            ui.button("", on_click=handle_cancel_scan).props(
+                                "icon=close flat color=gray size=xs"
+                            ).classes("min-h-6 min-w-6 p-0.5")
 
-            # Smart scrolling
-            ui.run_javascript("window.scrollTo(0, document.body.scrollHeight)")
+        # Smart scrolling
+        ui.run_javascript("window.scrollTo(0, document.body.scrollHeight)")
 
     class ScanState:
         is_scanning = False
@@ -282,12 +296,15 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
             ).classes("w-full py-4 bg-primary text-white font-bold rounded-lg")
 
     def render_analysis_dashboard():
-        with ui.row().classes("w-full gap-6 no-wrap items-start"):
+        # Use full viewport height minus header and margins
+        with ui.row().classes(
+            "w-full gap-6 no-wrap items-start h-[calc(100vh-120px)] min-h-[600px]"
+        ):
             # LEFT: Agent Chat
-            with ui.column().classes("flex-grow"):
-                with ui.card().classes("w-full h-[700px] p-0 shadow-md flex flex-col"):
+            with ui.column().classes("flex-grow h-full"):
+                with ui.card().classes("w-full h-full p-0 shadow-md flex flex-col"):
                     with ui.row().classes(
-                        "bg-slate-100 text-slate-800 p-3 w-full justify-between items-center"
+                        "bg-slate-100 text-slate-800 p-3 w-full justify-between items-center shrink-0"
                     ):
                         ui.label(_("Agent Interaction")).classes("font-bold")
                         with ui.row().classes("gap-2"):
@@ -297,29 +314,42 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                             ).props("flat dense color=red").classes("text-xs")
                             ui.tooltip(_("Clear Chat History"))
 
-                    with ui.scroll_area().classes("flex-grow q-pa-md"):
+                    with ui.scroll_area().classes("flex-grow w-full"):
                         chat_messages_ui()
 
                     with ui.row().classes(
-                        "bg-white p-3 border-t w-full items-center no-wrap gap-2"
+                        "bg-white p-3 border-t w-full items-center no-wrap gap-2 shrink-0"
                     ):
-                        user_input = ui.input(
-                            placeholder=_("Type your response...")
-                        ).classes("flex-grow")
-                        user_input.on(
-                            "keydown.enter", lambda: handle_user_msg(user_input)
+                        user_input = (
+                            ui.textarea(
+                                placeholder=_(
+                                    "Type your response (Ctrl+Enter or button to send)..."
+                                )
+                            )
+                            .classes("flex-grow")
+                            .props("rows=3")
                         )
-                        ui.button(
-                            icon="send", on_click=lambda: handle_user_msg(user_input)
-                        ).props("round elevated color=primary")
+
+                        async def handle_ctrl_enter(e):
+                            if e.modifier.ctrl:
+                                await handle_user_msg(user_input)
+
+                        user_input.on("keydown.enter", handle_ctrl_enter)
+
+                        async def handle_send():
+                            await handle_user_msg(user_input)
+
+                        ui.button(icon="send", on_click=handle_send).props(
+                            "round elevated color=primary"
+                        )
 
             # RIGHT: Metadata Preview
-            with ui.column().classes("w-96 shrink-0"):
+            with ui.column().classes("w-96 shrink-0 h-full"):
                 with ui.card().classes(
-                    "w-full p-4 shadow-md border-l-4 border-green-500"
+                    "w-full h-full p-4 shadow-md border-l-4 border-green-500 flex flex-col"
                 ):
                     with ui.row().classes(
-                        "w-full justify-between items-center q-mb-md"
+                        "w-full justify-between items-center q-mb-md shrink-0"
                     ):
                         ui.label(_("RODBUK Metadata")).classes(
                             "text-h6 font-bold text-green-800"
@@ -330,7 +360,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                         ).props("flat dense color=orange")
                         ui.tooltip(_("Reset Metadata"))
 
-                    with ui.column().classes("gap-2 q-mb-md w-full"):
+                    with ui.column().classes("gap-2 q-mb-md w-full shrink-0"):
                         path_input = (
                             ui.input(
                                 label=_("Project Path"), placeholder="/path/to/research"
@@ -344,12 +374,12 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                             on_click=lambda: handle_scan(path_input.value, force=True),
                         ).classes("w-full")
 
-                    with ui.scroll_area().classes("h-[450px] w-full"):
+                    with ui.scroll_area().classes("flex-grow w-full"):
                         metadata_preview_ui()
 
                     ui.button(
                         _("Build Package"), icon="archive", color="green"
-                    ).classes("w-full q-mt-md font-bold")
+                    ).classes("w-full q-mt-md font-bold shrink-0")
 
     async def handle_auth():
         if ai.authenticate(silent=False):

@@ -115,6 +115,7 @@ Every substantial step must have an accompanying automated test. Before completi
   - **Metadata Preview:** Redesigned authors display with inline-icons and tooltip overlays for ORCID/affiliation details.
   - **Keywords Display:** Updated to match authors' styling with compact, wrapped badge-like presentation.
   - **Layout Optimization:** Improved space utilization with consistent label positioning and streamlined content blocks.
+  - **Chat Interface:** Overhauled with card-based bubbles, multiline input, and full-viewport height coordination.
 
 ## Code Style Guidelines
 
