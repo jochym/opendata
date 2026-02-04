@@ -80,6 +80,7 @@ Every substantial step must have an accompanying automated test. Before completi
   - **Model Persistence:** Integrated real-time model switching with context awareness.
 - **Phase 4 Packaging & Validation [COMPLETE]:**
   - `PackagingService`: Zip-based RODBUK package generation.
+  - **Metadata-Only Builder:** Implementation of intermediate packaging for submission skeletons (metadata + docs).
   - `Metadata Validator`: Domain-specific checks for scientific compliance.
   - **Read-Only Guarantee:** Verified that data is copied to workspace without modifying source.
 

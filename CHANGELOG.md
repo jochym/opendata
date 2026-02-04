@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0] - 2026-02-04
+### Added
+- **Metadata Package Builder:**
+  - **Specialized ZIP Generation:** Implemented `generate_metadata_package` to create a lightweight submission skeleton containing only `metadata.yaml`, `metadata.json`, and root documentation.
+  - **Smart Doc Discovery:** Automated identification of standard documentation files (`README*`, `LICENSE*`, `CITATION*`, `codemeta.json`) from the project root.
+  - **Mandatory Field Validation:** Integrated pre-flight checks against RODBUK schema (Title, Authors, Contacts, Science Branches) before packaging.
+  - **Frictionless Download:** Connected the UI \"Build Package\" button to trigger a direct browser download via `ui.download`.
+  - **Feedback Loop:** Automatic assistant confirmation in the chat history upon successful package creation.
+- **CI/CD & Distribution:**
+  - **Cross-Platform Workflows:** Added GitHub Actions for automated Windows (.exe), macOS (.dmg), and Linux (.tar.gz) builds.
+  - **Updated Testing Portal:** Refreshed the beta testing website (v0.9.3-beta) with new roadmap milestones and download assets.
+- **Testing:**
+  - **Packager Test Suite:** Added `tests/test_packager.py` to verify documentation inclusion and research data exclusion rules.
+
 ## [0.6.1] - 2026-02-04
 ### Added
 - **UI Flexibility:**

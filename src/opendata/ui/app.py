@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 from opendata.utils import get_local_ip
 from opendata.workspace import WorkspaceManager
+from opendata.packager import PackagingService
 from opendata.agents.project_agent import ProjectAnalysisAgent
 from opendata.ai.service import AIService
 from opendata.i18n.translator import setup_i18n, _
@@ -17,6 +18,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
     agent = ProjectAnalysisAgent(wm)
     ai = AIService(Path(settings.workspace_path), settings)
+    packaging_service = PackagingService(Path(settings.workspace_path))
 
     # Initialize model from global settings
     if settings.ai_provider == "google" and settings.google_model:
@@ -626,8 +628,69 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                             )
                         with ui.scroll_area().classes("flex-grow w-full"):
                             metadata_preview_ui()
+
+                        async def handle_build_package():
+                            if not ScanState.current_path:
+                                ui.notify(
+                                    _("Please select a project first."), type="warning"
+                                )
+                                return
+
+                            # Validation
+                            errors = packaging_service.validate_for_rodbuk(
+                                agent.current_metadata
+                            )
+                            if errors:
+                                ui.notify(
+                                    _("Metadata validation failed:")
+                                    + "\n"
+                                    + "\n".join(errors),
+                                    type="negative",
+                                    multi_line=True,
+                                )
+                                return
+
+                            try:
+                                ui.notify(_("Building metadata package..."))
+                                import asyncio
+
+                                pkg_path = await asyncio.to_thread(
+                                    packaging_service.generate_metadata_package,
+                                    Path(ScanState.current_path),
+                                    agent.current_metadata,
+                                )
+                                ui.notify(
+                                    _("Package created: {name}").format(
+                                        name=pkg_path.name
+                                    ),
+                                    type="positive",
+                                )
+                                # Trigger browser download
+                                ui.download(pkg_path)
+
+                                # Add a message to the chat history for visibility
+                                agent.chat_history.append(
+                                    (
+                                        "assistant",
+                                        _(
+                                            "Package created successfully: {name}"
+                                        ).format(name=pkg_path.name),
+                                    )
+                                )
+                                chat_messages_ui.refresh()
+                            except Exception as e:
+                                ui.notify(
+                                    _("Failed to build package: {error}").format(
+                                        error=str(e)
+                                    ),
+                                    type="negative",
+                                )
+
                         ui.button(
-                            _("Build Package"), icon="archive", color="green"
+                            _("Build Package"),
+                            icon="archive",
+                            color="green",
+                            on_click=handle_build_package,
                         ).classes("w-full q-mt-md font-bold shrink-0")
 
     async def handle_auth_provider(provider: str):

@@ -1,5 +1,6 @@
 import zipfile
 import yaml
+import json
 from pathlib import Path
 from opendata.models import Metadata
 from opendata.utils import walk_project_files
@@ -10,6 +11,42 @@ class PackagingService:
 
     def __init__(self, workspace_path: Path):
         self.workspace_path = workspace_path
+
+    def generate_metadata_package(
+        self,
+        project_dir: Path,
+        metadata: Metadata,
+        package_name: str = "rodbuk_package",
+    ) -> Path:
+        """
+        Creates a ZIP package containing ONLY the metadata and root documentation.
+        Excludes research data.
+        """
+        target_zip = self.workspace_path / f"{package_name}.zip"
+
+        with zipfile.ZipFile(target_zip, "w", zipfile.ZIP_DEFLATED) as zf:
+            # 1. Generated Metadata (YAML and JSON)
+            metadata_yaml = yaml.dump(
+                metadata.model_dump(), allow_unicode=True, sort_keys=False
+            )
+            zf.writestr("metadata.yaml", metadata_yaml)
+            zf.writestr("metadata.json", metadata.model_dump_json(indent=2))
+
+            # 2. Root Documentation (Standard files)
+            doc_prefixes = ("README", "LICENSE", "COPYING", "CITATION", "NOTICE")
+            exact_docs = ("codemeta.json",)
+
+            for p in project_dir.iterdir():
+                if p.is_file():
+                    name_upper = p.name.upper()
+                    is_doc = any(
+                        name_upper.startswith(pref) for pref in doc_prefixes
+                    ) or (p.name.lower() in exact_docs)
+
+                    if is_doc:
+                        zf.write(p, arcname=p.name)
+
+        return target_zip
 
     def generate_package(
         self,
