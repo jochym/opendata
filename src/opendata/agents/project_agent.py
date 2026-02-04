@@ -189,6 +189,29 @@ class ProjectAnalysisAgent:
         if not skip_user_append:
             self.chat_history.append(("user", user_text))
 
+        # 1. EXTRACT @FILES
+        extra_files = []
+        at_matches = re.findall(r"@([^\s,]+)", user_text)
+        if at_matches and self.current_fingerprint:
+            project_dir = Path(self.current_fingerprint.root_path)
+            for fname in at_matches:
+                # Try finding by name in the whole project (first match)
+                # or just relative to root if it contains separators
+                if "/" in fname or "\\" in fname:
+                    p = project_dir / fname
+                    if p.exists():
+                        extra_files.append(p)
+                else:
+                    # Look in root first
+                    p = project_dir / fname
+                    if p.exists():
+                        extra_files.append(p)
+                    else:
+                        # Recursive search for the filename
+                        found = list(project_dir.glob(f"**/{fname}"))
+                        if found:
+                            extra_files.append(found[0])
+
         # ZERO-TOKEN CONFIRMATION CHECK
         # We check if the last agent message was the "Deep Read" proposal and user said "Yes"
         last_agent_msg = (
@@ -196,13 +219,38 @@ class ProjectAnalysisAgent:
             if len(self.chat_history) >= 2 and self.chat_history[-2][0] == "agent"
             else ""
         )
-        if (
-            "Shall I process the full text" in last_agent_msg
-            and user_text.strip().lower() in ["yes", "y", "sure", "ok", "okay"]
-        ):
-            return self.analyze_full_text(ai_service)
+        if "Shall I process the full text" in last_agent_msg:
+            # Check if user said "yes" (possibly with @files)
+            clean_input = re.sub(r"@([^\s,]+)", "", user_text).strip().lower()
+            if any(ok in clean_input for ok in ["yes", "y", "sure", "ok", "okay"]):
+                return self.analyze_full_text(ai_service, extra_files=extra_files)
 
-        # 1. TOOL RECOGNITION (arXiv/DOI/ORCID)
+        enhanced_input = user_text
+        # ADD EXTRA FILES TO CONTEXT IF @ MENTIONED in standard chat
+        if extra_files and self.current_fingerprint:
+            extra_context = []
+            from opendata.utils import FullTextReader
+
+            project_dir = Path(self.current_fingerprint.root_path)
+            for p in extra_files:
+                content = FullTextReader.read_full_text(p)
+                if content:
+                    rel_p = (
+                        p.relative_to(project_dir)
+                        if p.is_relative_to(project_dir)
+                        else p.name
+                    )
+                    extra_context.append(
+                        f"--- USER-REQUESTED FILE: {rel_p} ---\n{content}"
+                    )
+
+            if extra_context:
+                enhanced_input = (
+                    f"{user_text}\n\n[CONTEXT FROM ATTACHED FILES]\n"
+                    + "\n".join(extra_context)
+                )
+
+        # 2. TOOL RECOGNITION (arXiv/DOI/ORCID)
         arxiv_match = re.search(r"arxiv[:\s]*([\d\.]+)", user_text, re.IGNORECASE)
         doi_match = re.search(r"doi[:\s]*(10\.\d{4,}/[^\s]+)", user_text, re.IGNORECASE)
         orcid_match = re.search(
@@ -212,7 +260,6 @@ class ProjectAnalysisAgent:
             r"orcid (?:for|of) ([^,\?\.]+)", user_text, re.IGNORECASE
         )
 
-        enhanced_input = user_text
         if arxiv_match:
             arxiv_id = arxiv_match.group(1)
             raw_data = ai_service.fetch_arxiv_metadata(arxiv_id)
@@ -254,22 +301,46 @@ class ProjectAnalysisAgent:
         self.save_state()
         return clean_msg
 
-    def analyze_full_text(self, ai_service: Any) -> str:
+    def analyze_full_text(
+        self, ai_service: Any, extra_files: Optional[List[Path]] = None
+    ) -> str:
         """
         Executes the One-Shot Full Text Extraction.
         """
         if not self.current_fingerprint:
             return "Error: No project context available."
 
-        # Identify the main file again (heuristic consistency)
-        # Note: We re-scan or rely on the fact that start_analysis just ran.
-        # Ideally, we should have stored the main file candidate path.
-        # For robustness, let's find it again quickly.
-        candidate_main_files = []
+        project_dir = Path(self.current_fingerprint.root_path)
         from opendata.utils import walk_project_files, FullTextReader
 
-        project_dir = Path(self.current_fingerprint.root_path)
+        # 1. Gather Auxiliary Context (README, YAML, MD from root)
+        aux_content = []
+        root_aux_extensions = {".md", ".yaml", ".yml"}
+        for p in project_dir.iterdir():
+            if p.is_file() and p.suffix.lower() in root_aux_extensions:
+                # Skip the main file if it happens to be MD (rare but possible)
+                content = FullTextReader.read_full_text(p)
+                if content:
+                    aux_content.append(f"--- AUXILIARY: {p.name} ---\n{content}")
 
+        # Add @files if provided
+        if extra_files:
+            for p in extra_files:
+                content = FullTextReader.read_full_text(p)
+                if content:
+                    rel_p = (
+                        p.relative_to(project_dir)
+                        if p.is_relative_to(project_dir)
+                        else p.name
+                    )
+                    aux_content.append(f"--- USER-REQUESTED: {rel_p} ---\n{content}")
+
+        auxiliary_context = (
+            "\n\n".join(aux_content) if aux_content else "No auxiliary files found."
+        )
+
+        # 2. Identify and read the Main File
+        candidate_main_files = []
         for p in walk_project_files(project_dir):
             if p.is_file() and p.suffix.lower() in [".tex", ".docx"]:
                 candidate_main_files.append(p)
@@ -280,11 +351,10 @@ class ProjectAnalysisAgent:
         main_file = sorted(
             candidate_main_files, key=lambda x: x.stat().st_size, reverse=True
         )[0]
-
         rel_main_file = main_file.relative_to(project_dir)
 
         self.chat_history.append(
-            ("agent", f"[System] Reading full text of {rel_main_file}...")
+            ("agent", f"[System] Analyzing {rel_main_file} with grounding...")
         )
         self.save_state()
 
@@ -293,22 +363,17 @@ class ProjectAnalysisAgent:
         if len(full_text) < 100:
             return f"The file {rel_main_file} seems too empty. Please double check it."
 
-        # Construct Mega-Prompt
+        # 3. Construct Mega-Prompt
         prompt = self.prompt_manager.render(
-            "full_text_extraction", {"document_text": full_text}
+            "full_text_extraction",
+            {"document_text": full_text, "auxiliary_context": auxiliary_context},
         )
 
-        # Call AI
-        # Note: This might be a long context call.
+        # 4. Call AI (Ensure tools are enabled for search)
         ai_response = ai_service.ask_agent(prompt)
 
-        # The response should be Pure JSON (mostly).
-        # We reuse _extract_metadata_from_ai_response but need to handle if it returns just JSON without METADATA: tag
-        # The prompt asks for ONLY JSON.
-
-        # Wrap it to reuse the parser logic which expects specific format or just try parsing direct JSON
-        # Let's try to wrap it to be safe with our existing parser
-        wrapped_response = f"METADATA:\n```json\n{ai_response}\n```\nQUESTION: I have extracted the metadata from the full text."
+        # Wrap it to reuse the parser logic
+        wrapped_response = f"METADATA:\n```json\n{ai_response}\n```\nQUESTION: I have extracted the metadata using the full text and grounded search."
 
         clean_msg = self._extract_metadata_from_ai_response(wrapped_response)
 
@@ -444,12 +509,26 @@ class ProjectAnalysisAgent:
                 processed_authors = []
                 for author in updates["authors"]:
                     if isinstance(author, dict):
-                        # Already a dict, will be validated by Pydantic
+                        # Ensure identifier_scheme is set if identifier is present
+                        if author.get("identifier") and not author.get(
+                            "identifier_scheme"
+                        ):
+                            author["identifier_scheme"] = "ORCID"
                         processed_authors.append(author)
                     elif isinstance(author, str):
                         # Convert string to PersonOrOrg dict
                         processed_authors.append({"name": author})
                 updates["authors"] = processed_authors
+
+            # Handle related_publications
+            if "related_publications" in updates and isinstance(
+                updates["related_publications"], list
+            ):
+                processed_pubs = []
+                for pub in updates["related_publications"]:
+                    if isinstance(pub, dict) and pub.get("title"):
+                        processed_pubs.append(pub)
+                updates["related_publications"] = processed_pubs
 
             current_dict.update(updates)
             self.current_metadata = Metadata.model_validate(current_dict)

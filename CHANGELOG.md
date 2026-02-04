@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2026-02-04
+### Added
+- **Advanced Grounding & Analysis:**
+  - **Mega-Prompt Refactor:** Aligned one-shot extraction prompt with RODBUK Pydantic models (added `related_publications` and detailed author schema).
+  - **Auxiliary Context:** Automated injection of `README.md` and `*.yaml` files from project root into AI analysis.
+  - **Google Search Grounding:** Mandated web search for ORCID and DOI discovery within the extraction chain-of-thought.
+  - **@File Context Expansion:** Implemented `@filename` syntax in chat for user-driven context inclusion.
+- **Improved Data Extraction:**
+  - Enhanced author merging logic with automated ORCID scheme detection.
+  - Refined JSON parser to handle mandatory schema fields for related publications.
+
 ## [0.4.3] - 2026-02-04
 ### Added
 - **UI Refinements:**

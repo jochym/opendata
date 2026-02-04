@@ -118,6 +118,13 @@ Every substantial step must have an accompanying automated test. Before completi
   - **Persistence:** Enabled per-project and global AI model selection memory.
   - **State Sync:** Synchronized project and model selectors across all UI refreshes.
 
+- **Phase 11 Advanced Grounding & Deep Analysis [COMPLETE]:**
+  - **One-Shot Alignment:** Refactored mega-prompt to strictly match RODBUK/Pydantic schema.
+  - **Auxiliary Context:** Automated injection of README and YAML metadata files into AI context.
+  - **Search Grounding:** Mandatory Google Search instructions for ORCID and DOI discovery.
+  - **@File Syntax:** Implemented user-driven context expansion via `@filename` in chat.
+  - **Author Identity:** Enhanced author merging logic with automated ORCID scheme detection.
+
 ## Code Style Guidelines
 
 ### 1. Multi-Platform Compatibility & i18n

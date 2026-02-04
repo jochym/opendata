@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenData Tool | Beta Testing Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .gradient-bg { background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); }
+        .feature-card:hover { transform: translateY(-5px); transition: all 0.3s ease; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans">
+
+    <!-- Hero Section -->
+    <header class="gradient-bg text-white py-16 px-6 shadow-lg">
+        <div class="max-w-5xl mx-auto text-center">
+            <h1 class="text-4xl md:text-5xl font-extrabold mb-4">OpenData Tool</h1>
+            <p class="text-xl opacity-90 mb-8">Empowering researchers to package scientific data for RODBUK with AI-assisted ease.</p>
+            <div class="flex justify-center space-x-4">
+                <a href="#download" class="bg-white text-blue-700 px-8 py-3 rounded-full font-bold hover:bg-gray-100 transition">Get Started</a>
+                <a href="#procedure" class="border border-white px-8 py-3 rounded-full font-bold hover:bg-white hover:text-blue-700 transition">Testing Guide</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto px-6 py-12">
+        
+        <!-- Goal & Overview -->
+        <section class="mb-16">
+            <h2 class="text-3xl font-bold mb-6 text-blue-900 border-b-2 border-blue-100 pb-2">What is OpenData Tool?</h2>
+            <p class="text-lg leading-relaxed mb-4">
+                The **OpenData Tool** is designed for scientists and researchers who need to publish their data in the 
+                <span class="font-semibold">RODBUK repository</span>. Preparing metadata can be a tedious, technical hurdle—this tool 
+                automates the "boring parts" by scanning your research directories and using AI to suggest titles, authors, 
+                abstracts, and keywords directly from your papers and data files.
+            </p>
+            <div class="grid md:grid-cols-3 gap-8 mt-8">
+                <div class="bg-white p-6 rounded-xl shadow-md border-t-4 border-blue-500 feature-card">
+                    <i class="fas fa-shield-alt text-3xl text-blue-500 mb-4"></i>
+                    <h3 class="font-bold text-xl mb-2">Read-Only Safety</h3>
+                    <p class="text-gray-600">The tool never modifies your original research files. Your data remains untouched and secure.</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-md border-t-4 border-green-500 feature-card">
+                    <i class="fas fa-robot text-3xl text-green-500 mb-4"></i>
+                    <h3 class="font-bold text-xl mb-2">AI-Powered</h3>
+                    <p class="text-gray-600">Extracts metadata from LaTeX, Word, PDFs, and scientific formats like VASP, DICOM, and HDF5.</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-md border-t-4 border-purple-500 feature-card">
+                    <i class="fas fa-comments text-3xl text-purple-500 mb-4"></i>
+                    <h3 class="font-bold text-xl mb-2">Interactive Chat</h3>
+                    <p class="text-gray-600">Refine your metadata through a simple conversation. Tell the tool what's important, and it learns.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Usage Section -->
+        <section class="mb-16 bg-blue-50 p-8 rounded-2xl">
+            <h2 class="text-3xl font-bold mb-8 text-blue-900">How to Use It</h2>
+            <div class="space-y-6">
+                <div class="flex items-start">
+                    <span class="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold mr-4 shrink-0">1</span>
+                    <div>
+                        <h4 class="font-bold text-lg">Launch & Setup</h4>
+                        <p class="text-gray-700">Open the app. It will launch a small control window and your web browser. Sign in with Google to enable AI features.</p>
+                    </div>
+                </div>
+                <div class="flex items-start">
+                    <span class="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold mr-4 shrink-0">2</span>
+                    <div>
+                        <h4 class="font-bold text-lg">Scan Directory</h4>
+                        <p class="text-gray-700">Point the tool to your research project folder. It will perform a lightning-fast scan to identify relevant files.</p>
+                    </div>
+                </div>
+                <div class="flex items-start">
+                    <span class="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold mr-4 shrink-0">3</span>
+                    <div>
+                        <h4 class="font-bold text-lg">Review & Chat</h4>
+                        <p class="text-gray-700">The AI will propose metadata. You can edit it manually or use the Chat window to say: "Add Prof. Smith as a co-author" or "Summarize the abstract from the LaTeX file."</p>
+                    </div>
+                </div>
+                <div class="flex items-start">
+                    <span class="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold mr-4 shrink-0">4</span>
+                    <div>
+                        <h4 class="font-bold text-lg">Package</h4>
+                        <p class="text-gray-700">Once satisfied, click 'Generate Package'. A ZIP file ready for RODBUK will be created in your workspace.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Project Status / Roadmap -->
+        <section class="mb-16">
+            <h2 class="text-3xl font-bold mb-6 text-blue-900 border-b-2 border-blue-100 pb-2">Project Status & Roadmap</h2>
+            <div class="grid gap-4">
+                <div class="flex items-center p-4 bg-green-50 border-l-4 border-green-500 rounded-r-xl">
+                    <div class="mr-4 text-green-600"><i class="fas fa-check-circle text-2xl"></i></div>
+                    <div>
+                        <h4 class="font-bold text-lg">Phase 1-4: Core Infrastructure & AI Extraction</h4>
+                        <p class="text-sm text-gray-600">Established workspace management, heuristic extractors (LaTeX, Docx, VASP, etc.), and initial AI integration with Google OAuth2.</p>
+                    </div>
+                </div>
+                <div class="flex items-center p-4 bg-green-50 border-l-4 border-green-500 rounded-r-xl">
+                    <div class="mr-4 text-green-600"><i class="fas fa-check-circle text-2xl"></i></div>
+                    <div>
+                        <h4 class="font-bold text-lg">Phase 5-7: Internationalization & Management</h4>
+                        <p class="text-sm text-gray-600">Added Polish/English support, automated project state persistence, and decoupled AI prompt management.</p>
+                    </div>
+                </div>
+                <div class="flex items-center p-4 bg-green-50 border-l-4 border-green-500 rounded-r-xl">
+                    <div class="mr-4 text-green-600"><i class="fas fa-check-circle text-2xl"></i></div>
+                    <div>
+                        <h4 class="font-bold text-lg">Phase 8-10: UX Refinement & Deep Analysis</h4>
+                        <p class="text-sm text-gray-600">Implemented full-text reading for LaTeX/Docx, optimized the Chat UI, and enhanced metadata visualization with a modern "magazine-style" layout.</p>
+                    </div>
+                </div>
+                <div class="flex items-center p-4 bg-blue-50 border-l-4 border-blue-500 rounded-r-xl">
+                    <div class="mr-4 text-blue-600"><i class="fas fa-spinner fa-spin text-2xl"></i></div>
+                    <div>
+                        <h4 class="font-bold text-lg">Current Focus: User Acceptance Testing (UAT)</h4>
+                        <p class="text-sm text-gray-600">Gathering feedback from domain professionals (you!) to refine the AI's scientific reasoning and extraction accuracy.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Testing Procedure -->
+        <section id="procedure" class="mb-16">
+            <h2 class="text-3xl font-bold mb-6 text-blue-900 border-b-2 border-blue-100 pb-2">Testing Procedure</h2>
+            <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                <div class="p-6">
+                    <p class="mb-4">We need your feedback on the "vibe" and accuracy of the tool. Please follow these steps:</p>
+                    <ul class="list-disc ml-6 space-y-2 text-gray-700">
+                        <li><strong>Variety:</strong> Try scanning different types of projects (Physics, Medical, General Office docs).</li>
+                        <li><strong>AI Accuracy:</strong> Does the AI correctly identify the "Main Paper"? Are the authors correctly extracted?</li>
+                        <li><strong>Conversation:</strong> Try to "teach" the tool. (e.g., "In this project, .out files are always energy logs"). Does it remember?</li>
+                        <li><strong>UI/UX:</strong> Is the dashboard intuitive? Can you find your way without a manual?</li>
+                        <li><strong>Stability:</strong> Does the app crash on very large directories? (It shouldn't!)</li>
+                    </ul>
+                </div>
+                <div class="bg-yellow-50 p-4 border-t border-yellow-100">
+                    <p class="text-sm text-yellow-800">
+                        <i class="fas fa-bug mr-2"></i><strong>Reporting Bugs:</strong> Please use the <code>/bug</code> command in the app or contact the development team with your log files.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Current Limitations -->
+        <section class="mb-16">
+            <h2 class="text-2xl font-bold mb-4 text-gray-700">Current Limitations (Beta)</h2>
+            <div class="grid md:grid-cols-2 gap-4">
+                <div class="flex items-center p-3 bg-gray-100 rounded-lg">
+                    <i class="fas fa-exclamation-triangle text-orange-500 mr-3"></i>
+                    <span class="text-sm">Maximum 5-message memory for AI chat context.</span>
+                </div>
+                <div class="flex items-center p-3 bg-gray-100 rounded-lg">
+                    <i class="fas fa-exclamation-triangle text-orange-500 mr-3"></i>
+                    <span class="text-sm">Only LaTeX, Docx, and specific Physics formats are deeply analyzed.</span>
+                </div>
+                <div class="flex items-center p-3 bg-gray-100 rounded-lg">
+                    <i class="fas fa-exclamation-triangle text-orange-500 mr-3"></i>
+                    <span class="text-sm">Remote access (Mobile) requires manual "Enable" for security.</span>
+                </div>
+                <div class="flex items-center p-3 bg-gray-100 rounded-lg">
+                    <i class="fas fa-exclamation-triangle text-orange-500 mr-3"></i>
+                    <span class="text-sm">Final packaging currently limited to ZIP format.</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Downloads -->
+        <section id="download" class="py-12 border-t-2 border-gray-200">
+            <h2 class="text-3xl font-bold mb-8 text-center text-blue-900">Download Beta Version</h2>
+            <div class="flex flex-wrap justify-center gap-6">
+                <!-- Windows -->
+                <a href="./bin/opendata-win-x64.exe" class="flex flex-col items-center p-8 bg-white border-2 border-gray-200 rounded-2xl hover:border-blue-500 hover:shadow-xl transition group w-64">
+                    <i class="fab fa-windows text-5xl mb-4 text-gray-400 group-hover:text-blue-600"></i>
+                    <span class="font-bold text-lg">Windows</span>
+                    <span class="text-xs text-gray-500 mt-2">v0.9.2-beta (.exe)</span>
+                </a>
+                <!-- Linux -->
+                <a href="./bin/opendata-linux-x64.tar.gz" class="flex flex-col items-center p-8 bg-white border-2 border-gray-200 rounded-2xl hover:border-orange-500 hover:shadow-xl transition group w-64">
+                    <i class="fab fa-linux text-5xl mb-4 text-gray-400 group-hover:text-orange-600"></i>
+                    <span class="font-bold text-lg">Linux</span>
+                    <span class="text-xs text-gray-500 mt-2">v0.9.2-beta (AppImage/Binary)</span>
+                </a>
+                <!-- macOS -->
+                <a href="./bin/opendata-macos-arm64.dmg" class="flex flex-col items-center p-8 bg-white border-2 border-gray-200 rounded-2xl hover:border-gray-800 hover:shadow-xl transition group w-64">
+                    <i class="fab fa-apple text-5xl mb-4 text-gray-400 group-hover:text-black"></i>
+                    <span class="font-bold text-lg">macOS</span>
+                    <span class="text-xs text-gray-500 mt-2">v0.9.2-beta (Universal)</span>
+                </a>
+            </div>
+            <p class="text-center text-gray-500 mt-8 italic text-sm">Downloads are hosted locally on this server for internal testing only.</p>
+        </section>
+
+    </main>
+
+    <footer class="bg-gray-800 text-white py-8 mt-12">
+        <div class="max-w-5xl mx-auto px-6 text-center">
+            <p class="opacity-70">&copy; 2026 OpenData Tool Project. Part of the RODBUK Ecosystem.</p>
+        </div>
+    </footer>
+
+</body>
+</html>
