@@ -111,6 +111,11 @@ Every substantial step must have an accompanying automated test. Before completi
   - **Security:** Enhanced scanner to strictly ignore hidden directories (`.*`) and their contents.
   - **Navigation:** Seamless project switching with state persistence and "Guarded Load" logic.
 
+- **Phase 10 UI/UX Enhancement [COMPLETE]:**
+  - **Metadata Preview:** Redesigned authors display with inline-icons and tooltip overlays for ORCID/affiliation details.
+  - **Keywords Display:** Updated to match authors' styling with compact, wrapped badge-like presentation.
+  - **Layout Optimization:** Improved space utilization with consistent label positioning and streamlined content blocks.
+
 ## Code Style Guidelines
 
 ### 1. Multi-Platform Compatibility & i18n

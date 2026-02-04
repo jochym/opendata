@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.1] - 2026-02-04
+### Added
+- **Enhanced Metadata Preview:**
+  - Redesigned authors display with inline-icons and tooltip overlays for ORCID/affiliation details.
+  - Keywords now displayed as compact, wrapped badges matching authors' styling.
+  - Improved space utilization with labels positioned above content.
+  - Streamlined author/keyword blocks to flow like normal text with wrapping.
+
 ## [0.4.0] - 2026-02-03
 ### Added
 - **Deep Analysis:**

@@ -1,6 +1,7 @@
 from nicegui import ui
 import webbrowser
 from pathlib import Path
+from typing import Any  # Added for type annotations
 from opendata.utils import get_local_ip
 from opendata.workspace import WorkspaceManager
 from opendata.agents.project_agent import ProjectAnalysisAgent
@@ -50,25 +51,21 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
     class ScanState:
         is_scanning = False
         progress = ""
-        progress_label: ui.label = None
+        progress_label: Any = None  # Will hold a ui.label reference
         current_path = ""  # New state for path
-        stop_event = None  # Added for cancellation
+        stop_event: Any = None  # Added for cancellation - will hold a threading.Event
 
     @ui.refreshable
     def metadata_preview_ui():
         if ScanState.is_scanning:
             with ui.column().classes("w-full items-center justify-center p-8"):
                 ui.spinner(size="lg")
-                ScanState.progress_label = (
-                    ui.label(ScanState.progress)
-                    .classes(
-                        "text-xs text-slate-500 animate-pulse text-center w-full truncate"
-                    )
-                    .style("direction: rtl; text-align: left;")
+                # Create a temporary label first
+                temp_label = ui.label(ScanState.progress).classes(
+                    "text-xs text-slate-500 animate-pulse text-center w-full truncate"
                 )
-                ui.button(_("Cancel Scan"), on_click=handle_cancel_scan).props(
-                    "flat color=red icon=cancel"
-                ).classes("text-xs mt-2")
+                # Assign it to ScanState.progress_label after creation
+                ScanState.progress_label = temp_label  # type: ignore[attr-defined]
             return
 
         # Explicitly refresh header/selector when metadata changes
@@ -76,47 +73,99 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
         fields = agent.current_metadata.model_dump(exclude_unset=True)
 
-        for key, value in fields.items():
-            with ui.column().classes("w-full q-mb-sm"):
-                ui.label(key.replace("_", " ").title()).classes(
-                    "text-xs font-bold text-slate-600"
-                )
-                if isinstance(value, list):
-                    for item in value:
-                        # CLEAN AUTHOR DISPLAY WITH ORCID ICON
-                        if isinstance(item, dict):
-                            name = item.get(
-                                "name", item.get("person_to_contact", str(item))
-                            )
-                            # Aggressively remove LaTeX leftovers
-                            name = (
-                                name.replace("{", "")
-                                .replace("}", "")
-                                .replace("\\", "")
-                                .replace("orcidlink", "")
-                            )
-                            orcid = item.get("identifier")
-
-                            with ui.row().classes("items-center gap-1"):
-                                ui.label(name).classes(
-                                    "text-sm bg-slate-50 p-2 rounded border border-slate-100"
-                                )
-                                if orcid:
-                                    # Typeset ORCID nicely with a small logo and tooltip
-                                    with ui.element("div").classes("cursor-pointer"):
-                                        # Use standard ORCID green icon
-                                        ui.icon("verified", size="16px", color="green")
-                                        ui.tooltip(f"ORCID iD: {orcid}").classes(
-                                            "bg-slate-800 text-white p-2 text-xs"
-                                        )
-                        else:
-                            ui.label(str(item)).classes(
-                                "text-sm bg-slate-50 p-2 rounded border border-slate-100 w-full"
-                            )
-                else:
-                    ui.label(str(value)).classes(
-                        "text-sm bg-slate-50 p-2 rounded border border-slate-100 w-full"
+        # Use a column layout for metadata fields with labels above values
+        with ui.column().classes("w-full gap-4"):
+            for key, value in fields.items():
+                if key == "authors":
+                    # Special case for authors with richer display
+                    ui.label(key.replace("_", " ").title()).classes(
+                        "text-xs font-bold text-slate-600 ml-2"
                     )
+                    with ui.row().classes(
+                        "w-full gap-1 flex-wrap items-center"
+                    ):  # Allow wrapping for many authors, centered alignment for name-icon
+                        for item in value:
+                            if isinstance(item, dict):
+                                name = item.get(
+                                    "name", item.get("person_to_contact", str(item))
+                                )
+                                name_clean = (
+                                    name.replace("{", "")
+                                    .replace("}", "")
+                                    .replace("\\", "")
+                                    .replace("orcidlink", "")
+                                )
+
+                                affiliation = item.get("affiliation", "")
+                                identifier = item.get("identifier", "")  # ORCID
+
+                                # Create a container for the author name with icons
+                                with ui.label("").classes("") as author_container:
+                                    # Display the name with small badge-like styling
+                                    ui.label(name_clean).classes(
+                                        "text-sm font-medium inline mr-1"
+                                    )
+
+                                    # Add small indicator icons inline with the name as superscripts
+                                    # Put them in a span with reduced vertical spacing
+                                    with ui.row().classes(
+                                        "inline-flex items-center gap-0.5"
+                                    ):
+                                        if identifier:
+                                            ui.icon(
+                                                "verified",
+                                                size="0.75rem",
+                                                color="green",
+                                            ).classes("inline-block align-middle")
+                                        if affiliation:
+                                            ui.icon(
+                                                "business", size="0.75rem", color="blue"
+                                            ).classes("inline-block align-middle")
+
+                                    # Detailed tooltip on hover over the whole element
+                                    with ui.tooltip().classes(
+                                        "bg-slate-800 text-white p-2 text-xs whitespace-normal max-w-xs"
+                                    ):
+                                        ui.label(f"Name: {name_clean}")
+                                        if affiliation:
+                                            ui.label(f"Affiliation: {affiliation}")
+                                        if identifier:
+                                            ui.label(f"ORCID: {identifier}")
+
+                                # Style the container to look like a subtle badge
+                                author_container.classes(
+                                    "py-0.5 px-1.5 rounded bg-slate-100 border border-slate-200 cursor-pointer hover:bg-slate-200 text-sm inline-block mr-1 mb-1"
+                                )
+                            else:
+                                ui.label(str(item)).classes(
+                                    "text-sm bg-slate-50 p-1 rounded border border-slate-100 break-words"
+                                )
+                else:
+                    # Standard key-value pairs with label above full-width value
+                    ui.label(key.replace("_", " ").title()).classes(
+                        "text-xs font-bold text-slate-600 ml-2"
+                    )
+
+                    if isinstance(value, list):
+                        if key == "keywords":
+                            # Special case for keywords to display them like small badges/tags
+                            with ui.row().classes(
+                                "w-full gap-1 flex-wrap items-center"
+                            ):  # Allow wrapping for many keywords, centered alignment
+                                for kw in value:
+                                    ui.label(str(kw)).classes(
+                                        "text-sm bg-slate-100 py-0.5 px-2 rounded border border-slate-200 inline-block mr-1 mb-1"
+                                    )
+                        else:
+                            with ui.column().classes("w-full"):
+                                for v_item in value:
+                                    ui.label(str(v_item)).classes(
+                                        "text-sm bg-slate-50 p-2 rounded border border-slate-100 w-full break-words"
+                                    )
+                    else:
+                        ui.label(str(value)).classes(
+                            "text-sm bg-slate-50 p-2 rounded border border-slate-100 w-full break-words"
+                        )
 
     @ui.refreshable
     def project_selector_ui():
@@ -337,7 +386,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
         await asyncio.to_thread(agent.start_analysis, Path(path))
 
         chat_messages_ui.refresh()
-        metadata_preview_ui.refresh()
+        metadata_preview_ui.refresh()  # type: ignore
 
     async def handle_cancel_scan():
         if ScanState.stop_event:
@@ -357,7 +406,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
         import threading
 
-        ScanState.stop_event = threading.Event()
+        ScanState.stop_event = threading.Event()  # type: ignore
         ScanState.is_scanning = True
         ScanState.progress = _("Initializing...")
         metadata_preview_ui.refresh()
