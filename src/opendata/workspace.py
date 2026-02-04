@@ -29,14 +29,14 @@ class WorkspaceManager:
 
     def get_project_id(self, project_path: Path) -> str:
         """Generates a unique ID for a project based on its absolute path."""
-        abs_path = str(project_path.resolve())
+        # Use as_posix and strip trailing slash for consistent ID generation
+        # Ensure we use the resolved absolute path to match what's stored in fingerprint
+        abs_path = str(project_path.resolve().as_posix()).rstrip("/")
         return hashlib.md5(abs_path.encode("utf-8")).hexdigest()
 
     def get_project_dir(self, project_id: str) -> Path:
         """Returns the storage directory for a specific project."""
-        pdir = self.projects_dir / project_id
-        pdir.mkdir(parents=True, exist_ok=True)
-        return pdir
+        return self.projects_dir / project_id
 
     def save_project_state(
         self,
@@ -47,6 +47,7 @@ class WorkspaceManager:
     ):
         """Persists the complete state of a project."""
         pdir = self.get_project_dir(project_id)
+        pdir.mkdir(parents=True, exist_ok=True)
 
         # Save Metadata (YAML)
         self.save_yaml(metadata, str(pdir / "metadata.yaml"))
@@ -64,7 +65,7 @@ class WorkspaceManager:
         self, project_id: str
     ) -> tuple[Metadata | None, List[tuple[str, str]], ProjectFingerprint | None]:
         """Loads the persisted state of a project."""
-        pdir = self.projects_dir / project_id
+        pdir = self.get_project_dir(project_id)
         if not pdir.exists():
             return None, [], None
 
@@ -73,59 +74,114 @@ class WorkspaceManager:
         history = []
         history_path = pdir / "chat_history.json"
         if history_path.exists():
-            with open(history_path, "r", encoding="utf-8") as f:
-                history = [tuple(item) for item in json.load(f)]
+            try:
+                with open(history_path, "r", encoding="utf-8") as f:
+                    history = [tuple(item) for item in json.load(f)]
+            except Exception:
+                pass
 
         fingerprint = None
         fp_path = pdir / "fingerprint.json"
         if fp_path.exists():
-            with open(fp_path, "r", encoding="utf-8") as f:
-                fingerprint = ProjectFingerprint.model_validate_json(f.read())
+            try:
+                with open(fp_path, "r", encoding="utf-8") as f:
+                    fingerprint = ProjectFingerprint.model_validate_json(f.read())
+            except Exception:
+                pass
 
         return metadata, history, fingerprint
 
     def list_projects(self) -> List[Dict[str, str]]:
         """Lists all projects that have a persisted state."""
         projects = []
+        if not self.projects_dir.exists():
+            return []
         for pdir in self.projects_dir.iterdir():
-            if pdir.is_dir() and (pdir / "metadata.yaml").exists():
+            if not pdir.is_dir():
+                continue
+
+            # A project is valid if it has at least metadata OR chat history OR fingerprint
+            # OR even just the directory exists (to allow deleting empty/corrupt projects)
+            try:
                 metadata = self.load_yaml(Metadata, str(pdir / "metadata.yaml"))
+                title = metadata.title if metadata else "Untitled Project"
+
                 fp_path = pdir / "fingerprint.json"
                 root_path = "Unknown"
                 if fp_path.exists():
                     with open(fp_path, "r", encoding="utf-8") as f:
                         fp = json.load(f)
                         root_path = fp.get("root_path", "Unknown")
+                else:
+                    # Try to infer path from project ID if possible, but usually Unknown is safer
+                    pass
 
                 projects.append(
                     {
                         "id": pdir.name,
-                        "title": metadata.title or "Untitled Project",
+                        "title": title or "Untitled Project",
                         "path": root_path,
                     }
                 )
+            except Exception as e:
+                # Still include the project so it can be deleted
+                projects.append(
+                    {
+                        "id": pdir.name,
+                        "title": f"Corrupt Project ({pdir.name[:8]})",
+                        "path": "Unknown",
+                    }
+                )
+                print(f"[DEBUG] Error listing project {pdir.name}: {e}")
         return projects
+
+    def delete_project(self, project_id: str):
+        """Permanently deletes a project's persisted state."""
+        import shutil
+        import os
+
+        pdir = self.projects_dir / project_id
+        if pdir.exists() and pdir.is_dir():
+            try:
+                shutil.rmtree(pdir)
+                # Double check to ensure it's gone
+                return not os.path.exists(pdir)
+            except Exception as e:
+                print(f"[ERROR] Failed to delete project directory {pdir}: {e}")
+                return False
+        return False
 
     def save_yaml(self, data: BaseModel, filename: str):
         """Saves a Pydantic model as a human-readable YAML file."""
-        target_path = self.base_path / filename
-        # Ensure suffix is .yaml
+        target_path = Path(filename)
+        if not target_path.is_absolute():
+            target_path = self.base_path / filename
+
         if not target_path.suffix == ".yaml":
             target_path = target_path.with_suffix(".yaml")
 
+        target_path.parent.mkdir(parents=True, exist_ok=True)
         with open(target_path, "w", encoding="utf-8") as f:
-            # We convert to dict first to handle Pydantic's complexity
             yaml.dump(data.model_dump(), f, allow_unicode=True, sort_keys=False)
 
     def load_yaml(self, model_class: Type[T], filename: str) -> T | None:
         """Loads a YAML file into a Pydantic model."""
-        target_path = self.base_path / filename
+        target_path = Path(filename)
+        if not target_path.is_absolute():
+            target_path = self.base_path / filename
+
         if not target_path.exists():
             return None
 
-        with open(target_path, "r", encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-            return model_class.model_validate(data)
+        try:
+            with open(target_path, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+                if data is None:
+                    return None
+                return model_class.model_validate(data)
+        except Exception as e:
+            print(f"[ERROR] Failed to load YAML from {target_path}: {e}")
+            return None
 
     def get_settings(self) -> UserSettings:
         """Retrieves user settings or returns defaults."""

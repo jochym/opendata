@@ -17,29 +17,65 @@ def get_local_ip() -> str:
         return "127.0.0.1"
 
 
+def shorten_path(path: str, max_len: int = 60) -> str:
+    """Shortens a path by keeping the first two and last two components."""
+    if len(path) <= max_len:
+        return path
+    parts = path.split("/")
+    if len(parts) <= 4:
+        return path
+    return f"{parts[0]}/{parts[1]}/.../{parts[-2]}/{parts[-1]}"
+
+
+def format_size(size_bytes: int) -> str:
+    """Formats bytes into human readable string."""
+    import math
+
+    if size_bytes == 0:
+        return "0 B"
+    units = ("B", "KB", "MB", "GB", "TB")
+    i = int(math.floor(math.log(size_bytes, 1024)))
+    return f"{size_bytes / (1024**i):.1f} {units[i]}"
+
+
 def walk_project_files(
     root: Path, stop_event: Optional[Any] = None
 ) -> Generator[Path, None, None]:
     """
     Yields file paths while skipping common non-research directories.
+    Does NOT follow symbolic links.
+    Skips the entire directory tree if a '.ignore' file is present in the root of that tree.
     Supports cancellation via stop_event.
     """
     skip_dirs = {".git", ".venv", "node_modules", "__pycache__", ".opendata_tool"}
-    # Use os.walk for better control over directory skipping and performance
     import os
 
-    for dirpath, dirnames, filenames in os.walk(root):
+    for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
         if stop_event and stop_event.is_set():
             return
 
-        # In-place modification of dirnames to skip unwanted trees
-        # Skip both explicitly listed directories and any hidden ones starting with '.'
+        # Check for '.ignore' file in the current directory
+        if ".ignore" in filenames:
+            # Clear dirnames and filenames to skip this entire tree
+            dirnames[:] = []
+            filenames[:] = []
+            continue
+
+        # In-place modification of dirnames to skip unwanted trees and symlinks
         dirnames[:] = [
-            d for d in dirnames if d not in skip_dirs and not d.startswith(".")
+            d
+            for d in dirnames
+            if d not in skip_dirs
+            and not d.startswith(".")
+            and not os.path.islink(os.path.join(dirpath, d))
         ]
 
-        # Skip files starting with '.'
-        filenames = [f for f in filenames if not f.startswith(".")]
+        # Skip files starting with '.' or symlinks
+        filenames = [
+            f
+            for f in filenames
+            if not f.startswith(".") and not os.path.islink(os.path.join(dirpath, f))
+        ]
 
         # Yield the current directory for progress reporting
         yield Path(dirpath)
@@ -52,7 +88,7 @@ def walk_project_files(
 
 def scan_project_lazy(
     root: Path,
-    progress_callback: Optional[Callable[[str], None]] = None,
+    progress_callback: Optional[Callable[[str, str, str], None]] = None,
     stop_event: Optional[Any] = None,
 ) -> ProjectFingerprint:
     """
@@ -60,15 +96,40 @@ def scan_project_lazy(
     Optimized for huge datasets (TB scale).
     Supports cancellation via stop_event.
     """
+    import time
+
     file_count = 0
     total_size = 0
     extensions: Set[str] = set()
     structure_sample: List[str] = []
+    last_ui_update = 0.0
 
     for p in walk_project_files(root, stop_event=stop_event):
-        if p.is_dir():
-            if progress_callback:
-                progress_callback(str(p.relative_to(root)) if p != root else ".")
+        try:
+            now = time.time()
+            is_dir = p.is_dir()
+
+            # Throttle UI updates to 10Hz (0.1s)
+            if progress_callback and (now - last_ui_update >= 0.1):
+                rel_p = (
+                    str(p.relative_to(root).as_posix())
+                    if p != root
+                    else "."
+                    if is_dir
+                    else str(p.parent.relative_to(root).as_posix())
+                    if p.parent != root
+                    else "."
+                )
+                short_p = shorten_path(rel_p)
+                size_str = format_size(total_size)
+                progress_callback(size_str, rel_p, short_p)
+                last_ui_update = now
+
+            if is_dir:
+                continue
+        except OSError:
+            # Handle cases where FUSE/GVFS mounts return "Function not implemented" for stat
+            # or other filesystem-specific errors. Skip these paths.
             continue
 
         file_count += 1

@@ -1,0 +1,11 @@
+/home/jochym/Projects/OpenData/src/opendata/ai/google_provider.py:1: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+[INFO] Starting server in no-GUI mode on http://0.0.0.0:8080
+NiceGUI ready to go on http://localhost:8080, http://10.0.3.1:8080, http://10.111.1.34:8080, http://10.33.1.16:8080, http://10.42.24.4:8080, http://100.123.102.85:8080, http://172.17.0.1:8080, and http://172.18.0.1:8080

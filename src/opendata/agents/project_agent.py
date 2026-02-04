@@ -79,6 +79,13 @@ class ProjectAnalysisAgent:
         self.current_metadata = Metadata.model_construct()
         self.save_state()
 
+    def reset_agent_state(self):
+        """Resets the agent state in memory without persisting to disk."""
+        self.current_metadata = Metadata.model_construct()
+        self.chat_history = []
+        self.current_fingerprint = None
+        self.project_id = None
+
     def start_analysis(
         self,
         project_dir: Path,
@@ -116,14 +123,24 @@ class ProjectAnalysisAgent:
         # Run Heuristics
         heuristics_data = {}
         candidate_main_files = []
-        from opendata.utils import walk_project_files
+        from opendata.utils import walk_project_files, format_size
+
+        total_files = self.current_fingerprint.file_count
+        current_file_idx = 0
+        total_size_str = format_size(self.current_fingerprint.total_size_bytes)
 
         for p in walk_project_files(project_dir, stop_event=stop_event):
             if stop_event and stop_event.is_set():
                 break
             if p.is_file():
+                current_file_idx += 1
                 if progress_callback:
-                    progress_callback(f"Checking {p.name}...")
+                    # Provide statistics in the first field, full path in second, and checking status in third
+                    progress_callback(
+                        f"{total_size_str} - {current_file_idx}/{total_files}",
+                        str(p.relative_to(project_dir)),
+                        f"Checking {p.name}...",
+                    )
 
                 # Identify potential main text files (LaTeX, Docx)
                 if p.suffix.lower() in [".tex", ".docx"]:
@@ -174,7 +191,20 @@ class ProjectAnalysisAgent:
             )[0]
             # Use relative path for better UX and consistency
             rel_main_file = main_file.relative_to(project_dir)
-            msg += f"\n\nI found **{rel_main_file}**. This appears to be your principal publication. Shall I process the full text to extract all metadata at once? (This will send the full file content to the AI)."
+
+            # Detect auxiliary files that will be auto-included
+            aux_files = []
+            root_aux_extensions = {".md", ".yaml", ".yml"}
+            for p in project_dir.iterdir():
+                if p.is_file() and p.suffix.lower() in root_aux_extensions:
+                    if p != main_file:  # Don't list main file twice
+                        aux_files.append(f"`{p.name}`")
+
+            aux_msg = ""
+            if aux_files:
+                aux_msg = f" along with {', '.join(aux_files)}"
+
+            msg += f"\n\nI found **{rel_main_file}**. This appears to be your principal publication. Shall I process its full text{aux_msg} to extract all metadata at once? (This will send these files to the AI)."
         else:
             msg += "\n\nShould I use AI to analyze the paper titles or would you like to provide an arXiv/DOI link?"
 
@@ -183,11 +213,17 @@ class ProjectAnalysisAgent:
         return msg
 
     def process_user_input(
-        self, user_text: str, ai_service: Any, skip_user_append: bool = False
+        self,
+        user_text: str,
+        ai_service: Any,
+        skip_user_append: bool = False,
+        on_update: Optional[Callable[[], None]] = None,
     ) -> str:
         """Main iterative loop with Context Persistence and Tool recognition."""
         if not skip_user_append:
             self.chat_history.append(("user", user_text))
+            if on_update:
+                on_update()
 
         # 1. EXTRACT @FILES
         extra_files = []
@@ -219,7 +255,7 @@ class ProjectAnalysisAgent:
             if len(self.chat_history) >= 2 and self.chat_history[-2][0] == "agent"
             else ""
         )
-        if "Shall I process the full text" in last_agent_msg:
+        if "Shall I process" in last_agent_msg and "full text" in last_agent_msg:
             # Check if user said "yes" (possibly with @files)
             clean_input = re.sub(r"@([^\s,]+)", "", user_text).strip().lower()
             if any(ok in clean_input for ok in ["yes", "y", "sure", "ok", "okay"]):
@@ -234,6 +270,7 @@ class ProjectAnalysisAgent:
                 for p in walk_project_files(project_dir):
                     if p.is_file() and p.suffix.lower() in [".tex", ".docx"]:
                         candidate_main_files.append(p)
+                main_file = None
                 if candidate_main_files:
                     main_file = sorted(
                         candidate_main_files,
@@ -245,6 +282,9 @@ class ProjectAnalysisAgent:
                 # Auto-included root files
                 for p in project_dir.iterdir():
                     if p.is_file() and p.suffix.lower() in {".md", ".yaml", ".yml"}:
+                        # Check if it was already listed as main (unlikely for md/yaml but safe)
+                        if main_file and p == main_file:
+                            continue
                         file_list.append(f"`{p.name}` (auto)")
 
                 # User-requested files
@@ -255,8 +295,12 @@ class ProjectAnalysisAgent:
                 feedback = f"[System] Analyzing project using: {', '.join(file_list)}... This might take a minute."
                 self.chat_history.append(("agent", feedback))
                 self.save_state()
+                if on_update:
+                    on_update()
 
-                return self.analyze_full_text(ai_service, extra_files=extra_files)
+                return self.analyze_full_text(
+                    ai_service, extra_files=extra_files, on_update=on_update
+                )
 
         enhanced_input = user_text
         # ADD EXTRA FILES TO CONTEXT IF @ MENTIONED in standard chat
@@ -335,7 +379,10 @@ class ProjectAnalysisAgent:
         return clean_msg
 
     def analyze_full_text(
-        self, ai_service: Any, extra_files: Optional[List[Path]] = None
+        self,
+        ai_service: Any,
+        extra_files: Optional[List[Path]] = None,
+        on_update: Optional[Callable[[], None]] = None,
     ) -> str:
         """
         Executes the One-Shot Full Text Extraction.
@@ -412,6 +459,8 @@ class ProjectAnalysisAgent:
 
         self.chat_history.append(("agent", final_msg))
         self.save_state()
+        if on_update:
+            on_update()
         return final_msg
 
     def _extract_metadata_from_ai_response(self, response_text: str) -> str:

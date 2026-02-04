@@ -125,6 +125,13 @@ Every substantial step must have an accompanying automated test. Before completi
   - **@File Syntax:** Implemented user-driven context expansion via `@filename` in chat.
   - **Author Identity:** Enhanced author merging logic with automated ORCID scheme detection.
 
+- **Phase 12 Scanner & UX Robustness [COMPLETE]:**
+  - **Throttled Display:** Optimized file scanner with 10Hz time-based UI updates to eliminate flickering.
+  - **Interactive Controls:** Added "Cancel Scan" capability and automated project list refresh.
+  - **Selective Scanning:** Implemented `.ignore` file support to skip unwanted directory trees.
+  - **Smart Path Shortening:** Improved path shortening (first two/last two components) with full-path tooltips.
+  - **Robust Project Management:** Fixed deletion logic for partial/corrupt projects and ensured ID consistency via path resolution.
+
 ## Code Style Guidelines
 
 ### 1. Multi-Platform Compatibility & i18n

@@ -57,7 +57,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                     options=models,
                     value=ai.model_name,
                     on_change=handle_model_change,
-                ).props("dark dense options-dark behavior=menu").classes("w-48 text-xs")
+                ).props("dark dense options-dark behavior=menu").classes("w-32 text-xs")
 
             with ui.button(
                 icon="qr_code_2",
@@ -115,7 +115,10 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
     class ScanState:
         is_scanning = False
         progress = ""
+        short_path = ""
+        full_path = ""
         progress_label: Any = None
+        short_path_label: Any = None
         current_path = ""
         stop_event: Any = None
         qr_dialog: Any = None  # Store reference globally within start_ui scope
@@ -123,12 +126,17 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
     @ui.refreshable
     def metadata_preview_ui():
         if ScanState.is_scanning:
-            with ui.column().classes("w-full items-center justify-center p-8"):
+            with ui.column().classes("w-full items-center justify-center p-8 gap-1"):
                 ui.spinner(size="lg")
-                temp_label = ui.label(ScanState.progress).classes(
-                    "text-xs text-slate-500 animate-pulse text-center w-full truncate"
+                ui.label("").classes("text-xs font-bold text-slate-700").bind_text_from(
+                    ScanState, "progress"
                 )
-                ScanState.progress_label = temp_label  # type: ignore[attr-defined]
+                with ui.label("").classes(
+                    "text-[10px] text-slate-500 animate-pulse text-center w-full truncate cursor-help"
+                ) as lbl:
+                    ui.tooltip("").bind_text_from(ScanState, "full_path")
+                    lbl.bind_text_from(ScanState, "short_path")
+                ScanState.progress_label = lbl  # type: ignore[attr-defined]
             return
 
         # Explicitly refresh header when metadata changes to sync project selector
@@ -325,13 +333,104 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
         # Identify current project by path to set as default value
         current_val = ScanState.current_path if ScanState.current_path else None
 
-        project_options = {p["path"]: f"{p['title']} ({p['path']})" for p in projects}
-        ui.select(
-            options=project_options,
-            value=current_val,
-            label=_("Recent Projects"),
-            on_change=lambda e: handle_load_project(e.value),
-        ).props("dark dense options-dark behavior=menu").classes("w-64 text-xs")
+        with ui.row().classes("items-center no-wrap gap-1"):
+            project_options = {
+                p["path"]: f"{p['title']} ({p['path']})" for p in projects
+            }
+
+            # Sanitize current_val to avoid ValueError if project was deleted
+            if current_val not in project_options:
+                current_val = None
+
+            selector = (
+                ui.select(
+                    options=project_options,
+                    value=current_val,
+                    label=_("Recent Projects"),
+                    on_change=lambda e: handle_load_project(e.value),
+                )
+                .props("dark dense options-dark behavior=menu")
+                .classes("w-48 text-xs")
+            )
+
+            async def handle_delete_current():
+                if not ScanState.current_path:
+                    return
+                # Use the same logic as list_projects to find the project to delete
+                projects = wm.list_projects()
+                # Find project that matches current path exactly or by ID
+                # If path is 'Unknown', try matching current_path or resolving current project ID
+                target_project = next(
+                    (p for p in projects if p["path"] == ScanState.current_path), None
+                )
+
+                if not target_project:
+                    # Try resolving ID from ScanState.current_path
+                    path_obj = Path(ScanState.current_path).resolve()
+                    project_id = agent.wm.get_project_id(path_obj)
+                else:
+                    project_id = target_project["id"]
+
+                print(f"[DEBUG] UI Current Path: {ScanState.current_path}")
+                print(f"[DEBUG] Determined Project ID for deletion: {project_id}")
+
+                # Use NiceGUI dialog instead of run_javascript(confirm) which times out in some environments
+                with ui.dialog() as confirm_dialog, ui.card().classes("p-4"):
+                    ui.label(
+                        _("Are you sure you want to remove this project from the list?")
+                    )
+                    with ui.row().classes("w-full justify-end gap-2 mt-4"):
+                        ui.button(_("Cancel"), on_click=confirm_dialog.close).props(
+                            "flat"
+                        )
+
+                        async def perform_delete():
+                            # Close dialog first
+                            confirm_dialog.close()
+
+                            # Perform deletion
+                            success = wm.delete_project(project_id)
+                            if success:
+                                ui.notify(_("Project removed from workspace."))
+                                # Force reset all state
+                                ScanState.current_path = ""
+                                agent.reset_agent_state()
+                                # Refresh UI components
+                                project_selector_ui.refresh()
+                                metadata_preview_ui.refresh()
+                                chat_messages_ui.refresh()
+                                header_content_ui.refresh()
+                            else:
+                                # Fallback deletion attempt for "Unknown" paths if we have agent.project_id
+                                if agent.project_id and wm.delete_project(
+                                    agent.project_id
+                                ):
+                                    ui.notify(_("Project removed from workspace."))
+                                    ScanState.current_path = ""
+                                    agent.reset_agent_state()
+                                    project_selector_ui.refresh()
+                                    metadata_preview_ui.refresh()
+                                    chat_messages_ui.refresh()
+                                    header_content_ui.refresh()
+                                else:
+                                    ui.notify(
+                                        _("Failed to delete project folder."),
+                                        type="negative",
+                                    )
+
+                        ui.button(_("Delete"), on_click=perform_delete, color="red")
+
+                confirm_dialog.open()
+
+            with (
+                ui.button(icon="delete", on_click=handle_delete_current)
+                .props("flat color=red dense")
+                .classes("text-xs") as del_btn
+            ):
+                ui.tooltip(_("Remove current project from history"))
+                del_btn.bind_visibility_from(
+                    ScanState, "current_path", backward=lambda x: bool(x)
+                )
 
     @ui.page("/")
     def index():
@@ -470,7 +569,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                         )
 
                         async def handle_ctrl_enter(e):
-                            if e.modifier.ctrl:
+                            if getattr(e.args, "ctrlKey", False):
                                 await handle_user_msg(user_input)
 
                         user_input.on("keydown.enter", handle_ctrl_enter)
@@ -504,7 +603,17 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                             _("Analyze Directory"),
                             icon="search",
                             on_click=lambda: handle_scan(path_input.value, force=True),
-                        ).classes("w-full")
+                        ).classes("w-full").bind_visibility_from(
+                            ScanState, "is_scanning", backward=lambda x: not x
+                        )
+                        ui.button(
+                            _("Cancel Scan"),
+                            icon="stop",
+                            on_click=handle_cancel_scan,
+                            color="red",
+                        ).classes("w-full").bind_visibility_from(
+                            ScanState, "is_scanning"
+                        )
                     with ui.scroll_area().classes("flex-grow w-full"):
                         metadata_preview_ui()
                     ui.button(
@@ -570,10 +679,10 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
         ScanState.progress = _("Initializing...")
         metadata_preview_ui.refresh()
 
-        def update_progress(msg):
+        def update_progress(msg, full_path="", short_path=""):
             ScanState.progress = msg
-            if hasattr(ScanState, "progress_label") and ScanState.progress_label:
-                ScanState.progress_label.text = msg
+            ScanState.full_path = full_path
+            ScanState.short_path = short_path
 
         import asyncio
 
@@ -594,13 +703,17 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
         if not text:
             return
         input_element.value = ""
-        agent.chat_history.append(("user", text))
-        chat_messages_ui.refresh()
-        ui.notify(_("Agent is thinking..."), duration=2)
+        # The agent.process_user_input now handles appending to chat_history
+        # and we pass it a lambda to refresh the UI immediately when it does.
+
         import asyncio
 
         await asyncio.to_thread(
-            agent.process_user_input, text, ai, skip_user_append=True
+            agent.process_user_input,
+            text,
+            ai,
+            skip_user_append=False,
+            on_update=chat_messages_ui.refresh,
         )
         chat_messages_ui.refresh()
         metadata_preview_ui.refresh()

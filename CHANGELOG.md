@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2026-02-04
+### Added
+- **Optimized Scanner:**
+  - **Time-based Throttling:** UI updates limited to 10Hz (100ms) for smoother progress and reduced CPU load.
+  - **Incremental Display:** Live size counter separate from the current file path.
+  - **Smart Shortening:** Path display now preserves first two and last two components (e.g., `data/anl/.../T=300K/file.dat`).
+  - **Full-Path Tooltips:** Hovering over shortened paths reveals the complete relative path.
+  - **.ignore Support:** Scanner now skips entire directory trees if a `.ignore` file is present.
+  - **Symlink Safety:** Added explicit protection against following symbolic links.
+- **UI & Interaction:**
+  - **Adaptive Scan Button:** The "Analyze" button now transforms into a red "Cancel Scan" button during activity.
+  - **Project List Deletion:** Improved "Remove Project" feature with native NiceGUI confirmation dialogs.
+  - **Inclusive Management:** Corrupt or partial projects are now visible in the dropdown and can be deleted.
+- **Transparency:**
+  - Improved proposal message explicitly lists all auto-included auxiliary files.
+  - Instant `[System]` feedback in chat window using thread-safe callbacks.
+
 ## [0.5.1] - 2026-02-04
 ### Added
 - **System Feedback:** Immediate `[System]` status messages in chat listing all analyzed files (main, auto, and user-requested).
