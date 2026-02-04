@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.1] - 2026-02-04
+### Added
+- **System Feedback:** Immediate `[System]` status messages in chat listing all analyzed files (main, auto, and user-requested).
+- **Rich Funding UI:** Added amber-colored badges for funding with priority on award titles and grant IDs.
+- **Unified Contact UI:** Contacts now use indigo-colored badges styled like authors, with email icons and tooltips.
+- **Improved Extraction:**
+  - Automated extraction of "Corresponding Author" and paper abstract.
+  - Funding extraction now specifically targets "Financial Support" sections.
+  - Robust Pydantic validation with placeholder injection for missing mandatory contact fields.
+- **UI Styling:** Multi-line support for related publication badges and DOI prefix cleanup.
+
 ## [0.5.0] - 2026-02-04
 ### Added
 - **Advanced Grounding & Analysis:**
