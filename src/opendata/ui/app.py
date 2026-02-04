@@ -162,7 +162,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
         with ui.column().classes("w-full gap-4"):
             for key, value in fields.items():
-                if key == "authors":
+                if key == "authors" or key == "contacts":
                     ui.label(key.replace("_", " ").title()).classes(
                         "text-xs font-bold text-slate-600 ml-2"
                     )
@@ -180,9 +180,18 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                                 )
                                 affiliation = item.get("affiliation", "")
                                 identifier = item.get("identifier", "")
+                                email = item.get("email", "")
+
+                                # Use green for authors, indigo for contacts
+                                bg_color = (
+                                    "bg-slate-100 border-slate-200"
+                                    if key == "authors"
+                                    else "bg-indigo-50 border-indigo-100 hover:bg-indigo-100"
+                                )
+
                                 with ui.label("").classes(
-                                    "py-0.5 px-1.5 rounded bg-slate-100 border border-slate-200 cursor-pointer hover:bg-slate-200 text-sm inline-block mr-1 mb-1"
-                                ) as author_container:
+                                    f"py-0.5 px-1.5 rounded {bg_color} border cursor-pointer text-sm inline-block mr-1 mb-1"
+                                ) as container:
                                     ui.label(name_clean).classes(
                                         "text-sm font-medium inline mr-1"
                                     )
@@ -199,6 +208,11 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                                             ui.icon(
                                                 "business", size="0.75rem", color="blue"
                                             ).classes("inline-block align-middle")
+                                        if email:
+                                            ui.icon(
+                                                "email", size="0.75rem", color="indigo"
+                                            ).classes("inline-block align-middle")
+
                                     with ui.tooltip().classes(
                                         "bg-slate-800 text-white p-2 text-xs whitespace-normal max-w-xs"
                                     ):
@@ -207,6 +221,8 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                                             ui.label(f"Affiliation: {affiliation}")
                                         if identifier:
                                             ui.label(f"ORCID: {identifier}")
+                                        if email:
+                                            ui.label(f"Email: {email}")
                             else:
                                 ui.label(str(item)).classes(
                                     "text-sm bg-slate-50 p-1 rounded border border-slate-100 break-words"
@@ -220,6 +236,73 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                             ui.label(str(kw)).classes(
                                 "text-sm bg-slate-100 py-0.5 px-2 rounded border border-slate-200 inline-block mr-1 mb-1"
                             )
+                elif key == "related_publications":
+                    ui.label(key.replace("_", " ").title()).classes(
+                        "text-xs font-bold text-slate-600 ml-2"
+                    )
+                    with ui.column().classes("w-full gap-1 items-start"):
+                        for pub in value:
+                            if isinstance(pub, dict):
+                                title = pub.get("title", "Untitled")
+                                rel_type = pub.get("relation_type", "")
+                                id_type = pub.get("id_type", "")
+                                id_val = pub.get("id_number", "")
+
+                                # Cleanup ID value: remove https://doi.org/ prefix
+                                if id_val:
+                                    id_val = id_val.replace("https://doi.org/", "")
+
+                                with ui.label("").classes(
+                                    "py-1 px-1.5 rounded bg-blue-50 border border-blue-100 cursor-pointer hover:bg-blue-100 text-sm inline-block w-full"
+                                ) as pub_container:
+                                    ui.label(title).classes(
+                                        "text-sm font-medium break-words leading-tight"
+                                    )
+                                    with ui.tooltip().classes(
+                                        "bg-slate-800 text-white p-2 text-xs whitespace-normal max-w-xs"
+                                    ):
+                                        ui.label(f"Title: {title}")
+                                        if rel_type:
+                                            ui.label(f"Relation: {rel_type}")
+                                        if id_type or id_val:
+                                            label_prefix = (
+                                                f"{id_type}:" if id_type else "DOI:"
+                                            )
+                                            ui.label(f"{label_prefix} {id_val or ''}")
+                elif key == "funding":
+                    ui.label(key.replace("_", " ").title()).classes(
+                        "text-xs font-bold text-slate-600 ml-2"
+                    )
+                    with ui.column().classes("w-full gap-1 items-start"):
+                        for f in value:
+                            if isinstance(f, dict):
+                                agency = f.get("funder_name", "")
+                                award = f.get("award_title", "")
+                                grant_id = f.get("grant_id", "")
+
+                                display_title = award if award else agency
+
+                                with ui.label("").classes(
+                                    "py-1 px-1.5 rounded bg-amber-50 border border-amber-100 cursor-pointer hover:bg-amber-100 text-sm inline-block w-full"
+                                ) as fund_container:
+                                    with ui.column().classes("gap-0"):
+                                        ui.label(display_title).classes(
+                                            "text-sm font-medium break-words leading-tight"
+                                        )
+                                        if grant_id:
+                                            ui.label(grant_id).classes(
+                                                "text-xs text-slate-500 italic"
+                                            )
+
+                                    with ui.tooltip().classes(
+                                        "bg-slate-800 text-white p-2 text-xs whitespace-normal max-w-xs"
+                                    ):
+                                        if award:
+                                            ui.label(f"Award: {award}")
+                                        if agency:
+                                            ui.label(f"Funder: {agency}")
+                                        if grant_id:
+                                            ui.label(f"Grant ID: {grant_id}")
                 else:
                     ui.label(key.replace("_", " ").title()).classes(
                         "text-xs font-bold text-slate-600 ml-2"

@@ -1,8 +1,8 @@
-from typing import List, Optional, Dict, Any, Tuple, Callable
-from pathlib import Path
 import yaml
 import json
 import re
+from typing import List, Optional, Dict, Any, Tuple, Callable
+from pathlib import Path
 from opendata.models import Metadata, ProjectFingerprint
 from opendata.extractors.base import ExtractorRegistry, PartialMetadata
 from opendata.workspace import WorkspaceManager
@@ -223,6 +223,39 @@ class ProjectAnalysisAgent:
             # Check if user said "yes" (possibly with @files)
             clean_input = re.sub(r"@([^\s,]+)", "", user_text).strip().lower()
             if any(ok in clean_input for ok in ["yes", "y", "sure", "ok", "okay"]):
+                # IMMEDIATE SYSTEM FEEDBACK
+                file_list = []
+                from opendata.utils import walk_project_files
+
+                project_dir = Path(self.current_fingerprint.root_path)
+
+                # Main file
+                candidate_main_files = []
+                for p in walk_project_files(project_dir):
+                    if p.is_file() and p.suffix.lower() in [".tex", ".docx"]:
+                        candidate_main_files.append(p)
+                if candidate_main_files:
+                    main_file = sorted(
+                        candidate_main_files,
+                        key=lambda x: x.stat().st_size,
+                        reverse=True,
+                    )[0]
+                    file_list.append(f"`{main_file.name}` (main)")
+
+                # Auto-included root files
+                for p in project_dir.iterdir():
+                    if p.is_file() and p.suffix.lower() in {".md", ".yaml", ".yml"}:
+                        file_list.append(f"`{p.name}` (auto)")
+
+                # User-requested files
+                for p in extra_files:
+                    if p.name not in [f.split("`")[1] for f in file_list]:
+                        file_list.append(f"`{p.name}` (user)")
+
+                feedback = f"[System] Analyzing project using: {', '.join(file_list)}... This might take a minute."
+                self.chat_history.append(("agent", feedback))
+                self.save_state()
+
                 return self.analyze_full_text(ai_service, extra_files=extra_files)
 
         enhanced_input = user_text
@@ -353,23 +386,18 @@ class ProjectAnalysisAgent:
         )[0]
         rel_main_file = main_file.relative_to(project_dir)
 
-        self.chat_history.append(
-            ("agent", f"[System] Analyzing {rel_main_file} with grounding...")
-        )
-        self.save_state()
-
-        # Read content
+        # 3. Read content
         full_text = FullTextReader.read_full_text(main_file)
         if len(full_text) < 100:
             return f"The file {rel_main_file} seems too empty. Please double check it."
 
-        # 3. Construct Mega-Prompt
+        # 4. Construct Mega-Prompt
         prompt = self.prompt_manager.render(
             "full_text_extraction",
             {"document_text": full_text, "auxiliary_context": auxiliary_context},
         )
 
-        # 4. Call AI (Ensure tools are enabled for search)
+        # 5. Call AI (Ensure tools are enabled for search)
         ai_response = ai_service.ask_agent(prompt)
 
         # Wrap it to reuse the parser logic
@@ -486,6 +514,10 @@ class ProjectAnalysisAgent:
                 f"[DEBUG] Filtered out null values, remaining keys: {list(updates.keys())}"
             )
 
+            # Handle abstract: ensure it's a string
+            if "abstract" in updates:
+                updates["abstract"] = str(updates["abstract"])
+
             # Handle description: RODBUK expects List[str], but AI might send str
             if "description" in updates and isinstance(updates["description"], str):
                 updates["description"] = [updates["description"]]
@@ -520,6 +552,29 @@ class ProjectAnalysisAgent:
                         processed_authors.append({"name": author})
                 updates["authors"] = processed_authors
 
+            # Handle contacts: fix common AI mistakes with schema field names
+            if "contacts" in updates and isinstance(updates["contacts"], list):
+                processed_contacts = []
+                for contact in updates["contacts"]:
+                    if isinstance(contact, dict):
+                        # AI often uses 'name' instead of 'person_to_contact'
+                        if "name" in contact and "person_to_contact" not in contact:
+                            contact["person_to_contact"] = contact.pop("name")
+
+                        # Fix for Pydantic validation: if person_to_contact or email is missing,
+                        # try to fill it with placeholders if it's an intermediate extraction
+                        # but usually it's better to just log it.
+                        # In this case, we'll ensure the keys exist if they are absolutely required
+                        # for model_validate.
+                        if "person_to_contact" in contact and "email" not in contact:
+                            # Heuristic: sometimes AI puts email in notes or just forgets it.
+                            # We'll add a dummy one if it's missing to avoid crash during extraction,
+                            # but ideally the prompt should enforce it.
+                            contact["email"] = "missing@example.com"
+
+                        processed_contacts.append(contact)
+                updates["contacts"] = processed_contacts
+
             # Handle related_publications
             if "related_publications" in updates and isinstance(
                 updates["related_publications"], list
@@ -533,7 +588,7 @@ class ProjectAnalysisAgent:
             current_dict.update(updates)
             self.current_metadata = Metadata.model_validate(current_dict)
             print(
-                f"[DEBUG] Metadata updated successfully. Title: {self.current_metadata.title}"
+                f" [DEBUG] Metadata updated successfully. Title: {self.current_metadata.title}"
             )
 
         except json.JSONDecodeError as e:

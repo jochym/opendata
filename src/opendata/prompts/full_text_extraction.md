@@ -19,13 +19,19 @@ For every author and the document itself, you MUST attempt to find missing ident
 
 ### 1. Title & Abstract
 - Extract the full title.
-- Extract the abstract as a single coherent paragraph.
+- Extract the abstract as a single coherent paragraph. This is MANDATORY for the `abstract` field.
 
-### 2. Authors (PersonOrOrg)
-- `name`: Surname, First Name (or Org name).
-- `affiliation`: Official institution name.
-- `identifier_scheme`: Set to "ORCID" if an ORCID is found.
-- `identifier`: The ID (e.g., 0000-0000-0000-0000) without URL prefix.
+### 2. Authors & Contacts
+- **Authors (PersonOrOrg):**
+  - `name`: Surname, First Name.
+  - `affiliation`: Official institution name.
+  - `identifier_scheme`: "ORCID".
+  - `identifier`: The ID.
+- **Data Contact (Contact):**
+  - Look for the "Corresponding Author" or "Contact for Data".
+  - `person_to_contact`: Full name.
+  - `email`: Valid email address (MANDATORY).
+  - `affiliation`: Their institution.
 
 ### 3. Related Publications
 - List the paper itself (if it has a DOI/ArXiv) and key references.
@@ -37,19 +43,32 @@ For every author and the document itself, you MUST attempt to find missing ident
 ### 4. Kind of Data
 - Infer from: `dataset`, `figure`, `software`, `text`, `other`.
 
+### 5. Funding Information
+- Look for "Acknowledgments", "Funding", or "Financial Support" sections.
+- `funder_name`: Name of the agency (e.g., "National Science Centre").
+- `award_title`: Full title of the grant if mentioned.
+- `grant_id`: The grant number/ID.
+
 ## OUTPUT FORMAT
 Return **ONLY** valid JSON matching the structure below. Do not include markdown fences like ```json.
 
 {{
   "title": "string",
+  "abstract": "string",
   "authors": [
     {{ "name": "string", "affiliation": "string", "identifier": "string", "identifier_scheme": "ORCID" }}
   ],
-  "description": ["Abstract...", "Methodology summary..."],
+  "contacts": [
+    {{ "person_to_contact": "string", "email": "string", "affiliation": "string" }}
+  ],
+  "description": ["Abstract summary...", "Methodology summary..."],
   "keywords": ["string"],
   "kind_of_data": "string",
   "related_publications": [
     {{ "title": "string", "relation_type": "string", "id_type": "string", "id_number": "string" }}
+  ],
+  "funding": [
+    {{ "funder_name": "string", "award_title": "string", "grant_id": "string" }}
   ],
   "license": "CC-BY-4.0"
 }}
