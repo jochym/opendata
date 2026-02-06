@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.0] - 2026-02-06
+### Added
+- **Interactive Metadata Refinement:**
+  - **Dynamic Forms:** Implemented `AIAnalysis` model to parse structured AI feedback (missing fields, conflicts, questions) into interactive UI forms.
+  - **Conflict Resolution:** Added specialized `ui.select` forms for resolving data conflicts between different research sources (e.g., LaTeX vs. YAML).
+  - **Batch Questioning:** AI now collects all missing metadata requirements into a single analysis block, dramatically reducing API quota usage and chat friction.
+  - **Human-Readable Summaries:** Form submissions are logged as formatted bullet points in chat history for transparency.
+- **Enhanced Scientific Metadata:**
+  - **Software & Versioning:** Added `software` extraction to track versions of tools like VASP, Phonopy, and ALAMODE.
+  - **Scientific Branches:** Integrated OECD and MNiSW classification systems into core extraction logic and UI preview.
+  - **Extended Licensing:** Added `license` field to the primary metadata schema.
+- **Viewport & UI Optimization:**
+  - **Edge-to-Edge Dashboard:** Optimized layout to eliminate vertical page-level scrollbars using precise header height calculations (`calc(100vh - 104px)`).
+  - **Padding/Margin Reset:** Forcefully removed NiceGUI default paddings via global CSS overrides for a truly professional CLI-agent feel.
+  - **Compact Field Display:** Redesigned field labels with `text-[10px] uppercase tracking-wider` and negative margins to maximize information density.
+  - **Unified Description:** Multi-paragraph descriptions are now rendered as a single block with line-clamping and a single "more..." toggle.
+  - **Path Robustness:** Automated `~` expansion and canonicalization in the project directory input and packaging service.
+- **Testing & Diagnostics:**
+  - **Automated Bug Reporting:** Added `/bug` command for single-click collection of system info, metadata, and chat history for developers.
+
 ## [0.7.0] - 2026-02-04
 ### Added
 - **Metadata Package Builder:**

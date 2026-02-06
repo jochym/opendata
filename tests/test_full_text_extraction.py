@@ -70,7 +70,7 @@ def test_project_agent_detects_full_text_candidate(latex_full_file, tmp_path):
 
     # Verify
     assert "main.tex" in response
-    assert "process the full text" in response
+    assert "process its full text" in response
 
 
 def test_project_agent_triggers_full_text_analysis(latex_full_file):
@@ -98,24 +98,29 @@ def test_project_agent_triggers_full_text_analysis(latex_full_file):
     # Mock AI Service
     ai_service_mock = MagicMock()
     ai_service_mock.ask_agent.return_value = """
-    METADATA:
-    ```json
     {
-        "title": "Ab Initio Study of Perovskite Solar Cells",
-        "authors": [{"name": "Jane Doe"}, {"name": "John Smith"}],
-        "description": ["We present a comprehensive ab initio study..."],
-        "keywords": ["Perovskite", "DFT", "VASP"],
-        "kind_of_data": ["text"]
+        "ANALYSIS": {
+            "summary": "Extracted data.",
+            "missing_fields": [],
+            "non_compliant": [],
+            "conflicting_data": [],
+            "questions": []
+        },
+        "METADATA": {
+            "title": "Ab Initio Study of Perovskite Solar Cells",
+            "authors": [{"name": "Jane Doe"}, {"name": "John Smith"}],
+            "description": ["We present a comprehensive ab initio study..."],
+            "keywords": ["Perovskite", "DFT", "VASP"],
+            "kind_of_data": "text"
+        }
     }
-    ```
-    QUESTION: I extracted the data.
     """
 
     # Action: User says "Yes"
     response = agent.process_user_input("Yes", ai_service_mock)
 
     # Verify
-    assert "Ab Initio Study of Perovskite Solar Cells" in agent.current_metadata.title
+    assert agent.current_metadata.title == "Ab Initio Study of Perovskite Solar Cells"
     assert len(agent.current_metadata.authors) == 2
     assert "VASP" in str(agent.current_metadata.keywords)
     assert ai_service_mock.ask_agent.called
@@ -123,3 +128,76 @@ def test_project_agent_triggers_full_text_analysis(latex_full_file):
     call_args = ai_service_mock.ask_agent.call_args[0][0]
     assert "Ab Initio Study of Perovskite Solar Cells" in call_args
     assert "Methodology" in call_args
+
+
+def test_project_agent_handles_structured_analysis_response(latex_full_file):
+    # Setup
+    wm_mock = MagicMock()
+    wm_mock.get_project_id.return_value = "test_project"
+    wm_mock.load_project_state.return_value = (None, [], None)
+    agent = ProjectAnalysisAgent(wm_mock)
+
+    agent.current_fingerprint = ProjectFingerprint(
+        root_path=str(latex_full_file.parent),
+        file_count=1,
+        total_size_bytes=1000,
+        extensions=[".tex"],
+        structure_sample=["main.tex"],
+    )
+
+    ai_service_mock = MagicMock()
+    # New structured response
+    ai_service_mock.ask_agent.return_value = """
+    METADATA:
+    {
+        "ANALYSIS": {
+            "summary": "Found title and authors, but email is missing.",
+            "missing_fields": ["email"],
+            "non_compliant": [],
+            "conflicting_data": [
+                {
+                    "field": "title",
+                    "sources": [
+                        {"source": "main.tex", "value": "Title A"},
+                        {"source": "README.md", "value": "Title B"}
+                    ]
+                }
+            ],
+            "questions": [
+                {
+                    "field": "contacts",
+                    "label": "Email",
+                    "question": "What is the contact email?",
+                    "type": "text"
+                }
+            ]
+        },
+        "METADATA": {
+            "title": "Title A",
+            "authors": [{"name": "Jane Doe"}]
+        }
+    }
+    """
+
+    # Trigger analysis
+    agent.analyze_full_text(ai_service_mock)
+
+    # Verify Analysis
+    assert agent.current_analysis is not None
+    assert (
+        agent.current_analysis.summary
+        == "Found title and authors, but email is missing."
+    )
+    assert "email" in agent.current_analysis.missing_fields
+    assert len(agent.current_analysis.questions) == 1
+    assert agent.current_analysis.conflicting_data[0]["field"] == "title"
+
+    # Verify Metadata
+    assert agent.current_metadata.title == "Title A"
+
+    # Action: Submit answers
+    agent.submit_analysis_answers({"title": "Title B"})
+
+    # Verify final state
+    assert agent.current_metadata.title == "Title B"
+    assert agent.current_analysis is None  # Should be cleared after submission

@@ -6,7 +6,14 @@ import sys
 import datetime
 from typing import List, Optional, Dict, Any, Tuple, Callable
 from pathlib import Path
-from opendata.models import Metadata, ProjectFingerprint
+from opendata.models import (
+    Metadata,
+    ProjectFingerprint,
+    AIAnalysis,
+    Question,
+    PersonOrOrg,
+    Contact,
+)
 from opendata.extractors.base import ExtractorRegistry, PartialMetadata
 from opendata.workspace import WorkspaceManager
 from opendata.utils import scan_project_lazy, PromptManager
@@ -27,6 +34,7 @@ class ProjectAnalysisAgent:
 
         self.current_fingerprint: Optional[ProjectFingerprint] = None
         self.current_metadata = Metadata.model_construct()
+        self.current_analysis: Optional[AIAnalysis] = None
         self.chat_history: List[Tuple[str, str]] = []  # (Role, Message)
 
     def _setup_extractors(self):
@@ -162,6 +170,18 @@ class ProjectAnalysisAgent:
                                 heuristics_data[key] = val
 
         self.current_metadata = Metadata.model_construct(**heuristics_data)
+
+        # Ensure authors and contacts are properly validated models even if they came from heuristics as dicts
+        if self.current_metadata.authors:
+            self.current_metadata.authors = [
+                a if hasattr(a, "name") else PersonOrOrg(**a)
+                for a in self.current_metadata.authors
+            ]
+        if self.current_metadata.contacts:
+            self.current_metadata.contacts = [
+                c if hasattr(c, "email") else Contact(**c)
+                for c in self.current_metadata.contacts
+            ]
 
         msg = f"I've scanned {self.current_fingerprint.file_count} files in your project. "
         found_fields = list(heuristics_data.keys())
@@ -389,10 +409,18 @@ class ProjectAnalysisAgent:
         ai_response = ai_service.ask_agent(full_prompt)
 
         # 3. IMMEDIATE METADATA EXTRACTION FROM RESPONSE
-        clean_msg = self._extract_metadata_from_ai_response(ai_response)
+        # Wrap it to reuse the parser logic if it doesn't already have METADATA: marker
+        if "METADATA:" not in ai_response:
+            wrapped_response = f"METADATA:\n{ai_response}"
+        else:
+            wrapped_response = ai_response
+
+        clean_msg = self._extract_metadata_from_ai_response(wrapped_response)
 
         self.chat_history.append(("agent", clean_msg))
         self.save_state()
+        if on_update:
+            on_update()
         return clean_msg
 
     def analyze_full_text(
@@ -464,15 +492,12 @@ class ProjectAnalysisAgent:
         # 5. Call AI (Ensure tools are enabled for search)
         ai_response = ai_service.ask_agent(prompt)
 
-        # Wrap it to reuse the parser logic
-        wrapped_response = f"METADATA:\n```json\n{ai_response}\n```\nQUESTION: I have extracted the metadata using the full text and grounded search."
-
+        # Re-use parser logic
+        wrapped_response = f"METADATA:\n{ai_response}"
         clean_msg = self._extract_metadata_from_ai_response(wrapped_response)
 
-        final_msg = f"I've analyzed the full text of **{rel_main_file}**.\n\n"
-        final_msg += f"**Title Found:** {self.current_metadata.title}\n"
-        final_msg += f"**Authors:** {len(self.current_metadata.authors or [])} found.\n"
-        final_msg += "\nPlease review the metadata tab to see the details. What would you like to refine?"
+        # Store analysis for UI to pick up
+        final_msg = clean_msg
 
         self.chat_history.append(("agent", final_msg))
         self.save_state()
@@ -480,12 +505,67 @@ class ProjectAnalysisAgent:
             on_update()
         return final_msg
 
+    def submit_analysis_answers(
+        self, answers: Dict[str, Any], on_update: Optional[Callable[[], None]] = None
+    ) -> str:
+        """
+        Updates metadata based on form answers and clears current analysis.
+        """
+        if not self.current_analysis:
+            return "No active analysis to answer."
+
+        current_dict = self.current_metadata.model_dump(exclude_unset=True)
+
+        # Proper list handling for fields like science_branches
+        processed_answers = {}
+        for k, v in answers.items():
+            if k in [
+                "science_branches_oecd",
+                "science_branches_mnisw",
+                "keywords",
+                "description",
+                "software",
+            ]:
+                processed_answers[k] = [v] if isinstance(v, str) else v
+            else:
+                processed_answers[k] = v
+
+        current_dict.update(processed_answers)
+        self.current_metadata = Metadata.model_validate(current_dict)
+
+        msg = "Thank you! I've updated the metadata with your answers."
+        self.current_analysis = None
+
+        # Format "human readable" answers for history
+        human_answers = []
+        for k, v in processed_answers.items():
+            label = k.replace("_", " ").title()
+            # If value is a list, format it nicely
+            if isinstance(v, list):
+                val_str = ", ".join(map(str, v))
+            else:
+                val_str = str(v)
+            human_answers.append(f"- **{label}**: {val_str}")
+
+        summary = "\n".join(human_answers)
+        self.chat_history.append(("user", f"Updated fields:\n\n{summary}"))
+
+        self.chat_history.append(("agent", msg))
+        self.save_state()
+
+        if on_update:
+            on_update()
+
+        return msg
+
     def _extract_metadata_from_ai_response(self, response_text: str) -> str:
         """
         Extract METADATA JSON from AI response and merge into current_metadata.
-        Returns only the QUESTION part for display to user.
+        Handles both legacy and new (ANALYSIS + METADATA) structures.
+        Returns the text to be displayed in the chat.
         """
         clean_text = response_text
+        self.current_analysis = None  # Reset for each response
 
         # Check if METADATA marker exists
         if "METADATA:" not in response_text:
@@ -505,18 +585,14 @@ class ProjectAnalysisAgent:
                 clean_text = ""
 
             # Extract JSON - look for the outermost braces
-            # Remove optional markdown code fences
             json_section = json_section.strip()
             json_section = re.sub(r"^```json\s*", "", json_section)
             json_section = re.sub(r"\s*```$", "", json_section)
 
-            # Find the first { and the matching closing }
             start = json_section.find("{")
             if start == -1:
-                print("No JSON object found in METADATA section")
                 return clean_text if clean_text else response_text
 
-            # Count braces to find the matching closing brace
             brace_count = 0
             end = -1
             for i in range(start, len(json_section)):
@@ -529,146 +605,112 @@ class ProjectAnalysisAgent:
                         break
 
             if end == -1:
-                print("Could not find matching closing brace in METADATA")
                 return clean_text if clean_text else response_text
 
             json_str = json_section[start:end]
-            print(f"[DEBUG] Extracted JSON ({len(json_str)} chars):")
-            print(json_str)
-            print("[DEBUG] End of JSON extraction")
-
-            # Pre-process to fix common AI mistakes
-            # 1. Replace Python None with JSON null
             json_str = re.sub(r"\bNone\b", "null", json_str)
-            # 2. Replace Python True/False with lowercase
             json_str = re.sub(r"\bTrue\b", "true", json_str)
             json_str = re.sub(r"\bFalse\b", "false", json_str)
-            # 3. Try to fix single quotes (risky, but common AI error)
-            # Only if double quotes seem missing
-            if json_str.count('"') < json_str.count("'") / 2:
-                print(
-                    "[DEBUG] Detected single quotes, attempting to convert to double quotes"
-                )
-                json_str = json_str.replace("'", '"')
 
-            # Parse and merge the metadata
             try:
-                updates = json.loads(json_str)
-                print(f"[DEBUG] Parsed metadata keys: {list(updates.keys())}")
-            except json.JSONDecodeError as json_err:
-                print(f"[ERROR] JSON Parse Error: {json_err}")
-                print(f"[ERROR] Error at position {json_err.pos}")
-                if json_err.pos < len(json_str):
-                    # Show context around the error
-                    start_ctx = max(0, json_err.pos - 50)
-                    end_ctx = min(len(json_str), json_err.pos + 50)
-                    context = json_str[start_ctx:end_ctx]
-                    print(f"[ERROR] Context around error position:")
-                    print(f"[ERROR] ...{context}...")
-                    print(
-                        f"[ERROR] Character at error: repr={repr(json_str[json_err.pos])}"
-                    )
-                raise
+                data = json.loads(json_str)
+            except json.JSONDecodeError:
+                # Try single quote fix if it looks like Python dict
+                if json_str.count("'") > json_str.count('"'):
+                    try:
+                        data = json.loads(json_str.replace("'", '"'))
+                    except:
+                        raise
+                else:
+                    raise
 
-            # Merge with existing metadata
+            # Detect Structure: New (ANALYSIS + METADATA) vs Old (flat METADATA)
+            if "METADATA" in data and "ANALYSIS" in data:
+                updates = data["METADATA"]
+                try:
+                    self.current_analysis = AIAnalysis.model_validate(data["ANALYSIS"])
+                except Exception as e:
+                    print(f"[ERROR] Failed to validate AIAnalysis: {e}")
+            else:
+                updates = data
+
+            # Process updates (Metadata)
             current_dict = self.current_metadata.model_dump(exclude_unset=True)
             locked = set(self.current_metadata.locked_fields or [])
 
-            # Pre-process updates to match schema expectations
-            # First, remove all null values (they shouldn't override existing data)
+            # Basic normalization
             updates = {k: v for k, v in updates.items() if v is not None}
-
-            # Filter out locked fields from updates
             if locked:
                 for key in list(updates.keys()):
                     if key in locked:
-                        print(f"[DEBUG] Field '{key}' is locked, skipping AI update.")
                         del updates[key]
 
-            print(
-                f"[DEBUG] Filtered out null values, remaining keys: {list(updates.keys())}"
-            )
-
-            # Handle abstract: ensure it's a string
+            # Schema fixes
             if "abstract" in updates:
                 updates["abstract"] = str(updates["abstract"])
-
-            # Handle description: RODBUK expects List[str], but AI might send str
             if "description" in updates and isinstance(updates["description"], str):
                 updates["description"] = [updates["description"]]
-                print("[DEBUG] Converted description from str to list")
-
-            # Handle keywords: ensure it's a list
             if "keywords" in updates and isinstance(updates["keywords"], str):
                 updates["keywords"] = [updates["keywords"]]
-                print("[DEBUG] Converted keywords from str to list")
-
-            # Handle kind_of_data: ensure it's a string (AI might return list)
             if "kind_of_data" in updates and isinstance(updates["kind_of_data"], list):
-                if len(updates["kind_of_data"]) > 0:
-                    updates["kind_of_data"] = str(updates["kind_of_data"][0])
-                else:
-                    updates["kind_of_data"] = None
-                print("[DEBUG] Converted kind_of_data from list to str")
+                updates["kind_of_data"] = (
+                    str(updates["kind_of_data"][0]) if updates["kind_of_data"] else None
+                )
 
-            # Handle authors: ensure PersonOrOrg objects
+            # Authors normalization
             if "authors" in updates and isinstance(updates["authors"], list):
                 processed_authors = []
                 for author in updates["authors"]:
                     if isinstance(author, dict):
-                        # Ensure identifier_scheme is set if identifier is present
                         if author.get("identifier") and not author.get(
                             "identifier_scheme"
                         ):
                             author["identifier_scheme"] = "ORCID"
                         processed_authors.append(author)
                     elif isinstance(author, str):
-                        # Convert string to PersonOrOrg dict
                         processed_authors.append({"name": author})
                 updates["authors"] = processed_authors
 
-            # Handle contacts: fix common AI mistakes with schema field names
+            # Contacts normalization
             if "contacts" in updates and isinstance(updates["contacts"], list):
                 processed_contacts = []
                 for contact in updates["contacts"]:
                     if isinstance(contact, dict):
-                        # AI often uses 'name' instead of 'person_to_contact'
                         if "name" in contact and "person_to_contact" not in contact:
                             contact["person_to_contact"] = contact.pop("name")
-
-                        # Fix for Pydantic validation: if person_to_contact or email is missing,
-                        # try to fill it with placeholders if it's an intermediate extraction
-                        # but usually it's better to just log it.
-                        # In this case, we'll ensure the keys exist if they are absolutely required
-                        # for model_validate.
                         if "person_to_contact" in contact and "email" not in contact:
-                            # Heuristic: sometimes AI puts email in notes or just forgets it.
-                            # We'll add a dummy one if it's missing to avoid crash during extraction,
-                            # but ideally the prompt should enforce it.
                             contact["email"] = "missing@example.com"
-
                         processed_contacts.append(contact)
                 updates["contacts"] = processed_contacts
 
-            # Handle related_publications
+            # Related publications normalization
             if "related_publications" in updates and isinstance(
                 updates["related_publications"], list
             ):
-                processed_pubs = []
-                for pub in updates["related_publications"]:
-                    if isinstance(pub, dict) and pub.get("title"):
-                        processed_pubs.append(pub)
-                updates["related_publications"] = processed_pubs
+                updates["related_publications"] = [
+                    pub
+                    for pub in updates["related_publications"]
+                    if isinstance(pub, dict) and pub.get("title")
+                ]
 
             current_dict.update(updates)
             self.current_metadata = Metadata.model_validate(current_dict)
-            print(
-                f" [DEBUG] Metadata updated successfully. Title: {self.current_metadata.title}"
-            )
 
-        except json.JSONDecodeError as e:
-            print(f"[ERROR] Failed to parse JSON in METADATA section: {e}")
-            return response_text
+            # If we have an analysis, use its summary + missing info as the message
+            if self.current_analysis:
+                msg = f"**{self.current_analysis.summary}**\n\n"
+                if self.current_analysis.missing_fields:
+                    msg += f"⚠️ **Missing:** {', '.join(self.current_analysis.missing_fields)}\n"
+                if self.current_analysis.non_compliant:
+                    msg += f"❗ **Non-compliant:** {', '.join(self.current_analysis.non_compliant)}\n"
+                if self.current_analysis.conflicting_data:
+                    msg += "⚠️ **Conflicts detected!** Check the form below.\n"
+
+                if self.current_analysis.questions:
+                    msg += "\nI've prepared a form to help you fill in the missing details."
+
+                return msg.strip()
+
         except Exception as e:
             print(f"[ERROR] Failed to extract metadata from AI response: {e}")
             import traceback

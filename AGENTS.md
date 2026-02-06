@@ -150,6 +150,15 @@ Every substantial step must have an accompanying automated test. Before completi
   - **Workflow Isolation:** Relocated the final submission preview and package generation to the Preview tab.
   - **Enhanced Settings:** Created a centralized hub for global application configuration and AI session management.
 
+- **Phase 16 Interactive Refinement & Optimization [COMPLETE]:**
+  - **Dynamic Extraction Forms:** Implemented structured AI feedback with `ANALYSIS` blocks, generating interactive UI forms for conflict resolution and targeted questions.
+  - **Request Optimization:** Refactored mega-prompt and system instructions to ask all missing metadata questions at once, minimizing API calls and quota usage.
+  - **Enhanced Metadata Schema:** Added `license`, `software`, and scientific branches (OECD/MNiSW) to core models and extraction logic.
+  - **UI/UX Polish:** Integrated immediate "AI is thinking" feedback, unified multi-paragraph description rendering, and optimized edge-to-edge dashboard layout.
+  - **Path Robustness:** Implemented automatic `~` expansion and canonicalization for project directories across all services.
+  - **Human-Readable History:** Replaced raw JSON form submissions with formatted bullet points in the chat history.
+  - **Viewport Optimization:** Fixed vertical whitespace issues by accurately calculating header height (104px including tabs), removing body/html margins, and ensuring full-height propagation through tab panels and containers.
+
 ## Code Style Guidelines
 
 ### 1. Multi-Platform Compatibility & i18n

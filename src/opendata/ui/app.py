@@ -1,3 +1,4 @@
+import re
 import yaml
 from nicegui import ui
 import webbrowser
@@ -78,10 +79,90 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
             )
             project_selector_ui()
 
+    def refresh_all():
+        chat_messages_ui.refresh()
+        metadata_preview_ui.refresh()
+        header_content_ui.refresh()
+
+    def render_analysis_form(analysis: Any):
+        with ui.card().classes(
+            "w-full mt-4 p-4 bg-white border border-slate-200 shadow-sm"
+        ):
+            ui.label(_("Refinement Form")).classes(
+                "text-sm font-bold text-slate-700 mb-2"
+            )
+
+            form_data = {}
+
+            # 1. Handle Conflicts
+            if analysis.conflicting_data:
+                ui.label(_("Resolve Conflicts")).classes(
+                    "text-xs font-bold text-orange-600 mt-2"
+                )
+                for conflict in analysis.conflicting_data:
+                    field = conflict.get("field", "unknown")
+                    sources = conflict.get("sources", [])
+                    # Ensure values are strings for select options keys
+                    options = {
+                        str(
+                            s.get("value", "")
+                        ): f"{str(s.get('value', ''))} (Source: {s.get('source', 'unknown')})"
+                        for s in sources
+                    }
+
+                    with ui.row().classes("w-full items-center gap-2"):
+                        ui.label(field.replace("_", " ").title()).classes(
+                            "text-xs w-24"
+                        )
+                        form_data[field] = (
+                            ui.select(
+                                options=options,
+                                value=str(sources[0].get("value", ""))
+                                if sources
+                                else None,
+                            )
+                            .props("dense outlined")
+                            .classes("flex-grow")
+                        )
+
+            # 2. Handle Questions
+            if analysis.questions:
+                ui.label(_("Additional Information")).classes(
+                    "text-xs font-bold text-blue-600 mt-2"
+                )
+                for q in analysis.questions:
+                    with ui.column().classes("w-full gap-1 mt-1"):
+                        ui.label(q.question).classes("text-xs text-slate-600")
+                        if q.type == "choice":
+                            form_data[q.field] = (
+                                ui.select(options=q.options or [], label=q.label)
+                                .props("dense outlined")
+                                .classes("w-full")
+                            )
+                        else:
+                            form_data[q.field] = (
+                                ui.input(label=q.label)
+                                .props("dense outlined")
+                                .classes("w-full")
+                            )
+
+            async def submit_form():
+                # Extract values from NiceGUI components
+                final_answers = {}
+                for field, component in form_data.items():
+                    final_answers[field] = component.value
+
+                agent.submit_analysis_answers(final_answers, on_update=refresh_all)
+                ui.notify(_("Metadata updated from form."), type="positive")
+
+            ui.button(_("Update Metadata"), on_click=submit_form).props(
+                "elevated color=primary icon=check"
+            ).classes("w-full mt-4")
+
     @ui.refreshable
     def chat_messages_ui():
         with ui.column().classes("w-full gap-1 overflow-x-hidden"):
-            for role, msg in agent.chat_history:
+            for i, (role, msg) in enumerate(agent.chat_history):
                 if role == "user":
                     with ui.row().classes("w-full justify-start"):
                         with ui.card().classes(
@@ -99,22 +180,37 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                                 "text-sm text-gray-800 m-0 p-0 break-words"
                             )
 
-            if ScanState.is_scanning:
+                            # If this is the last agent message and we have an active analysis, show the form
+                            if (
+                                i == len(agent.chat_history) - 1
+                                and agent.current_analysis
+                            ):
+                                render_analysis_form(agent.current_analysis)
+
+            if ScanState.is_scanning or ScanState.is_processing_ai:
                 with ui.row().classes("w-full justify-start"):
                     with ui.card().classes(
                         "bg-gray-100 border border-gray-200 rounded-lg py-0.5 px-3 w-full shadow-none"
                     ):
                         with ui.row().classes("items-center gap-1"):
-                            ui.markdown(_("Scanning project...")).classes(
+                            label_text = (
+                                _("Scanning project...")
+                                if ScanState.is_scanning
+                                else _("AI is thinking...")
+                            )
+                            ui.markdown(label_text).classes(
                                 "text-sm text-gray-800 m-0 p-0"
                             )
-                            ui.button("", on_click=handle_cancel_scan).props(
-                                "icon=close flat color=gray size=xs"
-                            ).classes("min-h-6 min-w-6 p-0.5")
+                            ui.spinner(size="xs")
+                            if ScanState.is_scanning:
+                                ui.button("", on_click=handle_cancel_scan).props(
+                                    "icon=close flat color=gray size=xs"
+                                ).classes("min-h-6 min-w-6 p-0.5")
         ui.run_javascript("window.scrollTo(0, document.body.scrollHeight)")
 
     class ScanState:
         is_scanning = False
+        is_processing_ai = False
         progress = ""
         short_path = ""
         full_path = ""
@@ -177,21 +273,84 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                             else _("Unlock field")
                         )
 
-                # Increased height to 110px to ensure 5 lines are fully visible without chopping descenders.
-                content = ui.markdown(text).classes(
-                    "px-2 py-0 text-sm text-gray-800 break-words overflow-hidden transition-all duration-300 cursor-pointer"
-                )
+        # Increased height to 110px to ensure 5 lines are fully visible without chopping descenders.
+        def create_expandable_text(text: str, key: str = None):
+            with ui.column().classes(
+                "w-full gap-0 bg-slate-50 border border-slate-100 rounded relative group"
+            ):
+                # Lock indicator
+                if key:
+                    is_locked = key in agent.current_metadata.locked_fields
+
+                    async def toggle_lock(e, k=key):
+                        if k in agent.current_metadata.locked_fields:
+                            agent.current_metadata.locked_fields.remove(k)
+                        else:
+                            agent.current_metadata.locked_fields.append(k)
+                        agent.save_state()
+                        metadata_preview_ui.refresh()
+
+                    with (
+                        ui.button(
+                            icon="lock" if is_locked else "lock_open",
+                            on_click=toggle_lock,
+                        )
+                        .props("flat dense")
+                        .classes(
+                            f"absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity {'text-orange-600 opacity-100' if is_locked else 'text-slate-400'}"
+                        )
+                    ):
+                        ui.tooltip(
+                            _("Lock field from AI updates")
+                            if not is_locked
+                            else _("Unlock field")
+                        )
+
+                if key == "description":
+                    # Convert list of strings to markdown paragraphs
+                    md_text = "\n\n".join(text) if isinstance(text, list) else text
+                    content = ui.markdown(md_text).classes(
+                        "px-3 py-2 text-sm text-gray-800 break-words overflow-hidden transition-all duration-300 cursor-pointer"
+                    )
+                    # Fixed height to avoid cutting lines + line-clamp for ellipsis
+                    content.style(
+                        "max-height: 120px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical;"
+                    )
+                elif key == "keywords":
+                    # Join keywords with commas
+                    kw_text = ", ".join(text) if isinstance(text, list) else text
+                    content = ui.markdown(kw_text).classes(
+                        "px-2 py-0 text-sm text-gray-800 break-words overflow-hidden transition-all duration-300 cursor-pointer"
+                    )
+                    content.style("max-height: 110px; line-height: 1.5;")
+                else:
+                    # Fallback for other fields, ensuring string conversion
+                    display_text = str(text)
+                    content = ui.markdown(display_text).classes(
+                        "px-2 py-0 text-sm text-gray-800 break-words overflow-hidden transition-all duration-300 cursor-pointer"
+                    )
+                    content.style("max-height: 110px; line-height: 1.5;")
+
                 if key:
                     content.on("click", lambda: open_edit_dialog(key))
 
-                content.style("max-height: 110px; line-height: 1.5;")
-                if len(text.splitlines()) > 5 or len(text) > 300:
+                # Logic for single MORE button for description
+                if (
+                    (key == "description" and isinstance(text, list) and len(text) > 0)
+                    or (isinstance(text, list) and len(text) > 1)
+                    or len(str(text)) > 300
+                ):
 
                     def toggle(e, target=content):
                         is_expanded = target.style["max-height"] == "none"
-                        target.style(
-                            f"max-height: {'110px' if is_expanded else 'none'}"
-                        )
+                        if key == "description":
+                            target.style(
+                                f"max-height: {'120px' if is_expanded else 'none'}; -webkit-line-clamp: {'6' if is_expanded else 'unset'}"
+                            )
+                        else:
+                            target.style(
+                                f"max-height: {'110px' if is_expanded else 'none'}"
+                            )
                         e.sender.text = _("more...") if is_expanded else _("less...")
 
                     ui.button(_("more..."), on_click=toggle).props(
@@ -229,15 +388,22 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                             "text-xs text-slate-500"
                         )
                     else:
-                        current_text = "\n".join(val) if val else ""
+                        # Special handling for description: use double newlines for paragraphs
+                        if key == "description":
+                            current_text = "\n\n".join(val) if val else ""
+                            help_text = _(
+                                "Enter one paragraph per block. Use double newlines to separate."
+                            )
+                        else:
+                            current_text = "\n".join(val) if val else ""
+                            help_text = _("Enter one item per line.")
+
                         edit_area = (
                             ui.textarea(value=current_text)
                             .classes("w-full")
                             .props("rows=10 auto-grow")
                         )
-                        ui.markdown(_("Enter one item per line.")).classes(
-                            "text-xs text-slate-500"
-                        )
+                        ui.markdown(help_text).classes("text-xs text-slate-500")
                 else:
                     # For simple strings
                     edit_area = (
@@ -255,18 +421,25 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                             if isinstance(val, list):
                                 if val and not isinstance(val[0], str):
                                     # Parse YAML back to list of dicts
-                                    import yaml
-
                                     parsed_list = yaml.safe_load(new_val)
                                     if not isinstance(parsed_list, list):
                                         raise ValueError("YAML must be a list")
                                     setattr(agent.current_metadata, key, parsed_list)
                                 else:
-                                    new_list = [
-                                        line.strip()
-                                        for line in new_val.split("\n")
-                                        if line.strip()
-                                    ]
+                                    # Special parsing for description: split by double newlines or single newlines
+                                    if key == "description":
+                                        # Split by double newlines to get paragraphs
+                                        new_list = [
+                                            p.strip()
+                                            for p in re.split(r"\n\s*\n", new_val)
+                                            if p.strip()
+                                        ]
+                                    else:
+                                        new_list = [
+                                            line.strip()
+                                            for line in new_val.split("\n")
+                                            if line.strip()
+                                        ]
                                     setattr(agent.current_metadata, key, new_list)
                             else:
                                 setattr(agent.current_metadata, key, new_val)
@@ -293,15 +466,15 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
             dialog.open()
 
-        with ui.column().classes("w-full gap-4"):
+        with ui.column().classes("w-full gap-2"):
             for key, value in fields.items():
                 if key == "locked_fields":
                     continue
                 if key == "authors" or key == "contacts":
                     ui.label(key.replace("_", " ").title()).classes(
-                        "text-xs font-bold text-slate-600 ml-2"
+                        "text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-wider"
                     )
-                    with ui.row().classes("w-full gap-1 flex-wrap items-center"):
+                    with ui.row().classes("w-full gap-1 flex-wrap items-center mt--1"):
                         for item in value:
                             if isinstance(item, dict):
                                 name = item.get(
@@ -364,7 +537,8 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                                         )
 
                                     container.on(
-                                        "click", lambda _e, k=key: open_edit_dialog(k)
+                                        "click",
+                                        lambda _e, k=key: open_edit_dialog(k),
                                     )
 
                                     ui.label(name_clean).classes(
@@ -381,11 +555,15 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                                             ).classes("inline-block align-middle")
                                         if affiliation:
                                             ui.icon(
-                                                "business", size="0.75rem", color="blue"
+                                                "business",
+                                                size="0.75rem",
+                                                color="blue",
                                             ).classes("inline-block align-middle")
                                         if email:
                                             ui.icon(
-                                                "email", size="0.75rem", color="indigo"
+                                                "email",
+                                                size="0.75rem",
+                                                color="indigo",
                                             ).classes("inline-block align-middle")
 
                                     with ui.tooltip().classes(
@@ -402,12 +580,18 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                                 ui.label(str(item)).classes(
                                     "text-sm bg-slate-50 p-1 rounded border border-slate-100 break-words"
                                 )
+                elif key == "description":
+                    ui.label(key.replace("_", " ").title()).classes(
+                        "text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-wider"
+                    )
+                    with ui.column().classes("w-full gap-0 mt--1"):
+                        create_expandable_text(value, key=key)
                 elif key == "keywords":
                     ui.label(key.replace("_", " ").title()).classes(
-                        "text-xs font-bold text-slate-600 ml-2"
+                        "text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-wider"
                     )
                     with ui.row().classes(
-                        "w-full gap-1 flex-wrap items-center relative group"
+                        "w-full gap-1 flex-wrap items-center relative group mt--1"
                     ) as kw_container:
                         # Lock for keywords
                         is_locked = key in agent.current_metadata.locked_fields
@@ -436,11 +620,25 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                             ui.label(str(kw)).classes(
                                 "text-sm bg-slate-100 py-0.5 px-2 rounded border border-slate-200 inline-block mr-1 mb-1"
                             )
+                elif (
+                    key == "science_branches_mnisw"
+                    or key == "science_branches_oecd"
+                    or key == "software"
+                    or key == "languages"
+                ):
+                    ui.label(key.replace("_", " ").title()).classes(
+                        "text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-wider"
+                    )
+                    with ui.row().classes("w-full gap-1 flex-wrap items-center mt--1"):
+                        for item in value:
+                            ui.label(str(item)).classes(
+                                "text-sm bg-slate-100 py-0.5 px-2 rounded border border-slate-200 inline-block mr-1 mb-1"
+                            )
                 elif key == "related_publications":
                     ui.label(key.replace("_", " ").title()).classes(
-                        "text-xs font-bold text-slate-600 ml-2"
+                        "text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-wider"
                     )
-                    with ui.column().classes("w-full gap-1 items-start"):
+                    with ui.column().classes("w-full gap-1 items-start mt--1"):
                         for pub in value:
                             if isinstance(pub, dict):
                                 title = pub.get("title", "Untitled")
@@ -501,9 +699,9 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                                             ui.label(f"{label_prefix} {id_val or ''}")
                 elif key == "funding":
                     ui.label(key.replace("_", " ").title()).classes(
-                        "text-xs font-bold text-slate-600 ml-2"
+                        "text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-wider"
                     )
-                    with ui.column().classes("w-full gap-1 items-start"):
+                    with ui.column().classes("w-full gap-1 items-start mt--1"):
                         for f in value:
                             if isinstance(f, dict):
                                 agency = f.get("funder_name", "")
@@ -564,22 +762,21 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                                             ui.label(f"Grant ID: {grant_id}")
                 else:
                     ui.label(key.replace("_", " ").title()).classes(
-                        "text-xs font-bold text-slate-600 ml-2"
+                        "text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-wider"
                     )
                     if isinstance(value, list):
-                        with ui.column().classes("w-full gap-1"):
+                        with ui.column().classes("w-full gap-1 mt--1"):
                             for v_item in value:
                                 create_expandable_text(str(v_item), key=key)
                     else:
-                        create_expandable_text(str(value), key=key)
+                        with ui.column().classes("w-full mt--1"):
+                            create_expandable_text(str(value), key=key)
 
     @ui.refreshable
     def project_selector_ui():
         if not settings.ai_consent_granted:
             return
         projects = wm.list_projects()
-        if not projects:
-            return
 
         # Identify current project by path to set as default value
         current_val = ScanState.current_path if ScanState.current_path else None
@@ -588,6 +785,9 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
             project_options = {
                 p["path"]: f"{p['title']} ({p['path']})" for p in projects
             }
+
+            if not project_options:
+                return
 
             # Sanitize current_val to avoid ValueError if project was deleted
             if current_val not in project_options:
@@ -603,6 +803,8 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                 .props("dark dense options-dark behavior=menu")
                 .classes("w-48 text-xs")
             )
+            # Bind selector value to ScanState.current_path to keep it in sync
+            selector.bind_value(ScanState, "current_path")
 
             async def handle_delete_current():
                 if not ScanState.current_path:
@@ -686,7 +888,13 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
     @ui.page("/")
     def index():
         setup_i18n(settings.language)
-        ui.query("body").style("background-color: #f8f9fa;")
+        ui.add_head_html("""
+            <style>
+                .nicegui-content { padding: 4px !important; }
+            </style>
+        """)
+        ui.query("body").style("background-color: #f8f9fa; margin: 0; padding: 0;")
+        ui.query("html").style("margin: 0; padding: 0;")
 
         # Define dialogs early for access in header
         with ui.dialog() as qr_dialog, ui.card().classes("p-6 items-center"):
@@ -711,15 +919,15 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                 preview_tab = ui.tab(_("Preview"), icon="visibility")
                 settings_tab = ui.tab(_("Settings"), icon="settings")
 
-        container = ui.column().classes("w-full items-center q-pa-md max-w-7xl mx-auto")
+        container = ui.column().classes("w-full p-0 max-w-none mx-0 h-full")
         with container:
             if not settings.ai_consent_granted:
                 render_setup_wizard()
             else:
                 with ui.tab_panels(main_tabs, value=analysis_tab).classes(
-                    "w-full bg-transparent"
+                    "w-full bg-transparent p-0 h-full"
                 ):
-                    with ui.tab_panel(analysis_tab):
+                    with ui.tab_panel(analysis_tab).classes("p-0 h-full"):
                         render_analysis_dashboard()
                     with ui.tab_panel(protocols_tab):
                         render_protocols_placeholder()
@@ -932,11 +1140,12 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
             settings.splitter_value = e.value
             wm.save_yaml(settings, "settings.yaml")
 
+        # Header is ~56px (py-2 = 8px top + 8px bottom + ~40px content) + tabs ~48px = ~104px total
         with ui.splitter(
             value=settings.splitter_value, on_change=on_splitter_change
-        ).classes("w-full h-[calc(100vh-110px)] min-h-[600px]") as splitter:
+        ).classes("w-full h-[calc(100vh-104px)] min-h-[600px] m-0 p-0") as splitter:
             with splitter.before:
-                with ui.column().classes("w-full h-full pr-4"):
+                with ui.column().classes("w-full h-full pr-2"):
                     with ui.card().classes("w-full h-full p-0 shadow-md flex flex-col"):
                         with ui.row().classes(
                             "bg-slate-100 text-slate-800 p-3 w-full justify-between items-center shrink-0"
@@ -973,27 +1182,39 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                             ).props("round elevated color=primary")
 
             with splitter.after:
-                with ui.column().classes("w-full h-full pl-4"):
+                with ui.column().classes("w-full h-full pl-2"):
                     with ui.card().classes(
-                        "w-full h-full p-4 shadow-md border-l-4 border-green-500 flex flex-col"
+                        "w-full h-full p-3 shadow-md border-l-4 border-green-500 flex flex-col"
                     ):
                         with ui.row().classes(
-                            "w-full justify-between items-center q-mb-md shrink-0"
+                            "w-full justify-between items-center mb-1 shrink-0"
                         ):
                             ui.label(_("RODBUK Metadata")).classes(
-                                "text-h6 font-bold text-green-800"
+                                "text-h5 font-bold text-green-800"
                             )
                             ui.button(
                                 icon="refresh", on_click=handle_clear_metadata
                             ).props("flat dense color=orange")
                             ui.tooltip(_("Reset Metadata"))
-                        with ui.column().classes("gap-2 q-mb-md w-full shrink-0"):
+                        with ui.column().classes("gap-1 mb-2 w-full shrink-0"):
+
+                            def on_path_change(e):
+                                if e.value and "~" in e.value:
+                                    canonical = str(
+                                        Path(e.value).expanduser().resolve()
+                                    )
+                                    ScanState.current_path = canonical
+                                    # Update UI value to show the expansion
+                                    path_input.value = canonical
+
                             path_input = (
                                 ui.input(
                                     label=_("Project Path"),
                                     placeholder="/path/to/research",
+                                    on_change=on_path_change,
                                 )
                                 .classes("w-full")
+                                .props("dense")
                                 .bind_value(ScanState, "current_path")
                             )
                             ui.button(
@@ -1002,7 +1223,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                                 on_click=lambda: handle_scan(
                                     path_input.value, force=True
                                 ),
-                            ).classes("w-full").bind_visibility_from(
+                            ).classes("w-full").props("dense").bind_visibility_from(
                                 ScanState, "is_scanning", backward=lambda x: not x
                             )
                             ui.button(
@@ -1010,9 +1231,10 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                                 icon="stop",
                                 on_click=handle_cancel_scan,
                                 color="red",
-                            ).classes("w-full").bind_visibility_from(
+                            ).classes("w-full").props("dense").bind_visibility_from(
                                 ScanState, "is_scanning"
                             )
+                            ui.separator().classes("mt-1")
                         with ui.scroll_area().classes("flex-grow w-full"):
                             metadata_preview_ui()
 
@@ -1035,9 +1257,12 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
             ui.notify(_("Building metadata package..."))
             import asyncio
 
+            # Canonicalize path before passing to thread
+            canonical_path = Path(ScanState.current_path).expanduser().resolve()
+
             pkg_path = await asyncio.to_thread(
                 packaging_service.generate_metadata_package,
-                Path(ScanState.current_path),
+                canonical_path,
                 agent.current_metadata,
             )
             ui.notify(
@@ -1150,15 +1375,18 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
         import asyncio
 
+        ScanState.is_processing_ai = True
+        refresh_all()
+
         await asyncio.to_thread(
             agent.process_user_input,
             text,
             ai,
             skip_user_append=False,
-            on_update=chat_messages_ui.refresh,
+            on_update=refresh_all,
         )
-        chat_messages_ui.refresh()
-        metadata_preview_ui.refresh()
+        ScanState.is_processing_ai = False
+        refresh_all()
         ui.run_javascript("window.scrollTo(0, document.body.scrollHeight)")
 
     async def handle_clear_chat():

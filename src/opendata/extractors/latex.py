@@ -31,7 +31,7 @@ class LatexExtractor(BaseExtractor):
         for block in author_blocks:
             # Clean up LaTeX macros like \inst, \thanks, \orcidlink, but keep the content of some if needed
             # Here we aggressively remove them to get clean names
-            clean_block = re.sub(r"\\[a-zA-Z]+(\[[^\]]*\])?(\{.*?\})?", " ", block)
+            clean_block = re.sub(r"\\[a-zA-Z]+(\[[^\]]*\])?(\{[^}]*\})?", " ", block)
             # Remove ~ (non-breaking space) and other common LaTeX artifacts
             clean_block = (
                 clean_block.replace("~", " ").replace("{", "").replace("}", "")
@@ -42,9 +42,9 @@ class LatexExtractor(BaseExtractor):
             for p in parts:
                 name = p.strip()
                 if name and len(name) > 2:
-                    authors.append(PersonOrOrg(name=name))
+                    authors.append({"name": name})
 
         if authors:
-            metadata.authors = authors
+            metadata.authors = authors  # type: ignore
 
         return metadata

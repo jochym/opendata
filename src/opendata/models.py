@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, EmailStr
-from typing import List, Optional, Literal
+from typing import List, Optional, Literal, Any, Dict
 from pathlib import Path
 
 
@@ -66,6 +66,13 @@ class Metadata(BaseModel):
     kind_of_data: Optional[str] = Field(
         None, description="e.g., 'Experimental', 'Simulation'"
     )
+    license: Optional[str] = Field(
+        "CC-BY-4.0", description="Data license (e.g., CC-BY-4.0, MIT)"
+    )
+    software: List[str] = Field(
+        default_factory=list,
+        description="Software and versions used (e.g., VASP 6.4.1)",
+    )
 
     # Persistence of session settings
     ai_model: Optional[str] = Field(
@@ -89,3 +96,20 @@ class ProjectFingerprint(BaseModel):
     total_size_bytes: int
     extensions: List[str]
     structure_sample: List[str] = Field(description="First 50 file paths found")
+
+
+class Question(BaseModel):
+    field: str
+    label: str
+    question: str
+    type: Literal["text", "choice"]
+    options: Optional[List[str]] = None
+    value: Optional[Any] = None
+
+
+class AIAnalysis(BaseModel):
+    summary: str
+    missing_fields: List[str] = Field(default_factory=list)
+    non_compliant: List[str] = Field(default_factory=list)
+    conflicting_data: List[Dict[str, Any]] = Field(default_factory=list)
+    questions: List[Question] = Field(default_factory=list)

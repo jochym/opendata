@@ -12,8 +12,8 @@ class PartialMetadata(BaseModel):
     """
 
     title: Optional[str] = None
-    authors: Optional[List[PersonOrOrg]] = None
-    contacts: Optional[List[Contact]] = None
+    authors: Optional[List[Dict[str, Any]]] = None
+    contacts: Optional[List[Dict[str, Any]]] = None
     description: Optional[List[str]] = None
     keywords: Optional[List[str]] = None
     science_branches_mnisw: Optional[List[str]] = None
