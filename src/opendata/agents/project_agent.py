@@ -572,10 +572,19 @@ class ProjectAnalysisAgent:
 
             # Merge with existing metadata
             current_dict = self.current_metadata.model_dump(exclude_unset=True)
+            locked = set(self.current_metadata.locked_fields or [])
 
             # Pre-process updates to match schema expectations
             # First, remove all null values (they shouldn't override existing data)
             updates = {k: v for k, v in updates.items() if v is not None}
+
+            # Filter out locked fields from updates
+            if locked:
+                for key in list(updates.keys()):
+                    if key in locked:
+                        print(f"[DEBUG] Field '{key}' is locked, skipping AI update.")
+                        del updates[key]
+
             print(
                 f"[DEBUG] Filtered out null values, remaining keys: {list(updates.keys())}"
             )

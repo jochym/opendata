@@ -1,3 +1,4 @@
+import yaml
 from nicegui import ui
 import webbrowser
 from pathlib import Path
@@ -48,51 +49,34 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
     @ui.refreshable
     def header_content_ui():
-        qr_dialog = ScanState.qr_dialog
-        with ui.row().classes("items-center gap-4"):
-            ui.icon("auto_awesome", size="md")
-            ui.label(_("OpenData Agent")).classes("text-h5 font-bold tracking-tight")
+        with ui.row().classes("items-center gap-1"):
+            # Custom Logo: Reverted O+D style with improved text and slash
+            ui.html(
+                f"""
+                <div style="display: flex; align-items: center; gap: 12px; color: white; line-height: 1; margin-right: 12px;">
+                    <div style="position: relative; width: 32px; height: 32px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+                        <!-- Outer O -->
+                        <div style="position: absolute; inset: 0; border: 2.5px solid white; border-radius: 50%;"></div>
+                        <!-- Inner D -->
+                        <div style="position: absolute; left: 38%; top: 20%; width: 45%; height: 60%; border: 2.5px solid white; border-left: none; border-radius: 0 16px 16px 0; display: flex; align-items: center; justify-content: center;">
+                            <span class="material-icons" style="font-size: 12px; color: white;">auto_awesome</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px; font-family: sans-serif; height: 32px;">
+                        <div style="font-size: 38px; font-weight: 300; color: white; height: 100%; display: flex; align-items: center;">/</div>
+                        <div style="display: flex; flex-direction: column; font-size: 12px; letter-spacing: 0.8px; text-transform: uppercase; justify-content: center;">
+                            <span style="font-weight: 300;">{_("Open")}</span>
+                            <span style="font-weight: 900;">{_("Data")}</span>
+                        </div>
+                    </div>
+                </div>
+            """,
+                sanitize=False,
+            )
+            ui.label(_("Agent")).classes(
+                "text-h5 font-bold tracking-tight hidden sm:block ml-4"
+            )
             project_selector_ui()
-
-        with ui.row().classes("items-center gap-2"):
-            # MODEL SELECTOR
-            if ai.is_authenticated():
-                models = ai.list_available_models()
-
-                async def handle_model_change(e):
-                    ai.switch_model(e.value)
-                    if settings.ai_provider == "google":
-                        settings.google_model = e.value
-                    else:
-                        settings.openai_model = e.value
-                    wm.save_yaml(settings, "settings.yaml")
-                    if agent.project_id:
-                        agent.current_metadata.ai_model = e.value
-                        agent.save_state()
-
-                ui.select(
-                    options=models,
-                    value=ai.model_name,
-                    on_change=handle_model_change,
-                ).props("dark dense options-dark behavior=menu").classes("w-32 text-xs")
-
-            with ui.button(
-                icon="qr_code_2",
-                on_click=lambda: qr_dialog.open() if qr_dialog else None,
-            ).props("flat color=white"):
-                ui.tooltip(_("Continue on Mobile"))
-            ui.separator().props("vertical color=white")
-            ui.button("EN", on_click=lambda: set_lang("en")).props(
-                "flat color=white text-xs"
-            ).classes("bg-slate-700" if settings.language == "en" else "")
-            ui.button("PL", on_click=lambda: set_lang("pl")).props(
-                "flat color=white text-xs"
-            ).classes("bg-slate-700" if settings.language == "pl" else "")
-            if settings.ai_consent_granted:
-                with ui.button(icon="logout", on_click=confirm_logout).props(
-                    "flat color=white"
-                ):
-                    ui.tooltip(_("Logout from AI"))
 
     @ui.refreshable
     def chat_messages_ui():
@@ -161,14 +145,45 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
         fields = agent.current_metadata.model_dump(exclude_unset=True)
 
-        def create_expandable_text(text: str):
+        def create_expandable_text(text: str, key: str = None):
             with ui.column().classes(
-                "w-full gap-0 bg-slate-50 border border-slate-100 rounded"
+                "w-full gap-0 bg-slate-50 border border-slate-100 rounded relative group"
             ):
+                # Lock indicator
+                if key:
+                    is_locked = key in agent.current_metadata.locked_fields
+
+                    async def toggle_lock(e, k=key):
+                        if k in agent.current_metadata.locked_fields:
+                            agent.current_metadata.locked_fields.remove(k)
+                        else:
+                            agent.current_metadata.locked_fields.append(k)
+                        agent.save_state()
+                        metadata_preview_ui.refresh()
+
+                    with (
+                        ui.button(
+                            icon="lock" if is_locked else "lock_open",
+                            on_click=toggle_lock,
+                        )
+                        .props("flat dense")
+                        .classes(
+                            f"absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity {'text-orange-600 opacity-100' if is_locked else 'text-slate-400'}"
+                        )
+                    ):
+                        ui.tooltip(
+                            _("Lock field from AI updates")
+                            if not is_locked
+                            else _("Unlock field")
+                        )
+
                 # Increased height to 110px to ensure 5 lines are fully visible without chopping descenders.
                 content = ui.markdown(text).classes(
-                    "px-2 py-0 text-sm text-gray-800 break-words overflow-hidden transition-all duration-300"
+                    "px-2 py-0 text-sm text-gray-800 break-words overflow-hidden transition-all duration-300 cursor-pointer"
                 )
+                if key:
+                    content.on("click", lambda: open_edit_dialog(key))
+
                 content.style("max-height: 110px; line-height: 1.5;")
                 if len(text.splitlines()) > 5 or len(text) > 300:
 
@@ -185,8 +200,103 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                 else:
                     content.style("max-height: none")
 
+        async def open_edit_dialog(key: str):
+            val = getattr(agent.current_metadata, key)
+
+            with ui.dialog() as dialog, ui.card().classes("w-full max-w-2xl"):
+                ui.label(
+                    _("Edit {field}").format(field=key.replace("_", " ").title())
+                ).classes("text-h6")
+
+                if isinstance(val, list):
+                    # For lists like keywords or description
+                    # Handle lists of objects (authors, etc.) or strings
+                    if val and not isinstance(val[0], str):
+                        # Use YAML for structured lists
+                        current_text = yaml.dump(
+                            [
+                                i.model_dump() if hasattr(i, "model_dump") else i
+                                for i in val
+                            ],
+                            allow_unicode=True,
+                        )
+                        edit_area = (
+                            ui.textarea(value=current_text)
+                            .classes("w-full font-mono text-xs")
+                            .props("rows=15")
+                        )
+                        ui.markdown(_("Edit YAML structure for complex data.")).classes(
+                            "text-xs text-slate-500"
+                        )
+                    else:
+                        current_text = "\n".join(val) if val else ""
+                        edit_area = (
+                            ui.textarea(value=current_text)
+                            .classes("w-full")
+                            .props("rows=10 auto-grow")
+                        )
+                        ui.markdown(_("Enter one item per line.")).classes(
+                            "text-xs text-slate-500"
+                        )
+                else:
+                    # For simple strings
+                    edit_area = (
+                        ui.textarea(value=val or "")
+                        .classes("w-full")
+                        .props("rows=5 auto-grow")
+                    )
+
+                with ui.row().classes("w-full justify-end gap-2 mt-4"):
+                    ui.button(_("Cancel"), on_click=dialog.close).props("flat")
+
+                    async def save_value():
+                        new_val = edit_area.value
+                        try:
+                            if isinstance(val, list):
+                                if val and not isinstance(val[0], str):
+                                    # Parse YAML back to list of dicts
+                                    import yaml
+
+                                    parsed_list = yaml.safe_load(new_val)
+                                    if not isinstance(parsed_list, list):
+                                        raise ValueError("YAML must be a list")
+                                    setattr(agent.current_metadata, key, parsed_list)
+                                else:
+                                    new_list = [
+                                        line.strip()
+                                        for line in new_val.split("\n")
+                                        if line.strip()
+                                    ]
+                                    setattr(agent.current_metadata, key, new_list)
+                            else:
+                                setattr(agent.current_metadata, key, new_val)
+
+                            # Auto-lock on manual edit
+                            if key not in agent.current_metadata.locked_fields:
+                                agent.current_metadata.locked_fields.append(key)
+
+                            agent.save_state()
+                            dialog.close()
+                            metadata_preview_ui.refresh()
+                            ui.notify(
+                                _("Field '{field}' updated and locked.").format(
+                                    field=key
+                                )
+                            )
+                        except Exception as e:
+                            ui.notify(
+                                _("Failed to save: {error}").format(error=str(e)),
+                                type="negative",
+                            )
+
+                    ui.button(_("Save"), on_click=save_value, color="primary")
+
+            dialog.open()
+
         with ui.column().classes("w-full gap-4"):
             for key, value in fields.items():
+                if key == "locked_fields":
+                    continue
                 if key == "authors" or key == "contacts":
                     ui.label(key.replace("_", " ").title()).classes(
                         "text-xs font-bold text-slate-600 ml-2"
@@ -215,8 +325,48 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                                 )
 
                                 with ui.label("").classes(
-                                    f"py-0.5 px-1.5 rounded {bg_color} border cursor-pointer text-sm inline-block mr-1 mb-1"
+                                    f"py-0.5 px-1.5 rounded {bg_color} border cursor-pointer text-sm inline-block mr-1 mb-1 relative group"
                                 ) as container:
+                                    # Lock indicator for Authors/Contacts (nested in list)
+                                    is_locked = (
+                                        key in agent.current_metadata.locked_fields
+                                    )
+
+                                    async def toggle_lock_list(e, k=key):
+                                        if k in agent.current_metadata.locked_fields:
+                                            agent.current_metadata.locked_fields.remove(
+                                                k
+                                            )
+                                        else:
+                                            agent.current_metadata.locked_fields.append(
+                                                k
+                                            )
+                                        agent.save_state()
+                                        metadata_preview_ui.refresh()
+
+                                    with (
+                                        ui.button(
+                                            icon="lock" if is_locked else "lock_open",
+                                            on_click=toggle_lock_list,
+                                        )
+                                        .props("flat dense")
+                                        .classes(
+                                            f"absolute -top-2 -right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity {'text-orange-600 opacity-100' if is_locked else 'text-slate-400'}"
+                                        )
+                                        .style(
+                                            "font-size: 10px; background: white; border-radius: 50%; border: 1px solid #eee; width: 20px; height: 20px;"
+                                        )
+                                    ):
+                                        ui.tooltip(
+                                            _("Lock field from AI updates")
+                                            if not is_locked
+                                            else _("Unlock field")
+                                        )
+
+                                    container.on(
+                                        "click", lambda _e, k=key: open_edit_dialog(k)
+                                    )
+
                                     ui.label(name_clean).classes(
                                         "text-sm font-medium inline mr-1"
                                     )
@@ -256,7 +406,32 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                     ui.label(key.replace("_", " ").title()).classes(
                         "text-xs font-bold text-slate-600 ml-2"
                     )
-                    with ui.row().classes("w-full gap-1 flex-wrap items-center"):
+                    with ui.row().classes(
+                        "w-full gap-1 flex-wrap items-center relative group"
+                    ) as kw_container:
+                        # Lock for keywords
+                        is_locked = key in agent.current_metadata.locked_fields
+                        kw_container.on("click", lambda _e, k=key: open_edit_dialog(k))
+
+                        with (
+                            ui.button(
+                                icon="lock" if is_locked else "lock_open",
+                                on_click=lambda _e, k=key: toggle_lock_list(_e, k),
+                            )
+                            .props("flat dense")
+                            .classes(
+                                f"absolute -top-4 right-0 z-10 opacity-0 group-hover:opacity-100 transition-opacity {'text-orange-600 opacity-100' if is_locked else 'text-slate-400'}"
+                            )
+                            .style(
+                                "font-size: 10px; background: white; border-radius: 50%; border: 1px solid #eee; width: 20px; height: 20px;"
+                            )
+                        ):
+                            ui.tooltip(
+                                _("Lock field from AI updates")
+                                if not is_locked
+                                else _("Unlock field")
+                            )
+
                         for kw in value:
                             ui.label(str(kw)).classes(
                                 "text-sm bg-slate-100 py-0.5 px-2 rounded border border-slate-200 inline-block mr-1 mb-1"
@@ -278,11 +453,41 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                                     id_val = id_val.replace("https://doi.org/", "")
 
                                 with ui.label("").classes(
-                                    "py-1 px-1.5 rounded bg-blue-50 border border-blue-100 cursor-pointer hover:bg-blue-100 text-sm inline-block w-full"
+                                    "py-1 px-1.5 rounded bg-blue-50 border border-blue-100 cursor-pointer hover:bg-blue-100 text-sm inline-block w-full relative group"
                                 ) as pub_container:
+                                    # Lock for related publications
+                                    is_locked = (
+                                        key in agent.current_metadata.locked_fields
+                                    )
+                                    pub_container.on(
+                                        "click", lambda _e, k=key: open_edit_dialog(k)
+                                    )
+
+                                    with (
+                                        ui.button(
+                                            icon="lock" if is_locked else "lock_open",
+                                            on_click=lambda _e, k=key: toggle_lock_list(
+                                                _e, k
+                                            ),
+                                        )
+                                        .props("flat dense")
+                                        .classes(
+                                            f"absolute -top-2 -right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity {'text-orange-600 opacity-100' if is_locked else 'text-slate-400'}"
+                                        )
+                                        .style(
+                                            "font-size: 10px; background: white; border-radius: 50%; border: 1px solid #eee; width: 20px; height: 20px;"
+                                        )
+                                    ):
+                                        ui.tooltip(
+                                            _("Lock field from AI updates")
+                                            if not is_locked
+                                            else _("Unlock field")
+                                        )
+
                                     ui.label(title).classes(
                                         "text-sm font-medium break-words leading-tight"
                                     )
+
                                     with ui.tooltip().classes(
                                         "bg-slate-800 text-white p-2 text-xs whitespace-normal max-w-xs"
                                     ):
@@ -308,8 +513,37 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                                 display_title = award if award else agency
 
                                 with ui.label("").classes(
-                                    "py-1 px-1.5 rounded bg-amber-50 border border-amber-100 cursor-pointer hover:bg-amber-100 text-sm inline-block w-full"
+                                    "py-1 px-1.5 rounded bg-amber-50 border border-amber-100 cursor-pointer hover:bg-amber-100 text-sm inline-block w-full relative group"
                                 ) as fund_container:
+                                    # Lock for funding
+                                    is_locked = (
+                                        key in agent.current_metadata.locked_fields
+                                    )
+                                    fund_container.on(
+                                        "click", lambda _e, k=key: open_edit_dialog(k)
+                                    )
+
+                                    with (
+                                        ui.button(
+                                            icon="lock" if is_locked else "lock_open",
+                                            on_click=lambda _e, k=key: toggle_lock_list(
+                                                _e, k
+                                            ),
+                                        )
+                                        .props("flat dense")
+                                        .classes(
+                                            f"absolute -top-2 -right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity {'text-orange-600 opacity-100' if is_locked else 'text-slate-400'}"
+                                        )
+                                        .style(
+                                            "font-size: 10px; background: white; border-radius: 50%; border: 1px solid #eee; width: 20px; height: 20px;"
+                                        )
+                                    ):
+                                        ui.tooltip(
+                                            _("Lock field from AI updates")
+                                            if not is_locked
+                                            else _("Unlock field")
+                                        )
+
                                     with ui.column().classes("gap-0"):
                                         ui.label(display_title).classes(
                                             "text-sm font-medium break-words leading-tight"
@@ -335,9 +569,9 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                     if isinstance(value, list):
                         with ui.column().classes("w-full gap-1"):
                             for v_item in value:
-                                create_expandable_text(str(v_item))
+                                create_expandable_text(str(v_item), key=key)
                     else:
-                        create_expandable_text(str(value))
+                        create_expandable_text(str(value), key=key)
 
     @ui.refreshable
     def project_selector_ui():
@@ -470,13 +704,151 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
             "bg-slate-800 text-white py-2 px-4 justify-between items-center shadow-lg"
         ):
             header_content_ui()
+            with ui.tabs().classes("bg-slate-800") as main_tabs:
+                analysis_tab = ui.tab(_("Analysis"), icon="analytics")
+                protocols_tab = ui.tab(_("Protocols"), icon="rule")
+                package_tab = ui.tab(_("Package"), icon="inventory_2")
+                preview_tab = ui.tab(_("Preview"), icon="visibility")
+                settings_tab = ui.tab(_("Settings"), icon="settings")
 
         container = ui.column().classes("w-full items-center q-pa-md max-w-7xl mx-auto")
         with container:
             if not settings.ai_consent_granted:
                 render_setup_wizard()
             else:
-                render_analysis_dashboard()
+                with ui.tab_panels(main_tabs, value=analysis_tab).classes(
+                    "w-full bg-transparent"
+                ):
+                    with ui.tab_panel(analysis_tab):
+                        render_analysis_dashboard()
+                    with ui.tab_panel(protocols_tab):
+                        render_protocols_placeholder()
+                    with ui.tab_panel(package_tab):
+                        render_package_placeholder()
+                    with ui.tab_panel(preview_tab):
+                        render_preview_and_build()
+                    with ui.tab_panel(settings_tab):
+                        render_settings_tab()
+
+    def render_preview_and_build():
+        with ui.column().classes("w-full gap-4"):
+            with ui.card().classes("w-full p-6 shadow-md border-t-4 border-green-600"):
+                with ui.row().classes("w-full justify-between items-center mb-4"):
+                    ui.label(_("RODBUK Submission Preview")).classes(
+                        "text-h5 font-bold text-green-800"
+                    )
+                    ui.button(
+                        _("Build Package"),
+                        icon="archive",
+                        color="green",
+                        on_click=handle_build_package,
+                    ).classes("px-6 font-bold")
+
+                ui.markdown(
+                    _("This is how your project will appear in the RODBUK repository.")
+                )
+                ui.separator().classes("my-4")
+
+                # Reuse metadata preview logic
+                metadata_preview_ui()
+
+            with ui.card().classes("w-full p-6 shadow-md"):
+                ui.label(_("Selected Files")).classes("text-h6 font-bold mb-2")
+                ui.markdown(
+                    _("List of files to be included in the package will appear here.")
+                )
+
+    def render_settings_tab():
+        qr_dialog = ScanState.qr_dialog
+        with ui.card().classes("w-full p-8 shadow-md"):
+            ui.label(_("Application Settings")).classes("text-h4 q-mb-md font-bold")
+
+            with ui.column().classes("w-full gap-6"):
+                # Model Selection
+                with ui.column().classes("gap-1"):
+                    ui.label(_("AI Model")).classes("text-sm font-bold text-slate-600")
+                    if ai.is_authenticated():
+                        models = ai.list_available_models()
+
+                        async def handle_model_change(e):
+                            ai.switch_model(e.value)
+                            if settings.ai_provider == "google":
+                                settings.google_model = e.value
+                            else:
+                                settings.openai_model = e.value
+                            wm.save_yaml(settings, "settings.yaml")
+                            if agent.project_id:
+                                agent.current_metadata.ai_model = e.value
+                                agent.save_state()
+
+                        ui.select(
+                            options=models,
+                            value=ai.model_name,
+                            on_change=handle_model_change,
+                        ).props("outlined dense behavior=menu").classes(
+                            "w-full max-w-md"
+                        )
+
+                # Language
+                with ui.column().classes("gap-1"):
+                    ui.label(_("Language")).classes("text-sm font-bold text-slate-600")
+                    with ui.row().classes("gap-2"):
+                        ui.button("English", on_click=lambda: set_lang("en")).props(
+                            f"outline color={'primary' if settings.language == 'en' else 'grey'}"
+                        ).classes("w-32")
+                        ui.button("Polski", on_click=lambda: set_lang("pl")).props(
+                            f"outline color={'primary' if settings.language == 'pl' else 'grey'}"
+                        ).classes("w-32")
+
+                # Mobile
+                with ui.column().classes("gap-1"):
+                    ui.label(_("Mobile Access")).classes(
+                        "text-sm font-bold text-slate-600"
+                    )
+                    ui.button(
+                        _("Show QR Code"),
+                        icon="qr_code_2",
+                        on_click=lambda: qr_dialog.open() if qr_dialog else None,
+                    ).props("outline color=primary").classes("w-full max-w-md")
+
+                ui.separator()
+
+                # Auth
+                if settings.ai_consent_granted:
+                    with ui.row().classes("w-full items-center justify-between"):
+                        ui.label(_("AI Session")).classes(
+                            "text-sm font-bold text-slate-600"
+                        )
+                        ui.button(
+                            _("Logout from AI"),
+                            icon="logout",
+                            on_click=confirm_logout,
+                            color="red",
+                        ).props("flat")
+
+    def render_protocols_placeholder():
+        with ui.card().classes("w-full p-8 shadow-md"):
+            ui.label(_("Extraction Protocols")).classes("text-h4 q-mb-md font-bold")
+            ui.markdown(
+                _(
+                    "This area will allow you to manage extraction protocols, including file exclusion patterns and hierarchical prompts."
+                )
+            )
+            with ui.row().classes("gap-4 mt-8"):
+                ui.icon("construction", size="lg", color="orange")
+                ui.label(_("Under Construction")).classes("text-h6 text-orange-600")
+
+    def render_package_placeholder():
+        with ui.card().classes("w-full p-8 shadow-md"):
+            ui.label(_("Package Content Editor")).classes("text-h4 q-mb-md font-bold")
+            ui.markdown(
+                _(
+                    "This area will provide an interactive file tree to manually include or exclude files from the final package."
+                )
+            )
+            with ui.row().classes("gap-4 mt-8"):
+                ui.icon("construction", size="lg", color="orange")
+                ui.label(_("Under Construction")).classes("text-h6 text-orange-600")
 
     def render_setup_wizard():
         with ui.card().classes(
@@ -644,69 +1016,51 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                         with ui.scroll_area().classes("flex-grow w-full"):
                             metadata_preview_ui()
 
-                        async def handle_build_package():
-                            if not ScanState.current_path:
-                                ui.notify(
-                                    _("Please select a project first."), type="warning"
-                                )
-                                return
+    async def handle_build_package():
+        if not ScanState.current_path:
+            ui.notify(_("Please select a project first."), type="warning")
+            return
 
-                            # Validation
-                            errors = packaging_service.validate_for_rodbuk(
-                                agent.current_metadata
-                            )
-                            if errors:
-                                ui.notify(
-                                    _("Metadata validation failed:")
-                                    + "\n"
-                                    + "\n".join(errors),
-                                    type="negative",
-                                    multi_line=True,
-                                )
-                                return
+        # Validation
+        errors = packaging_service.validate_for_rodbuk(agent.current_metadata)
+        if errors:
+            ui.notify(
+                _("Metadata validation failed:") + "\n" + "\n".join(errors),
+                type="negative",
+                multi_line=True,
+            )
+            return
 
-                            try:
-                                ui.notify(_("Building metadata package..."))
-                                import asyncio
+        try:
+            ui.notify(_("Building metadata package..."))
+            import asyncio
 
-                                pkg_path = await asyncio.to_thread(
-                                    packaging_service.generate_metadata_package,
-                                    Path(ScanState.current_path),
-                                    agent.current_metadata,
-                                )
-                                ui.notify(
-                                    _("Package created: {name}").format(
-                                        name=pkg_path.name
-                                    ),
-                                    type="positive",
-                                )
-                                # Trigger browser download
-                                ui.download(pkg_path)
+            pkg_path = await asyncio.to_thread(
+                packaging_service.generate_metadata_package,
+                Path(ScanState.current_path),
+                agent.current_metadata,
+            )
+            ui.notify(
+                _("Package created: {name}").format(name=pkg_path.name), type="positive"
+            )
+            # Trigger browser download
+            ui.download(pkg_path)
 
-                                # Add a message to the chat history for visibility
-                                agent.chat_history.append(
-                                    (
-                                        "assistant",
-                                        _(
-                                            "Package created successfully: {name}"
-                                        ).format(name=pkg_path.name),
-                                    )
-                                )
-                                chat_messages_ui.refresh()
-                            except Exception as e:
-                                ui.notify(
-                                    _("Failed to build package: {error}").format(
-                                        error=str(e)
-                                    ),
-                                    type="negative",
-                                )
-
-                        ui.button(
-                            _("Build Package"),
-                            icon="archive",
-                            color="green",
-                            on_click=handle_build_package,
-                        ).classes("w-full q-mt-md font-bold shrink-0")
+            # Add a message to the chat history for visibility
+            agent.chat_history.append(
+                (
+                    "assistant",
+                    _("Package created successfully: {name}").format(
+                        name=pkg_path.name
+                    ),
+                )
+            )
+            chat_messages_ui.refresh()
+        except Exception as e:
+            ui.notify(
+                _("Failed to build package: {error}").format(error=str(e)),
+                type="negative",
+            )
 
     async def handle_auth_provider(provider: str):
         settings.ai_provider = provider

@@ -47,6 +47,11 @@ class RelatedResource(BaseModel):
 
 
 class Metadata(BaseModel):
+    # Field protection
+    locked_fields: List[str] = Field(
+        default_factory=list, description="Fields protected from AI updates"
+    )
+
     # RODBUK Mandatory Fields (Made optional for intermediate drafting)
     title: Optional[str] = Field(None, description="Full dataset title")
     authors: List[PersonOrOrg] = Field(default_factory=list)

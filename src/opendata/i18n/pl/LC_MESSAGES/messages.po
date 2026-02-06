@@ -66,3 +66,75 @@ msgstr "Wpisz swoją odpowiedź..."
 
 msgid "No metadata yet"
 msgstr "Brak metadanych"
+
+msgid "Analysis"
+msgstr "Analiza"
+
+msgid "Protocols"
+msgstr "Protokoły"
+
+msgid "Package"
+msgstr "Paczka"
+
+msgid "Extraction Protocols"
+msgstr "Protokoły Ekstrakcji"
+
+msgid "This area will allow you to manage extraction protocols, including file exclusion patterns and hierarchical prompts."
+msgstr "Ten obszar pozwoli na zarządzanie protokołami ekstrakcji, w tym wzorcami wykluczania plików i hierarchicznymi promptami."
+
+msgid "Under Construction"
+msgstr "W budowie"
+
+msgid "Package Content Editor"
+msgstr "Edytor Zawartości Paczki"
+
+msgid "This area will provide an interactive file tree to manually include or exclude files from the final package."
+msgstr "Ten obszar zapewni interaktywne drzewo plików do ręcznego włączania lub wykluczania plików z końcowej paczki."
+
+msgid "Preview"
+msgstr "Podgląd"
+
+msgid "Settings"
+msgstr "Ustawienia"
+
+msgid "RODBUK Submission Preview"
+msgstr "Podgląd zgłoszenia RODBUK"
+
+msgid "This is how your project will appear in the RODBUK repository."
+msgstr "Tak Twój projekt będzie prezentował się w repozytorium RODBUK."
+
+msgid "Selected Files"
+msgstr "Wybrane pliki"
+
+msgid "List of files to be included in the package will appear here."
+msgstr "Tutaj pojawi się lista plików, które zostaną włączone do paczki."
+
+msgid "Application Settings"
+msgstr "Ustawienia Aplikacji"
+
+msgid "AI Model"
+msgstr "Model AI"
+
+msgid "Language"
+msgstr "Język"
+
+msgid "Mobile Access"
+msgstr "Dostęp Mobilny"
+
+msgid "Show QR Code"
+msgstr "Pokaż kod QR"
+
+msgid "AI Session"
+msgstr "Sesja AI"
+
+msgid "Logout from AI"
+msgstr "Wyloguj z AI"
+
+msgid "Open"
+msgstr "Otwarte"
+
+msgid "Data"
+msgstr "Dane"
+
+msgid "Agent"
+msgstr "Agent"
