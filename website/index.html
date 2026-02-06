@@ -14,10 +14,16 @@
 <body class="bg-gray-50 text-gray-800 font-sans">
 
     <!-- Hero Section -->
-    <header class="gradient-bg text-white py-16 px-6 shadow-lg">
+    <header class="gradient-bg text-white py-12 px-6 shadow-lg">
         <div class="max-w-5xl mx-auto text-center">
+            <div class="inline-block bg-yellow-400 text-yellow-900 px-4 py-1 rounded-full text-sm font-bold uppercase tracking-widest mb-6 animate-pulse">
+                <i class="fas fa-flask mr-2"></i> Working Prototype / Phase: Proof of Concept
+            </div>
             <h1 class="text-4xl md:text-5xl font-extrabold mb-4">OpenData Tool</h1>
-            <p class="text-xl opacity-90 mb-8">Empowering researchers to package scientific data for RODBUK with AI-assisted ease.</p>
+            <p class="text-xl opacity-90 mb-8 max-w-2xl mx-auto">
+                A research-stage AI assistant for scientific metadata preparation. 
+                <strong>Expect bugs, incomplete extractions, and limitations.</strong>
+            </p>
             <div class="flex justify-center space-x-4">
                 <a href="#download" class="bg-white text-blue-700 px-8 py-3 rounded-full font-bold hover:bg-gray-100 transition">Get Started</a>
                 <a href="#procedure" class="border border-white px-8 py-3 rounded-full font-bold hover:bg-white hover:text-blue-700 transition">Testing Guide</a>
@@ -25,22 +31,46 @@
         </div>
     </header>
 
+    <!-- Disclaimer Banner -->
+    <div class="bg-orange-100 border-b border-orange-200 text-orange-900 px-6 py-4">
+        <div class="max-w-5xl mx-auto flex items-center">
+            <i class="fas fa-exclamation-triangle text-2xl mr-4 text-orange-500"></i>
+            <p class="text-sm">
+                <strong>WARNING:</strong> This is NOT a finished product. It is a concept-testing demo. 
+                The AI logic is currently optimized for specific Physics and Medical formats. It <strong>will likely fail</strong> 
+                or produce inaccurate results for unfamiliar data structures. 
+                We are actively seeking your feedback to break and improve it.
+            </p>
+        </div>
+    </div>
+
     <main class="max-w-5xl mx-auto px-6 py-12">
         
         <!-- Goal & Overview -->
         <section class="mb-16">
-            <h2 class="text-3xl font-bold mb-6 text-blue-900 border-b-2 border-blue-100 pb-2">What is OpenData Tool?</h2>
-            <p class="text-lg leading-relaxed mb-4">
-                The **OpenData Tool** is designed for scientists and researchers who need to publish their data in the 
-                <span class="font-semibold">RODBUK repository</span>. Preparing metadata can be a tedious, technical hurdle—this tool 
-                automates the "boring parts" by scanning your research directories and using AI to suggest titles, authors, 
-                abstracts, and keywords directly from your papers and data files.
-            </p>
+            <h2 class="text-3xl font-bold mb-6 text-blue-900 border-b-2 border-blue-100 pb-2">Concept & Mission</h2>
+            <div class="bg-white p-6 rounded-xl border-l-4 border-yellow-400 shadow-sm">
+                <p class="text-lg leading-relaxed mb-4">
+                    The <strong>OpenData Tool</strong> is a <strong>Proof of Concept (PoC)</strong> exploring the use of Generative AI for automated scientific metadata extraction. 
+                </p>
+                <p class="text-md text-gray-700 mb-4">
+                    Our goal is to determine if AI can reliably "read" a researcher's working directory and draft a high-quality metadata record for the <span class="font-semibold">RODBUK repository</span> with minimal human intervention.
+                </p>
+                <ul class="list-disc ml-6 space-y-2 text-gray-700">
+                    <li><strong>Status:</strong> Early Alpha / Technology Demonstrator.</li>
+                    <li><strong>Scope:</strong> Metadata drafting and documentation packaging only. Research data handling is NOT yet implemented.</li>
+                    <li><strong>Target Audience:</strong> Domain experts willing to test the boundaries of AI interpretation in Physics and Medical Physics.</li>
+                </ul>
+            </div>
+
             <div class="grid md:grid-cols-3 gap-8 mt-8">
                 <div class="bg-white p-6 rounded-xl shadow-md border-t-4 border-blue-500 feature-card">
                     <i class="fas fa-shield-alt text-3xl text-blue-500 mb-4"></i>
                     <h3 class="font-bold text-xl mb-2">Read-Only Safety</h3>
-                    <p class="text-gray-600">The tool never modifies your original research files. Your data remains untouched and secure.</p>
+                    <p class="text-gray-600 mb-2">The tool never modifies your original research files. Your data remains untouched and secure.</p>
+                    <p class="text-xs text-gray-500 border-t pt-2 mt-2">
+                        <i class="fas fa-user-secret mr-1"></i> <strong>No Telemetry:</strong> We do not track your activity. The code is open source and free to inspect.
+                    </p>
                 </div>
                 <div class="bg-white p-6 rounded-xl shadow-md border-t-4 border-green-500 feature-card">
                     <i class="fas fa-robot text-3xl text-green-500 mb-4"></i>
@@ -58,6 +88,20 @@
         <!-- Usage Section -->
         <section class="mb-16 bg-blue-50 p-8 rounded-2xl">
             <h2 class="text-3xl font-bold mb-8 text-blue-900">How to Use It</h2>
+            
+            <div class="bg-yellow-100 border-l-4 border-yellow-500 p-4 mb-8 text-sm text-yellow-800">
+                <p class="font-bold mb-2"><i class="fas fa-key mr-2"></i> Access Requirement</p>
+                <p>
+                    To use the AI features (Google Gemini), you must be added to our <strong>internal testing team</strong>. 
+                    Please contact <a href="mailto:jochym@ifj.edu.pl" class="underline">Pawel T. Jochym</a> to request access.
+                    You will need a valid Google Account.
+                </p>
+                <p class="mt-2 text-xs opacity-80">
+                    <strong>Privacy Note:</strong> Your file snippets are sent directly to <em>your</em> authenticated Google Gemini instance. 
+                    The authors of this tool have <strong>no access</strong> to your data, metadata, or chat history in any form.
+                </p>
+            </div>
+
             <div class="space-y-6">
                 <div class="flex items-start">
                     <span class="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold mr-4 shrink-0">1</span>
@@ -92,52 +136,60 @@
 
         <!-- Project Status / Roadmap -->
         <section class="mb-16">
-            <h2 class="text-3xl font-bold mb-6 text-blue-900 border-b-2 border-blue-100 pb-2">Project Status & Roadmap</h2>
+            <h2 class="text-3xl font-bold mb-6 text-blue-900 border-b-2 border-blue-100 pb-2">Development Status</h2>
             <div class="grid gap-4">
-                <div class="flex items-center p-4 bg-green-50 border-l-4 border-green-500 rounded-r-xl">
-                    <div class="mr-4 text-green-600"><i class="fas fa-check-circle text-2xl"></i></div>
+                <div class="flex items-start p-4 bg-gray-50 border-l-4 border-gray-400 rounded-r-xl">
+                    <div class="mr-4 text-gray-600 mt-1"><i class="fas fa-check-square"></i></div>
                     <div>
-                        <h4 class="font-bold text-lg">Phase 1-4: Core Infrastructure & AI Extraction</h4>
-                        <p class="text-sm text-gray-600">Established workspace management, heuristic extractors (LaTeX, Docx, VASP, etc.), and initial AI integration with Google OAuth2.</p>
+                        <h4 class="font-bold text-gray-800">Completed (PoC Baseline)</h4>
+                        <ul class="list-disc ml-4 text-sm text-gray-600 mt-1">
+                            <li>Core heuristic extraction (LaTeX, Docx, VASP, DICOM).</li>
+                            <li>Conversational AI loop for metadata refinement.</li>
+                            <li>Frictionless Google OAuth2 authentication.</li>
+                            <li>Metadata-only packaging (ZIP with YAML/JSON + READMEs).</li>
+                            <li>Cross-platform builds (Linux, Windows, macOS).</li>
+                        </ul>
                     </div>
                 </div>
-                <div class="flex items-center p-4 bg-green-50 border-l-4 border-green-500 rounded-r-xl">
-                    <div class="mr-4 text-green-600"><i class="fas fa-check-circle text-2xl"></i></div>
+                
+                <div class="flex items-start p-4 bg-green-50 border-l-4 border-green-500 rounded-r-xl">
+                    <div class="mr-4 text-green-600 mt-1"><i class="fas fa-check-square text-lg"></i></div>
                     <div>
-                        <h4 class="font-bold text-lg">Phase 5-7: Internationalization & Management</h4>
-                        <p class="text-sm text-gray-600">Added Polish/English support, automated project state persistence, and decoupled AI prompt management.</p>
+                        <h4 class="font-bold text-green-900">Phase 11-14: Advanced Grounding & Diagnostics</h4>
+                        <ul class="list-disc ml-4 text-sm text-green-800 mt-1">
+                            <li>Google Search grounding for ORCID/DOI discovery.</li>
+                            <li>Enhanced author identity merging and identity mapping.</li>
+                            <li>Optimized file scanner with 10Hz throttled UI updates.</li>
+                            <li><strong>New:</strong> Automated diagnostic reports via <code>/bug</code> command.</li>
+                        </ul>
                     </div>
                 </div>
-                <div class="flex items-center p-4 bg-green-50 border-l-4 border-green-500 rounded-r-xl">
-                    <div class="mr-4 text-green-600"><i class="fas fa-check-circle text-2xl"></i></div>
+
+                <div class="flex items-start p-4 bg-blue-50 border-l-4 border-blue-500 rounded-r-xl">
+                    <div class="mr-4 text-blue-600 mt-1"><i class="fas fa-vial text-lg"></i></div>
                     <div>
-                        <h4 class="font-bold text-lg">Phase 8-10: UX Refinement & Deep Analysis</h4>
-                        <p class="text-sm text-gray-600">Implemented full-text reading for LaTeX/Docx, optimized the Chat UI, and enhanced metadata visualization with a modern "magazine-style" layout.</p>
+                        <h4 class="font-bold text-blue-900">Current Focus: User Acceptance Testing (UAT)</h4>
+                        <p class="text-sm text-blue-800 mt-1">
+                            We are gathering feedback from domain professionals (you!) to refine the AI's scientific reasoning and extraction accuracy. 
+                            Please test the <code>/bug</code> command if you encounter any anomalies.
+                        </p>
                     </div>
                 </div>
-                <div class=\"flex items-center p-4 bg-green-50 border-l-4 border-green-500 rounded-r-xl\">
-                    <div class=\"mr-4 text-green-600\"><i class=\"fas fa-check-circle text-2xl\"></i></div>
+
+                <div class="flex items-start p-4 bg-white border border-dashed border-gray-300 rounded-xl opacity-75">
+                    <div class="mr-4 text-gray-400 mt-1"><i class="far fa-square"></i></div>
                     <div>
-                        <h4 class=\"font-bold text-lg\">Phase 11-13: Grounding & Layout Flexibility</h4>
-                        <p class=\"text-sm text-gray-600\">Mandatory Google Search for ORCID/DOI discovery. Added support for <code>@file</code> syntax, automatic context injection, and a modern resizable dashboard with persistence.</p>
-                    </div>
-                </div>
-                <div class=\"flex items-center p-4 bg-green-50 border-l-4 border-green-500 rounded-r-xl\">
-                    <div class=\"mr-4 text-green-600\"><i class=\"fas fa-check-circle text-2xl\"></i></div>
-                    <div>
-                        <h4 class=\"font-bold text-lg\">Phase 14: Metadata Package Builder [NEW]</h4>
-                        <p class=\"text-sm text-gray-600\">Implemented submission-ready ZIP generation containing RODBUK metadata and root-level documentation, ready for RODBUK repository submission.</p>
-                    </div>
-                </div>
-                <div class=\"flex items-center p-4 bg-blue-50 border-l-4 border-blue-500 rounded-r-xl\">
-                    <div class="mr-4 text-blue-600"><i class="fas fa-spinner fa-spin text-2xl"></i></div>
-                    <div>
-                        <h4 class="font-bold text-lg">Current Focus: User Acceptance Testing (UAT)</h4>
-                        <p class="text-sm text-gray-600">Gathering feedback from domain professionals (you!) to refine the AI's scientific reasoning and extraction accuracy.</p>
+                        <h4 class="font-bold text-gray-500">Planned (Next Phase)</h4>
+                        <ul class="list-disc ml-4 text-sm text-gray-500 mt-1">
+                            <li>Full research data packaging (Big Data support).</li>
+                            <li>Direct API submission to RODBUK/Invenio.</li>
+                            <li>Advanced semantic search over local files.</li>
+                        </ul>
                     </div>
                 </div>
             </div>
         </section>
+
 
         <!-- Testing Procedure -->
         <section id="procedure" class="mb-16">
@@ -212,9 +264,18 @@
 
     </main>
 
-    <footer class="bg-gray-800 text-white py-8 mt-12">
+    <footer class="bg-gray-800 text-white py-12 mt-12">
         <div class="max-w-5xl mx-auto px-6 text-center">
-            <p class="opacity-70">&copy; 2026 OpenData Tool Project. Part of the RODBUK Ecosystem.</p>
+            <div class="mb-8">
+                <h4 class="font-bold text-lg mb-4">Contact & Feedback</h4>
+                <p class="text-sm opacity-80 mb-2">We are eager to hear your thoughts, criticisms, and success stories.</p>
+                <p class="text-sm">
+                    <i class="fas fa-envelope mr-2"></i> 
+                    <a href="mailto:jochym@ifj.edu.pl" class="underline hover:text-blue-300">Pawel T. Jochym</a> (Lead Author)
+                </p>
+            </div>
+            <p class="opacity-50 text-xs">&copy; 2026 OpenData Tool Project. Part of the RODBUK Ecosystem. Built for the advancement of Open Science.</p>
+            <p class="opacity-40 text-[10px] mt-2">Released under the GNU General Public License v3 (GPLv3).</p>
         </div>
     </footer>
 

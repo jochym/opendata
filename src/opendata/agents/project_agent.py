@@ -1,6 +1,9 @@
 import yaml
 import json
 import re
+import platform
+import sys
+import datetime
 from typing import List, Optional, Dict, Any, Tuple, Callable
 from pathlib import Path
 from opendata.models import Metadata, ProjectFingerprint
@@ -89,7 +92,7 @@ class ProjectAnalysisAgent:
     def start_analysis(
         self,
         project_dir: Path,
-        progress_callback: Optional[Callable[[str], None]] = None,
+        progress_callback: Optional[Callable[[str, str, str], None]] = None,
         force_rescan: bool = False,
         stop_event: Optional[Any] = None,
     ) -> str:
@@ -99,7 +102,7 @@ class ProjectAnalysisAgent:
         # Try loading existing state first, unless forced rescan
         if not force_rescan and self.load_project(project_dir):
             if progress_callback:
-                progress_callback("Loaded existing project state.")
+                progress_callback("Loaded existing project state.", "", "")
 
             # Update current_metadata to the loaded one explicitly to ensure UI sees it
             # (though load_project already sets self.current_metadata)
@@ -112,7 +115,7 @@ class ProjectAnalysisAgent:
         self.current_fingerprint = None
 
         if progress_callback:
-            progress_callback(f"Scanning {project_dir}...")
+            progress_callback(f"Scanning {project_dir}...", "", "")
         self.current_fingerprint = scan_project_lazy(
             project_dir, progress_callback=progress_callback, stop_event=stop_event
         )
@@ -225,6 +228,10 @@ class ProjectAnalysisAgent:
             if on_update:
                 on_update()
 
+        # 0. SPECIAL COMMANDS
+        if user_text.strip().lower().startswith("/bug"):
+            return self._handle_bug_command(user_text)
+
         # 1. EXTRACT @FILES
         extra_files = []
         at_matches = re.findall(r"@([^\s,]+)", user_text)
@@ -255,19 +262,29 @@ class ProjectAnalysisAgent:
             if len(self.chat_history) >= 2 and self.chat_history[-2][0] == "agent"
             else ""
         )
-        if "Shall I process" in last_agent_msg and "full text" in last_agent_msg:
+        if (
+            last_agent_msg
+            and "Shall I process" in last_agent_msg
+            and "full text" in last_agent_msg
+        ):
             # Check if user said "yes" (possibly with @files)
             clean_input = re.sub(r"@([^\s,]+)", "", user_text).strip().lower()
-            if any(ok in clean_input for ok in ["yes", "y", "sure", "ok", "okay"]):
+            if clean_input and any(
+                ok in clean_input for ok in ["yes", "y", "sure", "ok", "okay"]
+            ):
                 # IMMEDIATE SYSTEM FEEDBACK
                 file_list = []
                 from opendata.utils import walk_project_files
 
-                project_dir = Path(self.current_fingerprint.root_path)
+                if self.current_fingerprint:
+                    project_dir_to_use = Path(self.current_fingerprint.root_path)
+                else:
+                    # Fallback to current directory if fingerprint is missing, though unlikely here
+                    project_dir_to_use = Path.cwd()
 
                 # Main file
                 candidate_main_files = []
-                for p in walk_project_files(project_dir):
+                for p in walk_project_files(project_dir_to_use):
                     if p.is_file() and p.suffix.lower() in [".tex", ".docx"]:
                         candidate_main_files.append(p)
                 main_file = None
@@ -280,7 +297,7 @@ class ProjectAnalysisAgent:
                     file_list.append(f"`{main_file.name}` (main)")
 
                 # Auto-included root files
-                for p in project_dir.iterdir():
+                for p in project_dir_to_use.iterdir():
                     if p.is_file() and p.suffix.lower() in {".md", ".yaml", ".yml"}:
                         # Check if it was already listed as main (unlikely for md/yaml but safe)
                         if main_file and p == main_file:
@@ -308,13 +325,13 @@ class ProjectAnalysisAgent:
             extra_context = []
             from opendata.utils import FullTextReader
 
-            project_dir = Path(self.current_fingerprint.root_path)
+            project_dir_to_use = Path(self.current_fingerprint.root_path)
             for p in extra_files:
                 content = FullTextReader.read_full_text(p)
                 if content:
                     rel_p = (
-                        p.relative_to(project_dir)
-                        if p.is_relative_to(project_dir)
+                        p.relative_to(project_dir_to_use)
+                        if p.is_relative_to(project_dir_to_use)
                         else p.name
                     )
                     extra_context.append(
@@ -673,3 +690,52 @@ class ProjectAnalysisAgent:
                 "protocols": protocols,
             },
         )
+
+    def _handle_bug_command(self, user_text: str) -> str:
+        """Generates a diagnostic report for debugging."""
+        description = user_text[4:].strip() or "No description provided."
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        report_name = f"bug_report_{timestamp}.yaml"
+        report_path = self.wm.bug_reports_dir / report_name
+
+        report_data = {
+            "timestamp": timestamp,
+            "user_description": description,
+            "system_info": {
+                "os": platform.system(),
+                "os_release": platform.release(),
+                "python_version": sys.version,
+                "platform": platform.platform(),
+            },
+            "project_context": {
+                "project_id": self.project_id,
+                "root_path": self.current_fingerprint.root_path
+                if self.current_fingerprint
+                else "Unknown",
+                "metadata": self.current_metadata.model_dump(exclude_unset=True),
+                "fingerprint_summary": {
+                    "file_count": self.current_fingerprint.file_count
+                    if self.current_fingerprint
+                    else 0,
+                    "total_size": self.current_fingerprint.total_size_bytes
+                    if self.current_fingerprint
+                    else 0,
+                    "extensions": self.current_fingerprint.extensions
+                    if self.current_fingerprint
+                    else [],
+                },
+            },
+            "recent_history": self.chat_history[-20:] if self.chat_history else [],
+        }
+
+        with open(report_path, "w", encoding="utf-8") as f:
+            yaml.dump(report_data, f, allow_unicode=True, sort_keys=False)
+
+        msg = (
+            f"🐞 **Bug report generated!**\n\n"
+            f"Diagnostic data has been saved to:\n`{report_path}`\n\n"
+            f"Please share this file with the developers. Thank you for helping us improve!"
+        )
+        self.chat_history.append(("agent", msg))
+        self.save_state()
+        return msg

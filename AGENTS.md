@@ -138,6 +138,11 @@ Every substantial step must have an accompanying automated test. Before completi
   - **Layout Persistence:** Integrated real-time saving of splitter position to global user settings.
   - **Enhanced UI Feedback:** Unified statistics and file-progress display in the scanner header.
 
+- **Phase 14 Testing & Diagnostics [COMPLETE]:**
+  - **Automated Bug Reporting:** Implemented `/bug` command for single-click diagnostic collection (System info, Metadata, Chat history).
+  - **Tester Portal:** Created a dedicated landing page (`website/index.html`) with guides and downloads for domain professionals.
+  - **LSP & Type Safety:** Refactored callback signatures and state handling to ensure robust agent-UI synchronization.
+
 ## Code Style Guidelines
 
 ### 1. Multi-Platform Compatibility & i18n

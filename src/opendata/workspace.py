@@ -18,6 +18,7 @@ class WorkspaceManager:
         self.protocols_dir = self.base_path / "protocols"
         self.workspaces_dir = self.base_path / "workspaces"
         self.projects_dir = self.base_path / "projects"
+        self.bug_reports_dir = self.base_path / "bug_reports"
         self._ensure_dirs()
 
     def _ensure_dirs(self):
@@ -26,6 +27,7 @@ class WorkspaceManager:
         self.protocols_dir.mkdir(parents=True, exist_ok=True)
         self.workspaces_dir.mkdir(parents=True, exist_ok=True)
         self.projects_dir.mkdir(parents=True, exist_ok=True)
+        self.bug_reports_dir.mkdir(parents=True, exist_ok=True)
 
     def get_project_id(self, project_path: Path) -> str:
         """Generates a unique ID for a project based on its absolute path."""
