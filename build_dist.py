@@ -20,15 +20,15 @@ def build_linux():
         "opendata-tool",
         "--add-data",
         f"{root}/src/opendata/ui:opendata/ui",
-        # We need to make sure NiceGUI's static files are included if they are outside the standard path
-        # But usually NiceGUI handles its internal static files.
-        # We also need to add client_secrets.json if it exists in the root for the build
-        str(main_script),
     ]
 
-    if (root / "client_secrets.json").exists():
-        cmd.extend(["--add-data", f"{root}/client_secrets.json:."])
+    # Check for secrets in root or in the app's standard path
+    secrets_path = root / "client_secrets.json"
+    if secrets_path.exists():
+        cmd.extend(["--add-data", f"{secrets_path}:."])
         print("Baking in client_secrets.json...")
+
+    cmd.append(str(main_script))
 
     print(f"Executing: {' '.join(cmd)}")
     subprocess.run(cmd, check=True)

@@ -29,6 +29,21 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
     # Try Silent Auth
     ai.authenticate(silent=True)
 
+    async def confirm_logout():
+        with ui.dialog() as dialog, ui.card().classes("p-4"):
+            ui.label(_("Are you sure you want to logout from AI?")).classes(
+                "text-lg mb-4"
+            )
+            with ui.row().classes("w-full justify-end gap-2"):
+                ui.button(_("Cancel"), on_click=dialog.close).props("flat")
+
+                async def logout_action():
+                    dialog.close()
+                    await handle_logout()
+
+                ui.button(_("Logout"), on_click=logout_action, color="red")
+        dialog.open()
+
     # --- REFRESHABLE COMPONENTS ---
 
     @ui.refreshable
@@ -74,7 +89,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                 "flat color=white text-xs"
             ).classes("bg-slate-700" if settings.language == "pl" else "")
             if settings.ai_consent_granted:
-                with ui.button(icon="logout", on_click=handle_logout).props(
+                with ui.button(icon="logout", on_click=confirm_logout).props(
                     "flat color=white"
                 ):
                     ui.tooltip(_("Logout from AI"))
