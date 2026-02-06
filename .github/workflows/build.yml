@@ -38,6 +38,21 @@ jobs:
         pip install pyinstaller
         pip install -e .
 
+    - name: Decode Secrets (Linux/macOS)
+      if: matrix.os != 'windows-latest' && env.HAS_SECRET == 'true'
+      run: echo "${{ secrets.CLIENT_SECRETS_BASE64 }}" | base64 -d > client_secrets.json
+      env:
+        HAS_SECRET: ${{ secrets.CLIENT_SECRETS_BASE64 != '' }}
+
+    - name: Decode Secrets (Windows)
+      if: matrix.os == 'windows-latest' && env.HAS_SECRET == 'true'
+      shell: pwsh
+      run: |
+        $bytes = [System.Convert]::FromBase64String("${{ secrets.CLIENT_SECRETS_BASE64 }}")
+        [System.IO.File]::WriteAllBytes("client_secrets.json", $bytes)
+      env:
+        HAS_SECRET: ${{ secrets.CLIENT_SECRETS_BASE64 != '' }}
+
     - name: Build with PyInstaller (Linux/macOS)
       if: matrix.os != 'windows-latest'
       run: |
@@ -70,3 +85,32 @@ jobs:
           opendata-linux-x64.tar.gz
           opendata-win-x64.exe
           opendata-macos-arm64.dmg
+
+  deploy-website:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: download-artifacts
+
+      - name: Prepare website directory
+        run: |
+          mkdir -p website/bin
+          # Move artifacts to the bin directory
+          find download-artifacts -name "opendata-linux-x64.tar.gz" -exec cp {} website/bin/ \;
+          find download-artifacts -name "opendata-win-x64.exe" -exec cp {} website/bin/ \;
+          find download-artifacts -name "opendata-macos-arm64.dmg" -exec cp {} website/bin/ \;
+          echo "Website directory structure:"
+          ls -R website/
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./website
