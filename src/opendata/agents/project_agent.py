@@ -251,9 +251,15 @@ class ProjectAnalysisAgent:
         # Ensure authors and contacts are properly validated models even if they came from heuristics as dicts
         if self.current_metadata.authors:
             self.current_metadata.authors = [
-                a if hasattr(a, "name") else PersonOrOrg(**a)
+                a if isinstance(a, PersonOrOrg) else PersonOrOrg.model_validate(a)
                 for a in self.current_metadata.authors
             ]
+        if self.current_metadata.contacts:
+            self.current_metadata.contacts = [
+                c if isinstance(c, Contact) else Contact.model_validate(c)
+                for c in self.current_metadata.contacts
+            ]
+
         if self.current_metadata.contacts:
             self.current_metadata.contacts = [
                 c if hasattr(c, "email") else Contact(**c)

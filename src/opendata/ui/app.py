@@ -4,7 +4,7 @@ import asyncio
 from nicegui import ui
 import webbrowser
 from pathlib import Path
-from typing import Any, List
+from typing import Any, List, Literal
 from opendata.utils import get_local_ip, format_size
 from opendata.workspace import WorkspaceManager
 from opendata.packager import PackagingService
@@ -66,6 +66,112 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
         inventory_cache: List[dict] = []
         last_inventory_project: str = ""
         is_loading_inventory: bool = False
+        # Debouncing state
+        last_refresh_time: float = 0.0
+        pending_refresh: bool = False
+        # Inventory loading lock
+        inventory_lock: bool = False
+
+    import time
+    import logging
+
+    # Setup diagnostic logging for connection issues
+    logger = logging.getLogger("opendata.ui")
+
+    async def refresh_all_debounced():
+        """Debounced refresh - waits 150ms before executing, skips if already pending."""
+        if UIState.pending_refresh:
+            return
+        UIState.pending_refresh = True
+        await asyncio.sleep(0.15)
+        UIState.pending_refresh = False
+        try:
+            chat_messages_ui.refresh()
+            metadata_preview_ui.refresh()
+            header_content_ui.refresh()
+            render_protocols_tab.refresh()
+            render_package_tab.refresh()
+            render_preview_and_build.refresh()
+        except Exception:
+            pass
+
+    def refresh_all():
+        """Synchronous refresh with throttling - max once per 200ms."""
+        now = time.time()
+        if now - UIState.last_refresh_time < 0.2:
+            # Schedule async debounced refresh instead
+            asyncio.create_task(refresh_all_debounced())
+            return
+        UIState.last_refresh_time = now
+        try:
+            chat_messages_ui.refresh()
+            metadata_preview_ui.refresh()
+            header_content_ui.refresh()
+            render_protocols_tab.refresh()
+            render_package_tab.refresh()
+            render_preview_and_build.refresh()
+        except Exception:
+            pass
+
+    async def load_inventory_background():
+        """Load inventory in background with lock to prevent concurrent runs."""
+        if not agent.project_id or ScanState.is_scanning:
+            return
+
+        # Prevent concurrent inventory loading
+        if UIState.inventory_lock:
+            logger.debug(
+                f"Inventory load skipped - already locked for {agent.project_id}"
+            )
+            return
+
+        logger.debug(f"Starting inventory load for {agent.project_id}")
+        UIState.inventory_lock = True
+
+        UIState.is_loading_inventory = True
+        try:
+            render_package_tab.refresh()
+        except Exception as e:
+            logger.warning(f"Failed to refresh package tab (pre-load): {e}")
+
+        try:
+            project_path = Path(ScanState.current_path)
+            manifest = pkg_mgr.get_manifest(agent.project_id)
+
+            field_name = (
+                agent.current_metadata.science_branches_mnisw[0]
+                if agent.current_metadata.science_branches_mnisw
+                else None
+            )
+            effective = pm.resolve_effective_protocol(agent.project_id, field_name)
+            protocol_excludes = effective.get("exclude", [])
+
+            inventory = await asyncio.to_thread(
+                pkg_mgr.get_inventory_for_ui, project_path, manifest, protocol_excludes
+            )
+
+            UIState.inventory_cache = inventory
+            UIState.last_inventory_project = agent.project_id
+            logger.debug(f"Inventory loaded: {len(inventory)} files")
+        except Exception as e:
+            logger.error(f"Failed to load inventory: {e}")
+        finally:
+            UIState.is_loading_inventory = False
+            UIState.inventory_lock = False
+            # Only refresh package tab, not everything
+            try:
+                render_package_tab.refresh()
+            except Exception as e:
+                logger.warning(f"Failed to refresh package tab (post-load): {e}")
+
+    def safe_notify(
+        message: str,
+        type: Literal["positive", "negative", "warning", "info", "ongoing"] = "info",
+    ):
+        try:
+            ui.notify(message, type=type)
+        except Exception:
+            print(f"[NOTIFY FALLBACK] {type.upper()}: {message}")
 
     # --- REFRESHABLE COMPONENTS ---
 
@@ -177,8 +283,26 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
     @ui.refreshable
     def chat_messages_ui():
+        # Performance: limit rendered messages to last 50 to avoid WebSocket overload
+        MAX_VISIBLE_MESSAGES = 50
+        history = agent.chat_history
+        total = len(history)
+        start_idx = max(0, total - MAX_VISIBLE_MESSAGES)
+        visible_history = history[start_idx:]
+
         with ui.column().classes("w-full gap-1 overflow-x-hidden"):
-            for i, (role, msg) in enumerate(agent.chat_history):
+            # Show truncation notice if history was clipped
+            if total > MAX_VISIBLE_MESSAGES:
+                with ui.row().classes("w-full justify-center"):
+                    ui.label(
+                        _("Showing last {count} of {total} messages").format(
+                            count=MAX_VISIBLE_MESSAGES, total=total
+                        )
+                    ).classes("text-xs text-slate-400 italic")
+
+            for i, (role, msg) in enumerate(visible_history):
+                # Adjust index for original position (for detecting last message)
+                original_idx = start_idx + i
                 if role == "user":
                     with ui.row().classes("w-full justify-start"):
                         with ui.card().classes(
@@ -198,7 +322,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
                             # If this is the last agent message and we have an active analysis, show the form
                             if (
-                                i == len(agent.chat_history) - 1
+                                original_idx == len(agent.chat_history) - 1
                                 and agent.current_analysis
                             ):
                                 render_analysis_form(agent.current_analysis)
@@ -252,11 +376,8 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                 ScanState.progress_label = lbl  # type: ignore[attr-defined]
             return
 
-        # Explicitly refresh header when metadata changes to sync project selector
-        try:
-            header_content_ui.refresh()  # type: ignore
-        except Exception:
-            pass
+        # NOTE: Removed header_content_ui.refresh() call here to prevent cascade refreshes
+        # that could cause WebSocket overload. Header is refreshed via refresh_all() instead.
 
         fields = agent.current_metadata.model_dump(exclude_unset=True)
 
@@ -648,7 +769,34 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                     ui.label(key.replace("_", " ").title()).classes(
                         "text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-wider"
                     )
-                    with ui.row().classes("w-full gap-1 flex-wrap items-center mt--1"):
+                    with ui.row().classes(
+                        "w-full gap-1 flex-wrap items-center relative group mt--1"
+                    ) as list_container:
+                        list_container.on(
+                            "click", lambda _e, k=key: open_edit_dialog(k)
+                        )
+
+                        # Lock for lists
+                        is_locked = key in agent.current_metadata.locked_fields
+                        with (
+                            ui.button(
+                                icon="lock" if is_locked else "lock_open",
+                                on_click=lambda _e, k=key: toggle_lock_list(_e, k),
+                            )
+                            .props("flat dense")
+                            .classes(
+                                f"absolute -top-4 right-0 z-10 opacity-0 group-hover:opacity-100 transition-opacity {'text-orange-600 opacity-100' if is_locked else 'text-slate-400'}"
+                            )
+                            .style(
+                                "font-size: 10px; background: white; border-radius: 50%; border: 1px solid #eee; width: 20px; height: 20px;"
+                            )
+                        ):
+                            ui.tooltip(
+                                _("Lock field from AI updates")
+                                if not is_locked
+                                else _("Unlock field")
+                            )
+
                         for item in value:
                             ui.label(str(item)).classes(
                                 "text-sm bg-slate-100 py-0.5 px-2 rounded border border-slate-200 inline-block mr-1 mb-1"
@@ -997,6 +1145,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                     with ui.tab_panel(settings_tab):
                         render_settings_tab()
 
+    @ui.refreshable
     def render_preview_and_build():
         with ui.column().classes("w-full gap-4"):
             with ui.card().classes("w-full p-6 shadow-md border-t-4 border-green-600"):
@@ -1334,7 +1483,8 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
         if UIState.last_inventory_project != agent.project_id:
             # We don't trigger scanning here. We just show empty state or trigger loading if DB exists.
             # However, handle_load_project should have triggered load_inventory_background.
-            if not UIState.is_loading_inventory:
+            # Only start if not already loading AND not locked (prevents race conditions)
+            if not UIState.is_loading_inventory and not UIState.inventory_lock:
                 asyncio.create_task(load_inventory_background())
 
         if UIState.is_loading_inventory and not UIState.inventory_cache:
@@ -1377,6 +1527,12 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                     ).classes("text-sm text-slate-500")
 
                 with ui.row().classes("gap-2"):
+                    with ui.row().bind_visibility_from(ScanState, "is_scanning"):
+                        ui.spinner(size="sm")
+                        ui.label().bind_text_from(ScanState, "progress").classes(
+                            "text-xs text-slate-500"
+                        )
+
                     ui.button(
                         _("Refresh File List"),
                         icon="refresh",
@@ -1466,6 +1622,9 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                 i for i, f in enumerate(grid_data) if f["included"]
             ]
 
+            # Use javascript update to ensure grid data stays visible
+            grid.update()
+
             async def handle_selection_change():
                 selected_rows = await grid.get_selected_rows()
                 selected_paths = {row["path"] for row in selected_rows}
@@ -1519,13 +1678,6 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
     def render_package_placeholder():
         render_package_tab()
-
-    def refresh_all():
-        chat_messages_ui.refresh()
-        metadata_preview_ui.refresh()
-        header_content_ui.refresh()
-        render_protocols_tab.refresh()
-        render_package_tab.refresh()
 
     def render_setup_wizard():
         with ui.card().classes(
@@ -1823,7 +1975,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
     async def handle_refresh_inventory():
         if not ScanState.current_path:
-            ui.notify(_("Please select a project first."), type="warning")
+            safe_notify(_("Please select a project first."), type="warning")
             return
 
         resolved_path = Path(ScanState.current_path).expanduser()
@@ -1832,12 +1984,12 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
         ScanState.stop_event = threading.Event()
         ScanState.is_scanning = True
-        ui.notify(_("Refreshing file list..."))
+        safe_notify(_("Refreshing file list..."))
 
         def update_progress(msg, full_path="", short_path=""):
             ScanState.progress = msg
-            # We reuse the global progress bar if visible, but mostly this is background
-            pass
+            # Force UI update for progress
+            metadata_preview_ui.refresh()
 
         await asyncio.to_thread(
             agent.refresh_inventory,
@@ -1851,48 +2003,67 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
         # Force cache reload
         UIState.last_inventory_project = ""
-        await load_inventory_background()
-        ui.notify(_("File list updated."), type="positive")
+        try:
+            await load_inventory_background()
+            safe_notify(_("File list updated."), type="positive")
+        except Exception:
+            pass
 
     async def handle_load_project(path: str):
         if not path:
             return
-        ui.notify(_("Opening project..."))
 
-        path_obj = Path(path).expanduser().resolve()
-        # Explicitly create project ID and active it
-        project_id = wm.get_project_id(path_obj)
-        agent.project_id = project_id
+        logger.debug(f"Loading project: {path}")
+        safe_notify(_("Opening project..."))
 
-        # Force refresh of all components that depend on project_id
-        # including the Protocols tab
-        success = await asyncio.to_thread(agent.load_project, path_obj)
-        ScanState.current_path = str(path_obj)
+        try:
+            path_obj = Path(path).expanduser().resolve()
+            # Explicitly create project ID and activate it
+            project_id = wm.get_project_id(path_obj)
+            agent.project_id = project_id
 
-        if agent.current_metadata.ai_model:
-            ai.switch_model(agent.current_metadata.ai_model)
-            ui.notify(
-                _("Restored project model: {model}").format(
-                    model=agent.current_metadata.ai_model
+            # Clear inventory cache to force re-scan on next tab visit
+            UIState.last_inventory_project = ""
+            UIState.inventory_cache = []
+
+            # Force refresh of all components that depend on project_id
+            # including the Protocols tab
+            success = await asyncio.to_thread(agent.load_project, path_obj)
+            ScanState.current_path = str(path_obj)
+            logger.debug(f"Project loaded: success={success}, id={project_id}")
+
+            if agent.current_metadata.ai_model:
+                ai.switch_model(agent.current_metadata.ai_model)
+                safe_notify(
+                    _("Restored project model: {model}").format(
+                        model=agent.current_metadata.ai_model
+                    )
                 )
+
+            # Ensure workspace directory exists for protocols
+            project_state_dir = wm.projects_dir / project_id
+            project_state_dir.mkdir(parents=True, exist_ok=True)
+
+            # Single refresh after loading
+            logger.debug("Refreshing all UI components")
+            refresh_all()
+
+            # Start inventory scan in background - with delay to allow UI to settle
+            # This prevents WebSocket overload from concurrent refreshes
+            logger.debug("Scheduling inventory load (delayed 300ms)")
+            await asyncio.sleep(0.3)
+            asyncio.create_task(load_inventory_background())
+
+            if success:
+                safe_notify(_("Project opened from history."))
+            else:
+                safe_notify(_("New project directory opened."))
+        except Exception as e:
+            logger.error(f"Failed to load project: {e}", exc_info=True)
+            safe_notify(
+                _("Failed to load project: {error}").format(error=str(e)),
+                type="negative",
             )
-
-        # Ensure workspace directory exists for protocols
-        project_state_dir = wm.projects_dir / project_id
-        project_state_dir.mkdir(parents=True, exist_ok=True)
-
-        refresh_all()
-
-        # Start inventory scan in background immediately after project load
-        asyncio.create_task(load_inventory_background())
-
-        # Refresh the entire tab view to propagate project_id
-        render_protocols_tab.refresh()
-
-        if success:
-            ui.notify(_("Project opened from history."))
-        else:
-            ui.notify(_("New project directory opened."))
 
     async def handle_scan(path: str, force: bool = False):
         if not path:
@@ -1948,7 +2119,10 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
         )
         ScanState.is_processing_ai = False
         refresh_all()
-        ui.run_javascript("window.scrollTo(0, document.body.scrollHeight)")
+        try:
+            ui.run_javascript("window.scrollTo(0, document.body.scrollHeight)")
+        except Exception:
+            pass
 
     async def handle_clear_chat():
         agent.clear_chat_history()
