@@ -351,6 +351,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
     class ScanState:
         is_scanning = False
         is_processing_ai = False
+        is_loading_project = False  # NEW: Track project loading
         progress = ""
         short_path = ""
         full_path = ""
@@ -2014,23 +2015,32 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
             return
 
         logger.debug(f"Loading project: {path}")
+        ScanState.is_loading_project = True
         safe_notify(_("Opening project..."))
 
         try:
             path_obj = Path(path).expanduser().resolve()
-            # Explicitly create project ID and activate it
             project_id = wm.get_project_id(path_obj)
             agent.project_id = project_id
 
-            # Clear inventory cache to force re-scan on next tab visit
             UIState.last_inventory_project = ""
             UIState.inventory_cache = []
 
-            # Force refresh of all components that depend on project_id
-            # including the Protocols tab
-            success = await asyncio.to_thread(agent.load_project, path_obj)
+            # Load project data in thread
+            metadata, history, fingerprint = await asyncio.to_thread(
+                wm.load_project_state, project_id
+            )
             ScanState.current_path = str(path_obj)
-            logger.debug(f"Project loaded: success={success}, id={project_id}")
+            success = metadata is not None
+            logger.debug(
+                f"Project data loaded: success={success}, history_len={len(history)}, id={project_id}"
+            )
+
+            # Assign loaded data to agent
+            if metadata:
+                agent.current_metadata = metadata
+                agent.chat_history = history
+                agent.current_fingerprint = fingerprint
 
             if agent.current_metadata.ai_model:
                 ai.switch_model(agent.current_metadata.ai_model)
@@ -2040,30 +2050,45 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                     )
                 )
 
-            # Ensure workspace directory exists for protocols
             project_state_dir = wm.projects_dir / project_id
             project_state_dir.mkdir(parents=True, exist_ok=True)
 
-            # Single refresh after loading
-            logger.debug("Refreshing all UI components")
-            refresh_all()
+            # Refresh UI components sequentially to prevent WebSocket overload
+            logger.debug("Refreshing UI components sequentially")
+            try:
+                header_content_ui.refresh()
+                await asyncio.sleep(0.05)
+                metadata_preview_ui.refresh()
+                await asyncio.sleep(0.05)
+                render_protocols_tab.refresh()
+                await asyncio.sleep(0.05)
+                render_preview_and_build.refresh()
+                await asyncio.sleep(0.05)
+                render_package_tab.refresh()
+                await asyncio.sleep(0.1)
+                chat_messages_ui.refresh()
+            except Exception as e:
+                logger.error(f"Failed during UI refresh: {e}")
+                refresh_all()
 
-            # Start inventory scan in background - with delay to allow UI to settle
-            # This prevents WebSocket overload from concurrent refreshes
-            logger.debug("Scheduling inventory load (delayed 300ms)")
-            await asyncio.sleep(0.3)
+            # Start inventory load in background
+            logger.debug("Scheduling inventory load (delayed 500ms)")
+            await asyncio.sleep(0.5)
             asyncio.create_task(load_inventory_background())
 
-            if success:
-                safe_notify(_("Project opened from history."))
-            else:
-                safe_notify(_("New project directory opened."))
+            safe_notify(
+                _("Project opened from history.")
+                if success
+                else _("New project directory opened.")
+            )
         except Exception as e:
             logger.error(f"Failed to load project: {e}", exc_info=True)
             safe_notify(
                 _("Failed to load project: {error}").format(error=str(e)),
                 type="negative",
             )
+        finally:
+            ScanState.is_loading_project = False
 
     async def handle_scan(path: str, force: bool = False):
         if not path:
