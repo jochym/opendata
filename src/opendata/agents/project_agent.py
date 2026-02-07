@@ -27,6 +27,9 @@ class ProjectAnalysisAgent:
 
     def __init__(self, wm: WorkspaceManager):
         self.wm = wm
+        from opendata.protocols.manager import ProtocolManager
+
+        self.pm = ProtocolManager(wm)
         self.registry = ExtractorRegistry()
         self._setup_extractors()
         self.prompt_manager = PromptManager()
@@ -97,6 +100,53 @@ class ProjectAnalysisAgent:
         self.current_fingerprint = None
         self.project_id = None
 
+    def refresh_inventory(
+        self,
+        project_dir: Path,
+        progress_callback: Optional[Callable[[str, str, str], None]] = None,
+        stop_event: Optional[Any] = None,
+    ):
+        """
+        Performs a fast file scan and updates the SQLite inventory without running heuristics or AI.
+        """
+        self.project_id = self.wm.get_project_id(project_dir)
+
+        # Get field from metadata if exists
+        field_name = (
+            self.current_metadata.science_branches_mnisw[0]
+            if self.current_metadata.science_branches_mnisw
+            else None
+        )
+        effective = self.pm.resolve_effective_protocol(self.project_id, field_name)
+        exclude_patterns = effective.get("exclude")
+
+        # 1. Quick fingerpint update
+        from opendata.utils import scan_project_lazy, list_project_files_full
+
+        self.current_fingerprint = scan_project_lazy(
+            project_dir,
+            progress_callback=progress_callback,
+            stop_event=stop_event,
+            exclude_patterns=exclude_patterns,
+        )
+
+        if stop_event and stop_event.is_set():
+            return
+
+        # 2. Update SQLite Inventory
+        try:
+            from opendata.storage.project_db import ProjectInventoryDB
+
+            full_files = list_project_files_full(
+                project_dir, stop_event=stop_event, exclude_patterns=exclude_patterns
+            )
+            db = ProjectInventoryDB(self.wm.get_project_db_path(self.project_id))
+            db.update_inventory(full_files)
+        except Exception as e:
+            print(f"[ERROR] Failed to refresh inventory in SQLite: {e}")
+
+        self.save_state()
+
     def start_analysis(
         self,
         project_dir: Path,
@@ -124,12 +174,37 @@ class ProjectAnalysisAgent:
 
         if progress_callback:
             progress_callback(f"Scanning {project_dir}...", "", "")
+
+        # Get field from metadata if exists
+        field_name = (
+            self.current_metadata.science_branches_mnisw[0]
+            if self.current_metadata.science_branches_mnisw
+            else None
+        )
+        effective = self.pm.resolve_effective_protocol(self.project_id, field_name)
+        exclude_patterns = effective.get("exclude")
+
         self.current_fingerprint = scan_project_lazy(
-            project_dir, progress_callback=progress_callback, stop_event=stop_event
+            project_dir,
+            progress_callback=progress_callback,
+            stop_event=stop_event,
+            exclude_patterns=exclude_patterns,
         )
 
         if stop_event and stop_event.is_set():
             return "Scan cancelled by user."
+
+        # Persistent Inventory: Save all files to SQLite after explicit scan
+        try:
+            from opendata.utils import list_project_files_full
+            from opendata.storage.project_db import ProjectInventoryDB
+
+            # Use full listing during explicit scan phase
+            full_files = list_project_files_full(project_dir, stop_event=stop_event)
+            db = ProjectInventoryDB(self.wm.get_project_db_path(self.project_id))
+            db.update_inventory(full_files)
+        except Exception as e:
+            print(f"[ERROR] Failed to save inventory to SQLite: {e}")
 
         # Run Heuristics
         heuristics_data = {}
@@ -140,7 +215,9 @@ class ProjectAnalysisAgent:
         current_file_idx = 0
         total_size_str = format_size(self.current_fingerprint.total_size_bytes)
 
-        for p in walk_project_files(project_dir, stop_event=stop_event):
+        for p in walk_project_files(
+            project_dir, stop_event=stop_event, exclude_patterns=exclude_patterns
+        ):
             if stop_event and stop_event.is_set():
                 break
             if p.is_file():
@@ -728,6 +805,31 @@ class ProjectAnalysisAgent:
         # We explicitly include the current metadata in the prompt so the AI can see what we already have
         current_data = yaml.dump(
             self.current_metadata.model_dump(exclude_unset=True), allow_unicode=True
+        )
+
+        # Domain protocols injection
+        field_name = (
+            self.current_metadata.science_branches_mnisw[0]
+            if self.current_metadata.science_branches_mnisw
+            else None
+        )
+        effective = self.pm.resolve_effective_protocol(self.project_id, field_name)
+
+        protocols_str = ""
+        if effective.get("prompts"):
+            protocols_str = "ACTIVE PROTOCOLS & USER RULES:\n"
+            for i, p in enumerate(effective["prompts"], 1):
+                protocols_str += f"{i}. {p}\n"
+        else:
+            protocols_str = "None active."
+
+        return self.prompt_manager.render(
+            "system_prompt",
+            {
+                "fingerprint": fingerprint_summary,
+                "metadata": current_data,
+                "protocols": protocols_str,
+            },
         )
 
         # Domain protocols injection (if implemented/available)

@@ -1,14 +1,24 @@
 import re
 import yaml
+import asyncio
 from nicegui import ui
 import webbrowser
 from pathlib import Path
-from typing import Any
-from opendata.utils import get_local_ip
+from typing import Any, List
+from opendata.utils import get_local_ip, format_size
 from opendata.workspace import WorkspaceManager
 from opendata.packager import PackagingService
 from opendata.agents.project_agent import ProjectAnalysisAgent
 from opendata.ai.service import AIService
+from opendata.models import (
+    Metadata,
+    PersonOrOrg,
+    Contact,
+    RelatedResource,
+    ExtractionProtocol,
+)
+from opendata.protocols.manager import ProtocolManager
+from opendata.packaging.manager import PackageManager
 from opendata.i18n.translator import setup_i18n, _
 
 
@@ -20,6 +30,8 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
     agent = ProjectAnalysisAgent(wm)
     ai = AIService(Path(settings.workspace_path), settings)
+    pm = ProtocolManager(wm)
+    pkg_mgr = PackageManager(wm)
     packaging_service = PackagingService(Path(settings.workspace_path))
 
     # Initialize model from global settings
@@ -45,6 +57,15 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
                 ui.button(_("Logout"), on_click=logout_action, color="red")
         dialog.open()
+
+    class UIState:
+        main_tabs: Any = None
+        analysis_tab: Any = None
+        package_tab: Any = None
+        preview_tab: Any = None
+        inventory_cache: List[dict] = []
+        last_inventory_project: str = ""
+        is_loading_inventory: bool = False
 
     # --- REFRESHABLE COMPONENTS ---
 
@@ -78,11 +99,6 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                 "text-h5 font-bold tracking-tight hidden sm:block ml-4"
             )
             project_selector_ui()
-
-    def refresh_all():
-        chat_messages_ui.refresh()
-        metadata_preview_ui.refresh()
-        header_content_ui.refresh()
 
     def render_analysis_form(analysis: Any):
         with ui.card().classes(
@@ -237,7 +253,10 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
             return
 
         # Explicitly refresh header when metadata changes to sync project selector
-        header_content_ui.refresh()  # type: ignore
+        try:
+            header_content_ui.refresh()  # type: ignore
+        except Exception:
+            pass
 
         fields = agent.current_metadata.model_dump(exclude_unset=True)
 
@@ -697,6 +716,41 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                                                 f"{id_type}:" if id_type else "DOI:"
                                             )
                                             ui.label(f"{label_prefix} {id_val or ''}")
+                elif key == "software":
+                    ui.label(key.replace("_", " ").title()).classes(
+                        "text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-wider"
+                    )
+                    with ui.row().classes(
+                        "w-full gap-1 flex-wrap items-center relative group"
+                    ) as soft_container:
+                        is_locked = key in agent.current_metadata.locked_fields
+                        soft_container.on(
+                            "click", lambda _e, k=key: open_edit_dialog(k)
+                        )
+
+                        with (
+                            ui.button(
+                                icon="lock" if is_locked else "lock_open",
+                                on_click=lambda _e, k=key: toggle_lock_list(_e, k),
+                            )
+                            .props("flat dense")
+                            .classes(
+                                f"absolute -top-4 right-0 z-10 opacity-0 group-hover:opacity-100 transition-opacity {'text-orange-600 opacity-100' if is_locked else 'text-slate-400'}"
+                            )
+                            .style(
+                                "font-size: 10px; background: white; border-radius: 50%; border: 1px solid #eee; width: 20px; height: 20px;"
+                            )
+                        ):
+                            ui.tooltip(
+                                _("Lock field from AI updates")
+                                if not is_locked
+                                else _("Unlock field")
+                            )
+
+                        for s in value:
+                            ui.label(str(s)).classes(
+                                "text-sm bg-purple-50 text-purple-800 py-0.5 px-2 rounded border border-purple-100 inline-block mr-1 mb-1"
+                            )
                 elif key == "funding":
                     ui.label(key.replace("_", " ").title()).classes(
                         "text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-wider"
@@ -919,6 +973,11 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                 preview_tab = ui.tab(_("Preview"), icon="visibility")
                 settings_tab = ui.tab(_("Settings"), icon="settings")
 
+                UIState.main_tabs = main_tabs
+                UIState.analysis_tab = analysis_tab
+                UIState.package_tab = package_tab
+                UIState.preview_tab = preview_tab
+
         container = ui.column().classes("w-full p-0 max-w-none mx-0 h-full")
         with container:
             if not settings.ai_consent_granted:
@@ -930,7 +989,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                     with ui.tab_panel(analysis_tab).classes("p-0 h-full"):
                         render_analysis_dashboard()
                     with ui.tab_panel(protocols_tab):
-                        render_protocols_placeholder()
+                        render_protocols_tab()
                     with ui.tab_panel(package_tab):
                         render_package_placeholder()
                     with ui.tab_panel(preview_tab):
@@ -945,15 +1004,24 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                     ui.label(_("RODBUK Submission Preview")).classes(
                         "text-h5 font-bold text-green-800"
                     )
-                    ui.button(
-                        _("Build Package"),
-                        icon="archive",
-                        color="green",
-                        on_click=handle_build_package,
-                    ).classes("px-6 font-bold")
+                    with ui.row().classes("gap-2"):
+                        ui.button(
+                            _("Metadata Only"),
+                            icon="description",
+                            color="blue",
+                            on_click=lambda: handle_build_package(mode="metadata"),
+                        ).classes("px-4").props("outline")
+                        ui.button(
+                            _("Build Full Package"),
+                            icon="archive",
+                            color="green",
+                            on_click=lambda: handle_build_package(mode="full"),
+                        ).classes("px-6 font-bold")
 
                 ui.markdown(
-                    _("This is how your project will appear in the RODBUK repository.")
+                    _(
+                        "Review your metadata before generating the final package. The full package will respect your file selection."
+                    )
                 )
                 ui.separator().classes("my-4")
 
@@ -961,10 +1029,48 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                 metadata_preview_ui()
 
             with ui.card().classes("w-full p-6 shadow-md"):
-                ui.label(_("Selected Files")).classes("text-h6 font-bold mb-2")
-                ui.markdown(
-                    _("List of files to be included in the package will appear here.")
-                )
+                ui.label(_("Final Selection Summary")).classes("text-h6 font-bold mb-2")
+                if agent.project_id:
+                    project_path = Path(ScanState.current_path)
+                    manifest = pkg_mgr.get_manifest(agent.project_id)
+                    # Resolve protocol to show current effective count
+                    field_name = (
+                        agent.current_metadata.science_branches_mnisw[0]
+                        if agent.current_metadata.science_branches_mnisw
+                        else None
+                    )
+                    effective = pm.resolve_effective_protocol(
+                        agent.project_id, field_name
+                    )
+                    protocol_excludes = effective.get("exclude", [])
+                    eff_list = pkg_mgr.get_effective_file_list(
+                        project_path, manifest, protocol_excludes
+                    )
+                    total_size = sum(p.stat().st_size for p in eff_list if p.exists())
+
+                    with ui.row().classes("gap-4 items-center"):
+                        ui.icon("inventory", size="md", color="slate-600")
+                        with ui.column().classes("gap-0"):
+                            ui.label(
+                                _("{count} files selected for inclusion").format(
+                                    count=len(eff_list)
+                                )
+                            ).classes("font-bold")
+                            ui.label(
+                                _("Estimated Package Data Size: {size}").format(
+                                    size=format_size(total_size)
+                                )
+                            ).classes("text-sm text-slate-500")
+
+                    ui.button(
+                        _("Edit Selection"),
+                        icon="edit",
+                        on_click=lambda: UIState.main_tabs.set_value(
+                            UIState.package_tab
+                        ),
+                    ).classes("mt-4").props("flat color=primary")
+                else:
+                    ui.label(_("No project active.")).classes("text-slate-400 italic")
 
     def render_settings_tab():
         qr_dialog = ScanState.qr_dialog
@@ -1034,29 +1140,392 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                             color="red",
                         ).props("flat")
 
-    def render_protocols_placeholder():
-        with ui.card().classes("w-full p-8 shadow-md"):
-            ui.label(_("Extraction Protocols")).classes("text-h4 q-mb-md font-bold")
-            ui.markdown(
-                _(
-                    "This area will allow you to manage extraction protocols, including file exclusion patterns and hierarchical prompts."
+    @ui.refreshable
+    def render_protocols_tab():
+        with ui.column().classes("w-full gap-4"):
+            with ui.row().classes("w-full items-center justify-between"):
+                ui.label(_("Extraction Protocols")).classes("text-h4 font-bold")
+                with ui.row().classes("gap-2"):
+                    ui.icon("info", color="primary").classes("cursor-help")
+                    ui.tooltip(
+                        _(
+                            "Protocols guide the AI and scanner. Rules are applied from System to Project level."
+                        )
+                    )
+
+            with ui.tabs().classes("w-full") as protocol_tabs:
+                sys_tab = ui.tab(_("System"), icon="settings_suggest")
+                glob_tab = ui.tab(_("Global"), icon="public")
+                field_tab = ui.tab(_("Field/Domain"), icon="science")
+                proj_tab = ui.tab(_("Project"), icon="folder_special")
+
+            with ui.tab_panels(protocol_tabs, value=sys_tab).classes(
+                "w-full bg-white border rounded shadow-sm"
+            ):
+                with ui.tab_panel(sys_tab):
+                    render_protocol_editor(pm.system_protocol)
+                with ui.tab_panel(glob_tab):
+                    render_protocol_editor(
+                        pm.get_global_protocol(), on_save=pm.save_global_protocol
+                    )
+                with ui.tab_panel(field_tab):
+                    # For fields, we need a selector
+                    current_fields = pm.list_fields()
+                    field_container = ui.column().classes("w-full")
+
+                    def refresh_field_editor():
+                        field_container.clear()
+                        if field_select.value:
+                            with field_container:
+                                render_protocol_editor(
+                                    pm.get_field_protocol(field_select.value),
+                                    on_save=pm.save_field_protocol,
+                                )
+
+                    with ui.column().classes("w-full gap-4 mb-4"):
+                        with ui.row().classes("w-full items-center gap-4"):
+                            field_select = ui.select(
+                                options=current_fields,
+                                label=_("Select Field Domain"),
+                                value=current_fields[0] if current_fields else None,
+                            ).classes("w-64")
+
+                            new_field_input = (
+                                ui.input(label=_("New Field Name"))
+                                .classes("w-48")
+                                .props("dense")
+                            )
+
+                            def create_new_field():
+                                name = new_field_input.value.strip()
+                                if not name:
+                                    ui.notify(
+                                        _("Field name cannot be empty."), type="warning"
+                                    )
+                                    return
+                                new_p = pm.get_field_protocol(name)
+                                pm.save_field_protocol(new_p)
+                                ui.notify(
+                                    _("Field '{name}' created.").format(name=name)
+                                )
+                                # Update selector
+                                new_fields = pm.list_fields()
+                                field_select.options = new_fields
+                                field_select.value = name
+                                new_field_input.value = ""
+                                refresh_field_editor()
+
+                            ui.button(
+                                _("Create Field"), icon="add", on_click=create_new_field
+                            ).props("outline")
+
+                        field_container = ui.column().classes("w-full mt-4")
+
+                        field_select.on("update:model-value", refresh_field_editor)
+                        refresh_field_editor()
+
+                with ui.tab_panel(proj_tab):
+                    if agent.project_id:
+                        render_protocol_editor(
+                            pm.get_project_protocol(agent.project_id),
+                            on_save=lambda p: pm.save_project_protocol(
+                                agent.project_id, p
+                            ),
+                        )
+                    else:
+                        with ui.column().classes("w-full items-center p-8"):
+                            ui.icon("folder_open", size="lg", color="grey-400")
+                            ui.label(
+                                _("Please select and open a project first.")
+                            ).classes("text-orange-600 font-bold")
+                            ui.markdown(
+                                _(
+                                    "Use the **Open** button in the Analysis tab to activate this project."
+                                )
+                            ).classes("text-sm text-slate-500")
+
+    def render_protocol_editor(protocol: ExtractionProtocol, on_save=None):
+        is_readonly = protocol.is_read_only
+
+        with ui.column().classes("w-full gap-6 p-4"):
+            if is_readonly:
+                ui.label(_("This protocol is Read-Only.")).classes(
+                    "text-xs text-orange-600 italic"
                 )
-            )
-            with ui.row().classes("gap-4 mt-8"):
-                ui.icon("construction", size="lg", color="orange")
-                ui.label(_("Under Construction")).classes("text-h6 text-orange-600")
+
+            # Exclusion Patterns
+            with ui.column().classes("w-full gap-2"):
+                ui.label(_("Exclude Patterns (Glob)")).classes(
+                    "text-sm font-bold text-slate-700"
+                )
+                exclude_area = (
+                    ui.textarea(value="\n".join(protocol.exclude_patterns))
+                    .classes("w-full font-mono text-sm")
+                    .props(f"outlined {'readonly' if is_readonly else ''} rows=4")
+                )
+                ui.markdown(
+                    _("One pattern per line. e.g. `**/temp/*` or `*.log`")
+                ).classes("text-[10px] text-slate-500")
+
+            # Include Patterns
+            with ui.column().classes("w-full gap-2"):
+                ui.label(_("Include Patterns (Glob)")).classes(
+                    "text-sm font-bold text-slate-700"
+                )
+                include_area = (
+                    ui.textarea(value="\n".join(protocol.include_patterns))
+                    .classes("w-full font-mono text-sm")
+                    .props(f"outlined {'readonly' if is_readonly else ''} rows=3")
+                )
+                ui.markdown(_("Force include specific files.")).classes(
+                    "text-[10px] text-slate-500"
+                )
+
+            # AI Prompts
+            with ui.column().classes("w-full gap-2"):
+                ui.label(_("AI Instructions / Prompts")).classes(
+                    "text-sm font-bold text-slate-700"
+                )
+                prompts_area = (
+                    ui.textarea(value="\n".join(protocol.extraction_prompts))
+                    .classes("w-full text-sm")
+                    .props(f"outlined {'readonly' if is_readonly else ''} rows=6")
+                )
+                ui.markdown(_("Specific instructions for the AI agent.")).classes(
+                    "text-[10px] text-slate-500"
+                )
+
+            if not is_readonly and on_save:
+
+                def handle_save():
+                    protocol.exclude_patterns = [
+                        l.strip() for l in exclude_area.value.split("\n") if l.strip()
+                    ]
+                    protocol.include_patterns = [
+                        l.strip() for l in include_area.value.split("\n") if l.strip()
+                    ]
+                    protocol.extraction_prompts = [
+                        l.strip() for l in prompts_area.value.split("\n") if l.strip()
+                    ]
+                    on_save(protocol)
+                    ui.notify(
+                        _("Protocol '{name}' saved.").format(name=protocol.name),
+                        type="positive",
+                    )
+
+                ui.button(_("Save Changes"), icon="save", on_click=handle_save).classes(
+                    "w-full mt-4"
+                ).props("color=primary")
+
+    @ui.refreshable
+    def render_package_tab():
+        # Package Content Editor
+        if not agent.project_id:
+            with ui.card().classes("w-full p-8 shadow-md"):
+                with ui.column().classes("w-full items-center p-8"):
+                    ui.icon("folder_open", size="lg", color="grey-400")
+                    ui.label(_("Please select and open a project first.")).classes(
+                        "text-orange-600 font-bold"
+                    )
+            return
+
+        # Explicit Requirement: Only use SQLite cache. Never scan disk implicitly during render.
+        # Check if project changed and we haven't loaded cache yet
+        if UIState.last_inventory_project != agent.project_id:
+            # We don't trigger scanning here. We just show empty state or trigger loading if DB exists.
+            # However, handle_load_project should have triggered load_inventory_background.
+            if not UIState.is_loading_inventory:
+                asyncio.create_task(load_inventory_background())
+
+        if UIState.is_loading_inventory and not UIState.inventory_cache:
+            with ui.column().classes("w-full items-center justify-center p-20 gap-4"):
+                ui.spinner(size="xl")
+                ui.label(_("Reading project inventory from database...")).classes(
+                    "text-slate-500 animate-pulse"
+                )
+            return
+
+        if not UIState.inventory_cache:
+            with ui.column().classes("w-full items-center justify-center p-20 gap-4"):
+                ui.icon("inventory", size="xl", color="grey-400")
+                ui.label(_("No file inventory found.")).classes(
+                    "text-orange-600 font-bold"
+                )
+                ui.markdown(
+                    _(
+                        "Please click **Analyze Directory** in the Analysis tab to list project files."
+                    )
+                ).classes("text-sm text-slate-500")
+                ui.button(
+                    _("Go to Analysis"),
+                    on_click=lambda: UIState.main_tabs.set_value(UIState.analysis_tab),
+                ).props("outline")
+            return
+
+        project_path = Path(ScanState.current_path)
+        manifest = pkg_mgr.get_manifest(agent.project_id)
+        inventory = UIState.inventory_cache
+
+        with ui.column().classes("w-full gap-4 h-full p-4"):
+            with ui.row().classes("w-full items-center justify-between"):
+                with ui.column():
+                    ui.label(_("Package Content Editor")).classes("text-2xl font-bold")
+                    ui.label(
+                        _(
+                            "Select files to include in the final RODBUK package. Changes are saved automatically."
+                        )
+                    ).classes("text-sm text-slate-500")
+
+                with ui.row().classes("gap-2"):
+                    ui.button(
+                        _("Refresh File List"),
+                        icon="refresh",
+                        on_click=handle_refresh_inventory,
+                    ).props("outline color=primary").bind_visibility_from(
+                        ScanState, "is_scanning", backward=lambda x: not x
+                    )
+                    ui.button(
+                        _("Reset to Defaults"),
+                        icon="settings_backup_restore",
+                        on_click=lambda: handle_reset(),
+                    ).props("outline color=grey-7")
+                    ui.button(
+                        _("AI Assist (Coming Soon)"),
+                        icon="auto_awesome",
+                    ).props("flat color=primary disabled")
+
+            # Statistics summary
+            included_files = [f for f in inventory if f["included"]]
+            total_size = sum(f["size"] for f in included_files)
+            with ui.row().classes("w-full gap-8 p-3 bg-slate-50 rounded-lg border"):
+                ui.label(
+                    _("Included: {count} files").format(count=len(included_files))
+                ).classes("font-bold")
+                ui.label(_("Total Size: {size}").format(size=format_size(total_size)))
+                ui.label(
+                    _("Excluded: {count} files").format(
+                        count=len(inventory) - len(included_files)
+                    )
+                ).classes("text-slate-400")
+
+            # The Grid
+            grid_data = []
+            for item in inventory:
+                grid_data.append(
+                    {
+                        "included": item["included"],
+                        "path": item["path"],
+                        "size_val": item["size"],
+                        "size": format_size(item["size"]),
+                        "reason": item["reason"],
+                    }
+                )
+
+            column_defs = [
+                {
+                    "headerName": _("Include"),
+                    "field": "included",
+                    "checkboxSelection": True,
+                    "showDisabledCheckboxes": True,
+                    "width": 100,
+                },
+                {
+                    "headerName": _("File Path"),
+                    "field": "path",
+                    "filter": "agTextColumnFilter",
+                    "flex": 1,
+                },
+                {
+                    "headerName": _("Size"),
+                    "field": "size",
+                    "sortable": True,
+                    "width": 120,
+                    "comparator": "valueGetter: node.data.size_val",
+                },
+                {
+                    "headerName": _("Inclusion Reason"),
+                    "field": "reason",
+                    "width": 180,
+                    "filter": "agTextColumnFilter",
+                },
+            ]
+
+            grid = ui.aggrid(
+                {
+                    "columnDefs": column_defs,
+                    "rowData": grid_data,
+                    "rowSelection": "multiple",
+                    "stopEditingWhenCellsLoseFocus": True,
+                    "pagination": True,
+                    "paginationPageSize": 50,
+                }
+            ).classes("w-full h-[600px] shadow-sm")
+
+            # Initial selection
+            grid.options["selected_keys"] = [
+                i for i, f in enumerate(grid_data) if f["included"]
+            ]
+
+            async def handle_selection_change():
+                selected_rows = await grid.get_selected_rows()
+                selected_paths = {row["path"] for row in selected_rows}
+
+                new_force_include = []
+                new_force_exclude = []
+
+                # Use UIState.inventory_cache directly
+                for item in UIState.inventory_cache:
+                    rel_path = item["path"]
+                    is_proto_excluded = item["is_proto_excluded"]
+                    is_now_selected = rel_path in selected_paths
+
+                    if is_proto_excluded:
+                        if is_now_selected:
+                            new_force_include.append(rel_path)
+                    else:
+                        if not is_now_selected:
+                            new_force_exclude.append(rel_path)
+
+                manifest.force_include = new_force_include
+                manifest.force_exclude = new_force_exclude
+                pkg_mgr.save_manifest(manifest)
+
+                # Update cache so UI reflects change immediately
+                for item in UIState.inventory_cache:
+                    rel_path = item["path"]
+                    if rel_path in manifest.force_include:
+                        item["included"] = True
+                        item["reason"] = "👤 User (Forced)"
+                    elif rel_path in manifest.force_exclude:
+                        item["included"] = False
+                        item["reason"] = "👤 User (Excluded)"
+                    else:
+                        item["included"] = not item["is_proto_excluded"]
+                        item["reason"] = (
+                            "📜 Protocol" if item["is_proto_excluded"] else "✅ Default"
+                        )
+
+                refresh_all()
+
+            grid.on("selectionChanged", handle_selection_change)
+
+            async def handle_reset():
+                manifest.force_include = []
+                manifest.force_exclude = []
+                pkg_mgr.save_manifest(manifest)
+                ui.notify(_("Selection reset to protocol defaults."), type="info")
+                # Selective refresh in background
+                asyncio.create_task(load_inventory_background())
 
     def render_package_placeholder():
-        with ui.card().classes("w-full p-8 shadow-md"):
-            ui.label(_("Package Content Editor")).classes("text-h4 q-mb-md font-bold")
-            ui.markdown(
-                _(
-                    "This area will provide an interactive file tree to manually include or exclude files from the final package."
-                )
-            )
-            with ui.row().classes("gap-4 mt-8"):
-                ui.icon("construction", size="lg", color="orange")
-                ui.label(_("Under Construction")).classes("text-h6 text-orange-600")
+        render_package_tab()
+
+    def refresh_all():
+        chat_messages_ui.refresh()
+        metadata_preview_ui.refresh()
+        header_content_ui.refresh()
+        render_protocols_tab.refresh()
+        render_package_tab.refresh()
 
     def render_setup_wizard():
         with ui.card().classes(
@@ -1213,10 +1682,16 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                                     placeholder="/path/to/research",
                                     on_change=on_path_change,
                                 )
-                                .classes("w-full")
+                                .classes("flex-grow")
                                 .props("dense")
                                 .bind_value(ScanState, "current_path")
                             )
+                            ui.button(
+                                _("Open"),
+                                on_click=lambda: handle_load_project(path_input.value),
+                            ).props("dense outline").classes("shrink-0")
+
+                        with ui.column().classes("gap-1 mb-2 w-full shrink-0"):
                             ui.button(
                                 _("Analyze Directory"),
                                 icon="search",
@@ -1238,7 +1713,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                         with ui.scroll_area().classes("flex-grow w-full"):
                             metadata_preview_ui()
 
-    async def handle_build_package():
+    async def handle_build_package(mode: str = "metadata"):
         if not ScanState.current_path:
             ui.notify(_("Please select a project first."), type="warning")
             return
@@ -1254,17 +1729,48 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
             return
 
         try:
-            ui.notify(_("Building metadata package..."))
+            ui.notify(
+                _("Building metadata package...")
+                if mode == "metadata"
+                else _("Building full data package...")
+            )
             import asyncio
 
             # Canonicalize path before passing to thread
             canonical_path = Path(ScanState.current_path).expanduser().resolve()
 
-            pkg_path = await asyncio.to_thread(
-                packaging_service.generate_metadata_package,
-                canonical_path,
-                agent.current_metadata,
-            )
+            if mode == "metadata":
+                pkg_path = await asyncio.to_thread(
+                    packaging_service.generate_metadata_package,
+                    canonical_path,
+                    agent.current_metadata,
+                )
+            else:
+                # Full Package with Selection
+                manifest = pkg_mgr.get_manifest(agent.project_id)
+                field_name = (
+                    agent.current_metadata.science_branches_mnisw[0]
+                    if agent.current_metadata.science_branches_mnisw
+                    else None
+                )
+                effective = pm.resolve_effective_protocol(agent.project_id, field_name)
+                protocol_excludes = effective.get("exclude", [])
+
+                file_list = await asyncio.to_thread(
+                    pkg_mgr.get_effective_file_list,
+                    canonical_path,
+                    manifest,
+                    protocol_excludes,
+                )
+
+                pkg_path = await asyncio.to_thread(
+                    packaging_service.generate_package,
+                    canonical_path,
+                    agent.current_metadata,
+                    "rodbuk_full_package",
+                    file_list,
+                )
+
             ui.notify(
                 _("Package created: {name}").format(name=pkg_path.name), type="positive"
             )
@@ -1310,13 +1816,59 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
         ui.notify(_("Logged out from AI"))
         ui.navigate.to("/")
 
+    async def handle_cancel_scan():
+        if ScanState.stop_event:
+            ScanState.stop_event.set()
+            ui.notify(_("Cancelling scan..."))
+
+    async def handle_refresh_inventory():
+        if not ScanState.current_path:
+            ui.notify(_("Please select a project first."), type="warning")
+            return
+
+        resolved_path = Path(ScanState.current_path).expanduser()
+        import threading
+        import asyncio
+
+        ScanState.stop_event = threading.Event()
+        ScanState.is_scanning = True
+        ui.notify(_("Refreshing file list..."))
+
+        def update_progress(msg, full_path="", short_path=""):
+            ScanState.progress = msg
+            # We reuse the global progress bar if visible, but mostly this is background
+            pass
+
+        await asyncio.to_thread(
+            agent.refresh_inventory,
+            resolved_path,
+            update_progress,
+            stop_event=ScanState.stop_event,
+        )
+
+        ScanState.is_scanning = False
+        ScanState.stop_event = None
+
+        # Force cache reload
+        UIState.last_inventory_project = ""
+        await load_inventory_background()
+        ui.notify(_("File list updated."), type="positive")
+
     async def handle_load_project(path: str):
         if not path:
             return
-        ScanState.current_path = path
-        import asyncio
+        ui.notify(_("Opening project..."))
 
-        await asyncio.to_thread(agent.start_analysis, Path(path))
+        path_obj = Path(path).expanduser().resolve()
+        # Explicitly create project ID and active it
+        project_id = wm.get_project_id(path_obj)
+        agent.project_id = project_id
+
+        # Force refresh of all components that depend on project_id
+        # including the Protocols tab
+        success = await asyncio.to_thread(agent.load_project, path_obj)
+        ScanState.current_path = str(path_obj)
+
         if agent.current_metadata.ai_model:
             ai.switch_model(agent.current_metadata.ai_model)
             ui.notify(
@@ -1324,14 +1876,23 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                     model=agent.current_metadata.ai_model
                 )
             )
-            header_content_ui.refresh()
-        chat_messages_ui.refresh()
-        metadata_preview_ui.refresh()
 
-    async def handle_cancel_scan():
-        if ScanState.stop_event:
-            ScanState.stop_event.set()
-            ui.notify(_("Cancelling scan..."))
+        # Ensure workspace directory exists for protocols
+        project_state_dir = wm.projects_dir / project_id
+        project_state_dir.mkdir(parents=True, exist_ok=True)
+
+        refresh_all()
+
+        # Start inventory scan in background immediately after project load
+        asyncio.create_task(load_inventory_background())
+
+        # Refresh the entire tab view to propagate project_id
+        render_protocols_tab.refresh()
+
+        if success:
+            ui.notify(_("Project opened from history."))
+        else:
+            ui.notify(_("New project directory opened."))
 
     async def handle_scan(path: str, force: bool = False):
         if not path:

@@ -53,6 +53,7 @@ class PackagingService:
         project_dir: Path,
         metadata: Metadata,
         package_name: str = "rodbuk_package",
+        file_list: list[Path] | None = None,
     ) -> Path:
         """
         Creates a ZIP package containing the research data and the RODBUK metadata.
@@ -68,10 +69,17 @@ class PackagingService:
             zf.writestr("metadata.yaml", metadata_yaml)
 
             # 2. Add the research files (Lazy/Safe copying)
-            for p in walk_project_files(project_dir):
-                # Calculate relative path for the ZIP structure
-                rel_path = p.relative_to(project_dir)
-                zf.write(p, arcname=rel_path)
+            if file_list is not None:
+                for p in file_list:
+                    if p.exists() and p.is_file():
+                        rel_path = p.relative_to(project_dir)
+                        zf.write(p, arcname=rel_path)
+            else:
+                # Fallback to old behavior if no list provided
+                for p in walk_project_files(project_dir):
+                    if p.is_file():
+                        rel_path = p.relative_to(project_dir)
+                        zf.write(p, arcname=rel_path)
 
         return target_zip
 

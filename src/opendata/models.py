@@ -1,6 +1,36 @@
 from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional, Literal, Any, Dict
 from pathlib import Path
+from enum import Enum
+
+
+class ProtocolLevel(str, Enum):
+    SYSTEM = "system"
+    GLOBAL = "global"
+    FIELD = "field"
+    PROJECT = "project"
+
+
+class ExtractionProtocol(BaseModel):
+    id: str
+    name: str
+    level: ProtocolLevel
+    is_read_only: bool = False
+    include_patterns: List[str] = Field(default_factory=list)
+    exclude_patterns: List[str] = Field(default_factory=list)
+    extraction_prompts: List[str] = Field(default_factory=list)
+
+
+class PackageManifest(BaseModel):
+    """Stores manual file selections for the package."""
+
+    project_id: str
+    # Files explicitly selected by user (overrides exclusions)
+    force_include: List[str] = Field(default_factory=list)
+    # Files explicitly excluded by user (overrides inclusions)
+    force_exclude: List[str] = Field(default_factory=list)
+    # Snapshot of the file tree structure for UI
+    cached_tree: Optional[Dict[str, Any]] = None
 
 
 class UserSettings(BaseModel):

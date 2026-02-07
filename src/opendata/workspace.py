@@ -31,14 +31,23 @@ class WorkspaceManager:
 
     def get_project_id(self, project_path: Path) -> str:
         """Generates a unique ID for a project based on its absolute path."""
-        # Use as_posix and strip trailing slash for consistent ID generation
-        # Ensure we use the resolved absolute path to match what's stored in fingerprint
-        abs_path = str(project_path.resolve().as_posix()).rstrip("/")
+        # Ensure path exists or is at least resolvable before hashing
+        try:
+            # Use as_posix and strip trailing slash for consistent ID generation
+            abs_path = str(project_path.resolve().as_posix()).rstrip("/")
+        except Exception:
+            # Fallback for paths that don't exist yet but are specified
+            abs_path = str(project_path.absolute().as_posix()).rstrip("/")
+
         return hashlib.md5(abs_path.encode("utf-8")).hexdigest()
 
     def get_project_dir(self, project_id: str) -> Path:
         """Returns the storage directory for a specific project."""
         return self.projects_dir / project_id
+
+    def get_project_db_path(self, project_id: str) -> Path:
+        """Returns the path to the project's SQLite database."""
+        return self.get_project_dir(project_id) / "inventory.db"
 
     def save_project_state(
         self,

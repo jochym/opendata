@@ -39,16 +39,20 @@ def format_size(size_bytes: int) -> str:
 
 
 def walk_project_files(
-    root: Path, stop_event: Optional[Any] = None
+    root: Path,
+    stop_event: Optional[Any] = None,
+    exclude_patterns: Optional[List[str]] = None,
 ) -> Generator[Path, None, None]:
     """
-    Yields file paths while skipping common non-research directories.
+    Yields file paths while skipping common non-research directories and user-defined patterns.
     Does NOT follow symbolic links.
     Skips the entire directory tree if a '.ignore' file is present in the root of that tree.
     Supports cancellation via stop_event.
     """
-    skip_dirs = {".git", ".venv", "node_modules", "__pycache__", ".opendata_tool"}
     import os
+    import fnmatch
+
+    skip_dirs = {".git", ".venv", "node_modules", "__pycache__", ".opendata_tool"}
 
     for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
         if stop_event and stop_event.is_set():
@@ -61,7 +65,7 @@ def walk_project_files(
             filenames[:] = []
             continue
 
-        # In-place modification of dirnames to skip unwanted trees and symlinks
+        # Filter out directories using global skip_dirs and user patterns
         dirnames[:] = [
             d
             for d in dirnames
@@ -70,17 +74,33 @@ def walk_project_files(
             and not os.path.islink(os.path.join(dirpath, d))
         ]
 
-        # Skip files starting with '.' or symlinks
-        filenames = [
+        if exclude_patterns:
+            for pattern in exclude_patterns:
+                # If pattern ends with / it's a directory pattern
+                if pattern.endswith("/"):
+                    clean_p = pattern[:-1]
+                    dirnames[:] = [
+                        d for d in dirnames if not fnmatch.fnmatch(d, clean_p)
+                    ]
+
+        # Filter files using global hidden rule and user patterns
+        final_filenames = [
             f
             for f in filenames
             if not f.startswith(".") and not os.path.islink(os.path.join(dirpath, f))
         ]
 
+        if exclude_patterns:
+            for pattern in exclude_patterns:
+                if not pattern.endswith("/"):
+                    final_filenames = [
+                        f for f in final_filenames if not fnmatch.fnmatch(f, pattern)
+                    ]
+
         # Yield the current directory for progress reporting
         yield Path(dirpath)
 
-        for f in filenames:
+        for f in final_filenames:
             if stop_event and stop_event.is_set():
                 return
             yield Path(dirpath) / f
@@ -90,6 +110,7 @@ def scan_project_lazy(
     root: Path,
     progress_callback: Optional[Callable[[str, str, str], None]] = None,
     stop_event: Optional[Any] = None,
+    exclude_patterns: Optional[List[str]] = None,
 ) -> ProjectFingerprint:
     """
     Scans a directory recursively without reading file contents.
@@ -100,55 +121,69 @@ def scan_project_lazy(
 
     file_count = 0
     total_size = 0
-    extensions: Set[str] = set()
-    structure_sample: List[str] = []
-    last_ui_update = 0.0
+    extensions = set()
+    structure_sample = []
 
-    for p in walk_project_files(root, stop_event=stop_event):
-        try:
-            now = time.time()
-            is_dir = p.is_dir()
+    last_ui_update = 0
+    # Throttling UI updates to 10Hz to prevent flickering and performance lag
+    UI_UPDATE_INTERVAL = 0.1
 
-            # Throttle UI updates to 10Hz (0.1s)
-            if progress_callback and (now - last_ui_update >= 0.1):
-                rel_p = (
-                    str(p.relative_to(root).as_posix())
-                    if p != root
-                    else "."
-                    if is_dir
-                    else str(p.parent.relative_to(root).as_posix())
-                    if p.parent != root
-                    else "."
-                )
-                short_p = shorten_path(rel_p)
-                size_str = format_size(total_size)
-                progress_callback(size_str, rel_p, short_p)
-                last_ui_update = now
+    for p in walk_project_files(root, stop_event, exclude_patterns):
+        if p.is_file():
+            file_count += 1
+            try:
+                total_size += p.stat().st_size
+            except Exception:
+                pass
+            extensions.add(p.suffix.lower())
+            if len(structure_sample) < 50:
+                structure_sample.append(str(p.relative_to(root)))
 
-            if is_dir:
-                continue
-        except OSError:
-            # Handle cases where FUSE/GVFS mounts return "Function not implemented" for stat
-            # or other filesystem-specific errors. Skip these paths.
-            continue
-
-        file_count += 1
-        try:
-            total_size += p.stat().st_size
-        except OSError:
-            pass  # Skip files that disappeared during scan
-        extensions.add(p.suffix.lower())
-
-        if len(structure_sample) < 100:
-            structure_sample.append(str(p.relative_to(root)))
+        now = time.time()
+        if progress_callback and (now - last_ui_update > UI_UPDATE_INTERVAL):
+            total_size_str = format_size(total_size)
+            progress_callback(
+                f"{total_size_str} - {file_count} files",
+                str(p.relative_to(root)),
+                f"Scanning {p.name}...",
+            )
+            last_ui_update = now
 
     return ProjectFingerprint(
-        root_path=str(root.resolve()),
+        root_path=str(root),
         file_count=file_count,
         total_size_bytes=total_size,
         extensions=list(extensions),
         structure_sample=structure_sample,
     )
+
+
+def list_project_files_full(
+    root: Path,
+    stop_event: Optional[Any] = None,
+    exclude_patterns: Optional[List[str]] = None,
+) -> List[dict]:
+    """
+    Returns a full list of files with metadata (size, rel_path) for UI inventory.
+    Skips directories, yields only files.
+    """
+    files = []
+    for p in walk_project_files(root, stop_event, exclude_patterns=exclude_patterns):
+        if p.is_file():
+            rel_path = str(p.relative_to(root))
+            try:
+                stat = p.stat()
+                files.append(
+                    {
+                        "path": rel_path,
+                        "size": stat.st_size,
+                        "mtime": stat.st_mtime,
+                    }
+                )
+            except Exception:
+                # Handle files that might have disappeared or are inaccessible
+                pass
+    return files
 
 
 def read_file_header(p: Path, max_bytes: int = 4096) -> str:
@@ -194,7 +229,7 @@ class FullTextReader:
 
     @staticmethod
     def read_latex_full(filepath: Path) -> str:
-        """
+        r"""
         Reads the full content of a LaTeX file.
         Recursively resolves \input{} and \include{} commands.
         """
