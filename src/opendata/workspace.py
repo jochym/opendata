@@ -130,7 +130,7 @@ class WorkspaceManager:
                 projects.append(
                     {
                         "id": pdir.name,
-                        "title": title or "Untitled Project",
+                        "title": title or _("Untitled Project"),
                         "path": root_path,
                     }
                 )
@@ -139,8 +139,8 @@ class WorkspaceManager:
                 projects.append(
                     {
                         "id": pdir.name,
-                        "title": f"Corrupt Project ({pdir.name[:8]})",
-                        "path": "Unknown",
+                        "title": f"{_('Corrupt Project')} ({pdir.name[:8]})",
+                        "path": f"Unknown (ID: {pdir.name[:8]})",
                     }
                 )
                 print(f"[DEBUG] Error listing project {pdir.name}: {e}")

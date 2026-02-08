@@ -9,25 +9,4 @@ https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/READM
   import google.generativeai as genai
 [INFO] Starting server in no-GUI mode on http://0.0.0.0:8080
 NiceGUI ready to go on http://localhost:8080, http://10.0.3.1:8080, http://10.111.1.34:8080, http://10.33.1.16:8080, http://10.42.24.4:8080, http://100.123.102.85:8080, http://172.17.0.1:8080, and http://172.18.0.1:8080
-/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/pydantic/main.py:464: UserWarning: Pydantic serializer warnings:
-  PydanticSerializationUnexpectedValue(Expected `dict[str, any]` - serialized value may not be as expected [field_name='authors', input_value=PersonOrOrg(name='Abbassi...e=None, identifier=None), input_type=PersonOrOrg])
-  PydanticSerializationUnexpectedValue(Expected `dict[str, any]` - serialized value may not be as expected [field_name='authors', input_value=PersonOrOrg(name='Mesguic...e=None, identifier=None), input_type=PersonOrOrg])
-  PydanticSerializationUnexpectedValue(Expected `dict[str, any]` - serialized value may not be as expected [field_name='authors', input_value=PersonOrOrg(name='Bertheb...e=None, identifier=None), input_type=PersonOrOrg])
-  PydanticSerializationUnexpectedValue(Expected `dict[str, any]` - serialized value may not be as expected [field_name='authors', input_value=PersonOrOrg(name='Le Tonq...e=None, identifier=None), input_type=PersonOrOrg])
-  PydanticSerializationUnexpectedValue(Expected `dict[str, any]` - serialized value may not be as expected [field_name='authors', input_value=PersonOrOrg(name='Sriniva...e=None, identifier=None), input_type=PersonOrOrg])
-  PydanticSerializationUnexpectedValue(Expected `dict[str, any]` - serialized value may not be as expected [field_name='authors', input_value=PersonOrOrg(name='Mori, T...e=None, identifier=None), input_type=PersonOrOrg])
-  PydanticSerializationUnexpectedValue(Expected `dict[str, any]` - serialized value may not be as expected [field_name='authors', input_value=PersonOrOrg(name='Coulomb...e=None, identifier=None), input_type=PersonOrOrg])
-  PydanticSerializationUnexpectedValue(Expected `dict[str, any]` - serialized value may not be as expected [field_name='authors', input_value=PersonOrOrg(name='Chevall...e=None, identifier=None), input_type=PersonOrOrg])
-  PydanticSerializationUnexpectedValue(Expected `dict[str, any]` - serialized value may not be as expected [field_name='authors', input_value=PersonOrOrg(name="Estourn...e=None, identifier=None), input_type=PersonOrOrg])
-  PydanticSerializationUnexpectedValue(Expected `dict[str, any]` - serialized value may not be as expected [field_name='authors', input_value=PersonOrOrg(name='Flahaut...e=None, identifier=None), input_type=PersonOrOrg])
-  PydanticSerializationUnexpectedValue(Expected `dict[str, any]` - serialized value may not be as expected [field_name='authors', input_value=PersonOrOrg(name='Viennoi...e=None, identifier=None), input_type=PersonOrOrg])
-  PydanticSerializationUnexpectedValue(Expected `dict[str, any]` - serialized value may not be as expected [field_name='authors', input_value=PersonOrOrg(name='Beaudhu...e=None, identifier=None), input_type=PersonOrOrg])
-  return self.__pydantic_serializer__.to_python(
-/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/pydantic/main.py:464: UserWarning: Pydantic serializer warnings:
-  PydanticSerializationUnexpectedValue(Expected `dict[str, any]` - serialized value may not be as expected [field_name='authors', input_value=PersonOrOrg(name='R A Cow...e=None, identifier=None), input_type=PersonOrOrg])
-  return self.__pydantic_serializer__.to_python(
-Entry type control not standard. Not considered.
-/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/pydantic/main.py:464: UserWarning: Pydantic serializer warnings:
-  PydanticSerializationUnexpectedValue(Expected `dict[str, any]` - serialized value may not be as expected [field_name='authors', input_value=PersonOrOrg(name='R. A. C...e=None, identifier=None), input_type=PersonOrOrg])
-  return self.__pydantic_serializer__.to_python(
-Entry type control not standard. Not considered.
+http://mercury:8080/ not found

@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.1] - 2026-02-08
+### Fixed
+- **Project Management:**
+  - **Robust Deletion:** Fixed an issue where corrupt projects with "Unknown" paths could not be removed from the recent projects list.
+  - **Uniqueness:** Added project ID fragments to "Unknown" paths to ensure each corrupt project is distinct and selectable for deletion.
+  - **Improved ID Resolution:** The UI now uses a multi-stage ID resolution (Path -> Selector Value -> ID) to ensure the correct project is targeted for removal.
+
 ## [0.9.0] - 2026-02-08
 ### Added
 - **Package Content Management:**
