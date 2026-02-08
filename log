@@ -9,3 +9,479 @@ https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/READM
   import google.generativeai as genai
 [INFO] Starting server in no-GUI mode on http://0.0.0.0:8080
 NiceGUI ready to go on http://localhost:8080, http://10.0.3.1:8080, http://10.111.1.34:8080, http://10.33.1.16:8080, http://10.42.24.4:8080, http://100.123.102.85:8080, http://172.17.0.1:8080, and http://172.18.0.1:8080
+[NOTIFY FALLBACK] INFO: Project opened from history.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: Opening project...
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: Opening project...
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: Opening project...
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: Opening project...
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: Opening project...
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: Opening project...
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: Opening project...
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: Opening project...
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: Opening project...
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: Opening project...
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: Opening project...
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: Opening project...
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: Opening project...
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: New project directory opened.
+[NOTIFY FALLBACK] INFO: Opening project...
+[NOTIFY FALLBACK] INFO: New project directory opened.Failed to load inventory: argument should be a str or an os.PathLike object where __fspath__ returns a str, not 'NoneType'
+Failed to load inventory: argument should be a str or an os.PathLike object where __fspath__ returns a str, not 'NoneType'
+Failed to load inventory: argument should be a str or an os.PathLike object where __fspath__ returns a str, not 'NoneType'
+Failed to load inventory: argument should be a str or an os.PathLike object where __fspath__ returns a str, not 'NoneType'
+Failed to load inventory: argument should be a str or an os.PathLike object where __fspath__ returns a str, not 'NoneType'
+Client has been deleted but is still being used. This is most likely a bug in your application code. See https://github.com/zauberzeug/nicegui/issues/3028 for more information.
+Stack (most recent call last):
+  File "/home/jochym/Projects/OpenData/src/opendata/main.py", line 95, in <module>
+    main()
+  File "/home/jochym/Projects/OpenData/src/opendata/main.py", line 36, in main
+    start_ui(host=host, port=port)
+  File "/home/jochym/Projects/OpenData/src/opendata/ui/app.py", line 2188, in start_ui
+    ui.run(title="OpenData Agent", port=port, show=False, reload=False, host=host)
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/ui_run.py", line 296, in run
+    Server.instance.run()
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/server.py", line 37, in run
+    super().run(sockets=sockets)
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/uvicorn/server.py", line 67, in run
+    return asyncio_run(self.serve(sockets=sockets), loop_factory=self.config.get_loop_factory())
+  File "/usr/lib/python3.13/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+  File "/usr/lib/python3.13/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/awaitable_response.py", line 29, in _fire
+    self.fire_and_forget()
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/functions/refreshable.py", line 107, in fire_and_forget
+    if coroutines := self._execute_refresh(args, kwargs):
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/functions/refreshable.py", line 129, in _execute_refresh
+    result = target.run(self.func)
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/functions/refreshable.py", line 51, in run
+    return func(*self.args, **self.kwargs)
+  File "/home/jochym/Projects/OpenData/src/opendata/ui/app.py", line 201, in header_content_ui
+    with ui.row().classes("items-center gap-1"):
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/row.py", line 19, in __init__
+    super().__init__('div')
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/element.py", line 85, in __init__
+    client.outbox.enqueue_update(self)
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/outbox.py", line 68, in enqueue_update
+    self.client.check_existence()
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/client.py", line 433, in check_existence
+    helpers.warn_once('Client has been deleted but is still being used. '
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/helpers.py", line 34, in warn_once
+    log.warning(message, stack_info=stack_info)
+The client this element belongs to has been deleted.
+Traceback (most recent call last):
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/background_tasks.py", line 93, in _handle_exceptions
+    task.result()
+    ~~~~~~~~~~~^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/awaitable_response.py", line 29, in _fire
+    self.fire_and_forget()
+    ~~~~~~~~~~~~~~~~~~~~^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/functions/refreshable.py", line 107, in fire_and_forget
+    if coroutines := self._execute_refresh(args, kwargs):
+                     ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/functions/refreshable.py", line 129, in _execute_refresh
+    result = target.run(self.func)
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/functions/refreshable.py", line 51, in run
+    return func(*self.args, **self.kwargs)
+  File "/home/jochym/Projects/OpenData/src/opendata/ui/app.py", line 228, in header_content_ui
+    project_selector_ui()
+    ~~~~~~~~~~~~~~~~~~~^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/functions/refreshable.py", line 93, in __call__
+    return target.run(self.func)
+           ~~~~~~~~~~^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/functions/refreshable.py", line 51, in run
+    return func(*self.args, **self.kwargs)
+  File "/home/jochym/Projects/OpenData/src/opendata/ui/app.py", line 1001, in project_selector_ui
+    selector.bind_value(ScanState, "current_path")
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/mixins/value_element.py", line 109, in bind_value
+    bind(self, 'value', target_object, target_name,
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+         forward=forward, backward=backward,
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+         self_strict=False, other_strict=strict)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/binding.py", line 211, in bind
+    bind_from(self_obj, self_name, other_obj, other_name, backward=backward, self_strict=False, other_strict=False)
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/binding.py", line 185, in bind_from
+    _propagate(other_obj, other_name)
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/binding.py", line 87, in _propagate
+    _propagate_recursively(source_obj, source_name)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/binding.py", line 111, in _propagate_recursively
+    _set_attribute(target_obj, target_name, target_value)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/binding.py", line 50, in _set_attribute
+    setattr(obj, name, value)
+    ~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/binding.py", line 238, in __set__
+    self._change_handler(owner, value)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/mixins/value_element.py", line 23, in <lambda>
+    on_change=lambda sender, value: cast(Self, sender)._handle_value_change(value))  # pylint: disable=protected-access
+                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/mixins/validation_element.py", line 97, in _handle_value_change
+    super()._handle_value_change(value)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/mixins/value_element.py", line 126, in _handle_value_change
+    self.update()
+    ~~~~~~~~~~~^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/choice_element.py", line 38, in update
+    self._update_options()
+    ~~~~~~~~~~~~~~~~~~~~^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/choice_element.py", line 33, in _update_options
+    self.value = before_value if before_value in self._values else None
+    ^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/binding.py", line 238, in __set__
+    self._change_handler(owner, value)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/mixins/value_element.py", line 23, in <lambda>
+    on_change=lambda sender, value: cast(Self, sender)._handle_value_change(value))  # pylint: disable=protected-access
+                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/mixins/validation_element.py", line 97, in _handle_value_change
+    super()._handle_value_change(value)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/mixins/value_element.py", line 126, in _handle_value_change
+    self.update()
+    ~~~~~~~~~~~^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/choice_element.py", line 39, in update
+    super().update()
+    ~~~~~~~~~~~~~~^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/element.py", line 401, in update
+    self.client.outbox.enqueue_update(self)
+    ^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/element.py", line 138, in client
+    raise RuntimeError('The client this element belongs to has been deleted.')
+RuntimeError: The client this element belongs to has been deleted.
+The client this element belongs to has been deleted.
+Traceback (most recent call last):
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/background_tasks.py", line 93, in _handle_exceptions
+    task.result()
+    ~~~~~~~~~~~^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/awaitable_response.py", line 29, in _fire
+    self.fire_and_forget()
+    ~~~~~~~~~~~~~~~~~~~~^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/functions/refreshable.py", line 107, in fire_and_forget
+    if coroutines := self._execute_refresh(args, kwargs):
+                     ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/functions/refreshable.py", line 129, in _execute_refresh
+    result = target.run(self.func)
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/functions/refreshable.py", line 51, in run
+    return func(*self.args, **self.kwargs)
+  File "/home/jochym/Projects/OpenData/src/opendata/ui/app.py", line 228, in header_content_ui
+    project_selector_ui()
+    ~~~~~~~~~~~~~~~~~~~^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/functions/refreshable.py", line 93, in __call__
+    return target.run(self.func)
+           ~~~~~~~~~~^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/functions/refreshable.py", line 51, in run
+    return func(*self.args, **self.kwargs)
+  File "/home/jochym/Projects/OpenData/src/opendata/ui/app.py", line 1001, in project_selector_ui
+    selector.bind_value(ScanState, "current_path")
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/mixins/value_element.py", line 109, in bind_value
+    bind(self, 'value', target_object, target_name,
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+         forward=forward, backward=backward,
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+         self_strict=False, other_strict=strict)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/binding.py", line 211, in bind
+    bind_from(self_obj, self_name, other_obj, other_name, backward=backward, self_strict=False, other_strict=False)
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/binding.py", line 185, in bind_from
+    _propagate(other_obj, other_name)
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/binding.py", line 87, in _propagate
+    _propagate_recursively(source_obj, source_name)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/binding.py", line 111, in _propagate_recursively
+    _set_attribute(target_obj, target_name, target_value)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/binding.py", line 50, in _set_attribute
+    setattr(obj, name, value)
+    ~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/binding.py", line 238, in __set__
+    self._change_handler(owner, value)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/mixins/value_element.py", line 23, in <lambda>
+    on_change=lambda sender, value: cast(Self, sender)._handle_value_change(value))  # pylint: disable=protected-access
+                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/mixins/validation_element.py", line 97, in _handle_value_change
+    super()._handle_value_change(value)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/mixins/value_element.py", line 126, in _handle_value_change
+    self.update()
+    ~~~~~~~~~~~^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/choice_element.py", line 38, in update
+    self._update_options()
+    ~~~~~~~~~~~~~~~~~~~~^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/choice_element.py", line 33, in _update_options
+    self.value = before_value if before_value in self._values else None
+    ^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/binding.py", line 238, in __set__
+    self._change_handler(owner, value)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/mixins/value_element.py", line 23, in <lambda>
+    on_change=lambda sender, value: cast(Self, sender)._handle_value_change(value))  # pylint: disable=protected-access
+                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/mixins/validation_element.py", line 97, in _handle_value_change
+    super()._handle_value_change(value)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/mixins/value_element.py", line 126, in _handle_value_change
+    self.update()
+    ~~~~~~~~~~~^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/choice_element.py", line 39, in update
+    super().update()
+    ~~~~~~~~~~~~~~^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/element.py", line 401, in update
+    self.client.outbox.enqueue_update(self)
+    ^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/element.py", line 138, in client
+    raise RuntimeError('The client this element belongs to has been deleted.')
+RuntimeError: The client this element belongs to has been deleted.
+The client this element belongs to has been deleted.
+Traceback (most recent call last):
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/events.py", line 446, in handle_event
+    result = cast(Callable[[EventT], Any], handler)(arguments)
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/mixins/value_element.py", line 40, in handle_change
+    self.set_value(self._event_args_to_value(e))
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/mixins/value_element.py", line 119, in set_value
+    self.value = value
+    ^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/binding.py", line 236, in __set__
+    _propagate(owner, self.name)
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/binding.py", line 87, in _propagate
+    _propagate_recursively(source_obj, source_name)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/binding.py", line 112, in _propagate_recursively
+    _propagate_recursively(target_obj, target_name)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/binding.py", line 111, in _propagate_recursively
+    _set_attribute(target_obj, target_name, target_value)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/binding.py", line 50, in _set_attribute
+    setattr(obj, name, value)
+    ~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/binding.py", line 238, in __set__
+    self._change_handler(owner, value)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/mixins/value_element.py", line 23, in <lambda>
+    on_change=lambda sender, value: cast(Self, sender)._handle_value_change(value))  # pylint: disable=protected-access
+                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/mixins/validation_element.py", line 97, in _handle_value_change
+    super()._handle_value_change(value)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/mixins/value_element.py", line 126, in _handle_value_change
+    self.update()
+    ~~~~~~~~~~~^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/choice_element.py", line 39, in update
+    super().update()
+    ~~~~~~~~~~~~~~^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/element.py", line 401, in update
+    self.client.outbox.enqueue_update(self)
+    ^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/element.py", line 138, in client
+    raise RuntimeError('The client this element belongs to has been deleted.')
+RuntimeError: The client this element belongs to has been deleted.
+The client this element belongs to has been deleted.
+Traceback (most recent call last):
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/events.py", line 448, in handle_event
+    result = cast(Callable[[], Any], handler)()
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/classes.py", line 43, in _update
+    element.update()
+    ~~~~~~~~~~~~~~^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/element.py", line 401, in update
+    self.client.outbox.enqueue_update(self)
+    ^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/element.py", line 138, in client
+    raise RuntimeError('The client this element belongs to has been deleted.')
+RuntimeError: The client this element belongs to has been deleted.
+The client this element belongs to has been deleted.
+Traceback (most recent call last):
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/events.py", line 446, in handle_event
+    result = cast(Callable[[EventT], Any], handler)(arguments)
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/mixins/value_element.py", line 40, in handle_change
+    self.set_value(self._event_args_to_value(e))
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/mixins/value_element.py", line 119, in set_value
+    self.value = value
+    ^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/binding.py", line 236, in __set__
+    _propagate(owner, self.name)
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/binding.py", line 87, in _propagate
+    _propagate_recursively(source_obj, source_name)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/binding.py", line 112, in _propagate_recursively
+    _propagate_recursively(target_obj, target_name)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/binding.py", line 111, in _propagate_recursively
+    _set_attribute(target_obj, target_name, target_value)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/binding.py", line 50, in _set_attribute
+    setattr(obj, name, value)
+    ~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/binding.py", line 238, in __set__
+    self._change_handler(owner, value)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/mixins/value_element.py", line 23, in <lambda>
+    on_change=lambda sender, value: cast(Self, sender)._handle_value_change(value))  # pylint: disable=protected-access
+                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/mixins/validation_element.py", line 97, in _handle_value_change
+    super()._handle_value_change(value)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/mixins/value_element.py", line 126, in _handle_value_change
+    self.update()
+    ~~~~~~~~~~~^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/elements/choice_element.py", line 39, in update
+    super().update()
+    ~~~~~~~~~~~~~~^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/element.py", line 401, in update
+    self.client.outbox.enqueue_update(self)
+    ^^^^^^^^^^^
+  File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/element.py", line 138, in client
+    raise RuntimeError('The client this element belongs to has been deleted.')
+RuntimeError: The client this element belongs to has been deleted.

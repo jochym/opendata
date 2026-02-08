@@ -156,6 +156,12 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
             logger.warning(f"Failed to refresh package tab (pre-load): {e}")
 
         try:
+            if not ScanState.current_path:
+                logger.error(
+                    "DEBUG: Cannot load inventory - ScanState.current_path is None"
+                )
+                return
+
             project_path = Path(ScanState.current_path)
             manifest = pkg_mgr.get_manifest(agent.project_id)
 
@@ -997,8 +1003,6 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                 .props("dark dense options-dark behavior=menu")
                 .classes("w-48 text-xs")
             )
-            # Bind selector value to ScanState.current_path to keep it in sync
-            selector.bind_value(ScanState, "current_path")
 
             async def handle_delete_current():
                 if not ScanState.current_path:
@@ -2027,6 +2031,20 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
     async def handle_load_project(path: str):
         if not path:
+            return
+
+        # Loading Guard: prevent infinite loops or concurrent loads
+        if ScanState.is_loading_project:
+            logger.info(
+                f"DEBUG: Skipping handle_load_project - already loading something."
+            )
+            return
+
+        # Avoid reloading the exact same path if already loaded
+        if ScanState.current_path == path and agent.project_id:
+            logger.info(
+                f"DEBUG: Skipping handle_load_project - project already active."
+            )
             return
 
         start_time = time.time()
