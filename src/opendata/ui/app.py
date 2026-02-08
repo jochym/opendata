@@ -141,19 +141,19 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
         # Prevent concurrent inventory loading
         if UIState.inventory_lock:
-            logger.debug(
-                f"Inventory load skipped - already locked for {agent.project_id}"
+            logger.info(
+                f"DEBUG: Inventory load skipped - already locked for {agent.project_id}"
             )
             return
 
-        logger.debug(f"Starting inventory load for {agent.project_id}")
+        logger.info(f"DEBUG: Starting inventory load for {agent.project_id}")
         UIState.inventory_lock = True
-
         UIState.is_loading_inventory = True
+
         try:
             render_package_tab.refresh()
         except Exception as e:
-            logger.warning(f"Failed to refresh package tab (pre-load): {e}")
+            logger.warning(f"DEBUG: Failed to refresh package tab (pre-load): {e}")
 
         try:
             if not ScanState.current_path:
@@ -173,23 +173,39 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
             effective = pm.resolve_effective_protocol(agent.project_id, field_name)
             protocol_excludes = effective.get("exclude", [])
 
+            logger.info(f"DEBUG: Calling get_inventory_for_ui thread...")
             inventory = await asyncio.to_thread(
                 pkg_mgr.get_inventory_for_ui, project_path, manifest, protocol_excludes
             )
 
             UIState.inventory_cache = inventory
             UIState.last_inventory_project = agent.project_id
-            logger.debug(f"Inventory loaded: {len(inventory)} files")
+            logger.info(f"DEBUG: Inventory loaded successfully: {len(inventory)} files")
+
+            # Explicit notify for user feedback
+            if len(inventory) > 0:
+                safe_notify(
+                    _("File inventory loaded ({count} files)").format(
+                        count=len(inventory)
+                    ),
+                    type="positive",
+                )
+
         except Exception as e:
-            logger.error(f"Failed to load inventory: {e}")
+            logger.error(f"DEBUG: Failed to load inventory: {e}", exc_info=True)
+            safe_notify(
+                _("Error loading file list: {error}").format(error=str(e)),
+                type="negative",
+            )
         finally:
             UIState.is_loading_inventory = False
             UIState.inventory_lock = False
-            # Only refresh package tab, not everything
+            # Force refresh after data is ready
+            logger.info("DEBUG: Final refresh of package tab after load.")
             try:
                 render_package_tab.refresh()
             except Exception as e:
-                logger.warning(f"Failed to refresh package tab (post-load): {e}")
+                logger.warning(f"DEBUG: Failed to refresh package tab (post-load): {e}")
 
     def safe_notify(
         message: str,
@@ -1110,12 +1126,24 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
             "bg-slate-800 text-white py-2 px-4 justify-between items-center shadow-lg"
         ):
             header_content_ui()
+
             with ui.tabs().classes("bg-slate-800") as main_tabs:
                 analysis_tab = ui.tab(_("Analysis"), icon="analytics")
                 protocols_tab = ui.tab(_("Protocols"), icon="rule")
                 package_tab = ui.tab(_("Package"), icon="inventory_2")
                 preview_tab = ui.tab(_("Preview"), icon="visibility")
                 settings_tab = ui.tab(_("Settings"), icon="settings")
+
+                async def handle_tab_change(e):
+                    logger.info(f"DEBUG: Tab changed to: {e.value}")
+                    if e.value == package_tab:
+                        render_package_tab.refresh()
+                    elif e.value == preview_tab:
+                        render_preview_and_build.refresh()
+                    elif e.value == protocols_tab:
+                        render_protocols_tab.refresh()
+
+                main_tabs.on_value_change(handle_tab_change)
 
                 UIState.main_tabs = main_tabs
                 UIState.analysis_tab = analysis_tab
@@ -1454,6 +1482,10 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
     @ui.refreshable
     def render_package_tab():
+        logger.info(
+            f"DEBUG: render_package_tab called. Project: {agent.project_id}, Cache project: {UIState.last_inventory_project}, Loading: {UIState.is_loading_inventory}"
+        )
+
         # Package Content Editor
         if not agent.project_id:
             with ui.card().classes("w-full p-8 shadow-md"):
@@ -1467,11 +1499,14 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
         # Explicit Requirement: Only use SQLite cache. Never scan disk implicitly during render.
         # Check if project changed and we haven't loaded cache yet
         if UIState.last_inventory_project != agent.project_id:
-            # We don't trigger scanning here. We just show empty state or trigger loading if DB exists.
-            # However, handle_load_project should have triggered load_inventory_background.
+            logger.info(f"DEBUG: Project mismatch. Triggering background load...")
             # Only start if not already loading AND not locked (prevents race conditions)
             if not UIState.is_loading_inventory and not UIState.inventory_lock:
                 asyncio.create_task(load_inventory_background())
+            else:
+                logger.info(
+                    f"DEBUG: Load already in progress or locked. Skipping task creation."
+                )
 
         if UIState.is_loading_inventory and not UIState.inventory_cache:
             with ui.column().classes("w-full items-center justify-center p-20 gap-4"):
@@ -1482,6 +1517,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
             return
 
         if not UIState.inventory_cache:
+            logger.info("DEBUG: inventory_cache is empty.")
             with ui.column().classes("w-full items-center justify-center p-20 gap-4"):
                 ui.icon("inventory", size="xl", color="grey-400")
                 ui.label(_("No file inventory found.")).classes(
@@ -1498,6 +1534,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                 ).props("outline")
             return
 
+        logger.info(f"DEBUG: Rendering grid with {len(UIState.inventory_cache)} items.")
         project_path = Path(ScanState.current_path)
         manifest = pkg_mgr.get_manifest(agent.project_id)
         inventory = UIState.inventory_cache
