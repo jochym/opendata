@@ -1034,19 +1034,22 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                 current_id = None
                 projects = wm.list_projects()
 
-                # 1. Try to find by current path
-                if ScanState.current_path:
+                # Use selector's current value (which is a path or label)
+                selected_path = selector.value
+
+                # 1. Try to find by selector value first (more reliable for corrupt projects)
+                if selected_path:
                     target_p = next(
-                        (p for p in projects if p["path"] == ScanState.current_path),
-                        None,
+                        (p for p in projects if p["path"] == selected_path), None
                     )
                     if target_p:
                         current_id = target_p["id"]
 
-                # 2. Fallback: use selector's current value (which is a path or label)
-                if not current_id and selector.value:
+                # 2. Fallback: try by ScanState.current_path
+                if not current_id and ScanState.current_path:
                     target_p = next(
-                        (p for p in projects if p["path"] == selector.value), None
+                        (p for p in projects if p["path"] == ScanState.current_path),
+                        None,
                     )
                     if target_p:
                         current_id = target_p["id"]
@@ -1067,7 +1070,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                             if wm.delete_project(current_id):
                                 ui.notify(_("Project deleted"))
                                 if (
-                                    ScanState.current_path == selector.value
+                                    ScanState.current_path == selected_path
                                     or ScanState.current_path == ""
                                 ):
                                     ScanState.current_path = ""
@@ -1078,7 +1081,9 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                             else:
                                 ui.notify(_("Failed to delete"), type="negative")
 
-                        ui.button(_("Delete"), on_click=perform_delete, color="red")
+                        ui.button(_("Delete"), on_click=perform_delete).props(
+                            "color=red"
+                        )
 
                 confirm_dialog.open()
 
