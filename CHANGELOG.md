@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.5] - 2026-02-08
+### Fixed
+- **Project Management:**
+  - **Dropdown Deletion:** Fixed an issue where the delete button would only work for correctly loaded projects. It now correctly targets whichever project is currently selected in the dropdown, even if it failed to load.
+  - **Button Visibility:** Ensured the delete button remains visible based on dropdown selection state, allowing users to purge corrupt entries from the history.
+
 ## [0.9.4] - 2026-02-08
 ### Fixed
 - **Project Management:**
