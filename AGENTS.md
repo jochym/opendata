@@ -154,10 +154,18 @@ Every substantial step must have an accompanying automated test. Before completi
   - **Dynamic Extraction Forms:** Implemented structured AI feedback with `ANALYSIS` blocks, generating interactive UI forms for conflict resolution and targeted questions.
   - **Request Optimization:** Refactored mega-prompt and system instructions to ask all missing metadata questions at once, minimizing API calls and quota usage.
   - **Enhanced Metadata Schema:** Added `license`, `software`, and scientific branches (OECD/MNiSW) to core models and extraction logic.
-  - **UI/UX Polish:** Integrated immediate "AI is thinking" feedback, unified multi-paragraph description rendering, and optimized edge-to-edge dashboard layout.
+  - **UI/UX Polish:** Integrated immediate \"AI is thinking\" feedback, unified multi-paragraph description rendering, and optimized edge-to-edge dashboard layout.
   - **Path Robustness:** Implemented automatic `~` expansion and canonicalization for project directories across all services.
   - **Human-Readable History:** Replaced raw JSON form submissions with formatted bullet points in the chat history.
   - **Viewport Optimization:** Fixed vertical whitespace issues by accurately calculating header height (104px including tabs), removing body/html margins, and ensuring full-height propagation through tab panels and containers.
+
+- **Phase 17 High-Scale Performance & Stability [COMPLETE]:**
+  - **Persistent File Inventory:** Integrated SQLite-based storage for large-scale research projects (15,000+ files).
+  - **WebSocket Resilience:** Solved \"Connection Lost\" issues by implementing debounced sequential UI refreshes and throttling heavy AgGrid payloads.
+  - **Lazy Package Tab:** Redesigned file selection UI with immediate fingerprint stats and on-demand background loading.
+  - **Scanner Optimization:** Combined stat crawling and DB indexing into a single pass, eliminating performance bottlenecks and \"scanning pauses\".
+  - **Precise Exclusions:** Refactored pattern matching to support full relative path globs (e.g., `data/**/*.tmp`).
+  - **Loading Guards:** Implemented robust state-locking to prevent infinite UI loading loops and concurrent project switches.
 
 ## Code Style Guidelines
 

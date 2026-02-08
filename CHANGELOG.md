@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.0] - 2026-02-08
+### Added
+- **Package Content Management:**
+  - **SQLite Inventory:** Implemented `ProjectInventoryDB` for persistent caching of multi-thousand file listings (tested up to 15,000 files).
+  - **Lazy Loading UI:** Redesigned the Package tab to show immediate statistics from fingerprint while loading the full file grid in the background.
+  - **Grid Virtualization:** Limited AgGrid rendering to 2000 files with a search-based interaction model to prevent WebSocket buffer overflows.
+- **Performance & Stability:**
+  - **SQLite WAL Mode:** Enabled Write-Ahead Logging and optimized transactions for near-instant inventory updates.
+  - **WebSocket Throttling:** Implemented debouncing and sequential UI refreshes during project loading to ensure connection stability.
+  - **Load Guards:** Added state-based loading guards to prevent infinite loading loops in the UI.
+- **Improved Scanner:**
+  - **Integrated Inventory:** Combined statistics gathering and database indexing into a single pass to eliminate scanning pauses.
+  - **Accurate Glob Exclusions:** Fixed `walk_project_files` to match exclusion patterns against full relative paths instead of just filenames.
+  - **Path Sanitization:** Added automatic resolution and validation of project paths, including trailing space removal.
+
 ## [0.8.0] - 2026-02-06
 ### Added
 - **Interactive Metadata Refinement:**
