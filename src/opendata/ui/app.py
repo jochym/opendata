@@ -2031,9 +2031,11 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
             if agent.current_metadata.ai_model:
                 ai.switch_model(agent.current_metadata.ai_model)
 
-            # Ensure workspace directory exists for protocols
-            project_state_dir = wm.projects_dir / project_id
-            project_state_dir.mkdir(parents=True, exist_ok=True)
+            # Ensure workspace directory exists only when needed (e.g. for protocols)
+            # NOTE: Removed aggressive mkdir(parents=True) here to prevent
+            # automatic creation of empty project folders when just browsing/deleting.
+            # project_state_dir = wm.projects_dir / project_id
+            # project_state_dir.mkdir(parents=True, exist_ok=True)
 
             # Sequence UI Refresh
             refresh_steps = [

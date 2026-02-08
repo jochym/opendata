@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.9] - 2026-02-08
+### Fixed
+- **Project Management:**
+  - **Project Factory Bug:** Removed aggressive directory creation in `handle_load_project`. Project directories are now only created when explicitly saving state (e.g., after a scan). This prevents the "ghost project" issue where browsing or attempting to delete a corrupt project would instantly recreate its folder.
+
 ## [0.9.8] - 2026-02-08
 ### Fixed
 - **Project Management:**
