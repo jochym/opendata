@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.7] - 2026-02-08
+### Fixed
+- **Project Management:**
+  - **Aggressive ID Resolution:** Enhanced the deletion logic to extract project IDs from "Unknown" path strings using regex. This ensures that even severely corrupt projects with no metadata can be permanently removed from the workspace.
+  - **Deletion Success Verification:** Improved feedback and state reset after a successful project deletion.
+
 ## [0.9.6] - 2026-02-08
 ### Fixed
 - **Project Management:**
