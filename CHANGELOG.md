@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.4] - 2026-02-08
+### Fixed
+- **Project Management:**
+  - **Selective Deletion:** The delete button is now linked to the project currently selected in the dropdown, allowing the removal of projects that fail to load.
+  - **Button Visibility:** Fixed an issue where the delete button would disappear if a project was corrupt and couldn't set an active path.
+
 ## [0.9.3] - 2026-02-08
 ### Fixed
 - **Critical Recovery:** Restored `app.py` from a healthy state after a partial overwrite during previous session.

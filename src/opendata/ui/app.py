@@ -1030,14 +1030,63 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
             )
 
             async def handle_delete_current():
-                if not ScanState.current_path:
+                # Use selector value if current_path is not set (helps with corrupt projects)
+                project_path_to_del = (
+                    selector.value if selector.value else ScanState.current_path
+                )
+
+                if not project_path_to_del:
+                    ui.notify(_("Select a project to delete"), type="warning")
                     return
-                # Use the same logic as list_projects to find the project to delete
+
                 projects = wm.list_projects()
-                # Find project that matches current path exactly or by ID
-                # If path is 'Unknown', try matching current_path or resolving current project ID
                 target_project = next(
-                    (p for p in projects if p["path"] == ScanState.current_path), None
+                    (p for p in projects if p["path"] == project_path_to_del), None
+                )
+
+                if not target_project:
+                    # Fallback for very broken projects where path might be different
+                    try:
+                        path_obj = Path(project_path_to_del).resolve()
+                        project_id = agent.wm.get_project_id(path_obj)
+                    except:
+                        ui.notify(_("Could not resolve project ID"), type="negative")
+                        return
+                else:
+                    project_id = target_project["id"]
+
+                with ui.dialog() as confirm_dialog, ui.card().classes("p-4"):
+                    ui.label(_("Permanently remove this project from history?"))
+                    with ui.row().classes("w-full justify-end gap-2 mt-4"):
+                        ui.button(_("Cancel"), on_click=confirm_dialog.close).props(
+                            "flat"
+                        )
+
+                        async def perform_delete():
+                            confirm_dialog.close()
+                            if wm.delete_project(project_id):
+                                ui.notify(_("Project removed."))
+                                if ScanState.current_path == project_path_to_del:
+                                    ScanState.current_path = ""
+                                    agent.reset_agent_state()
+                                header_content_ui.refresh()
+                                metadata_preview_ui.refresh()
+                                chat_messages_ui.refresh()
+                            else:
+                                ui.notify(_("Failed to delete"), type="negative")
+
+                        ui.button(_("Delete"), on_click=perform_delete, color="red")
+                confirm_dialog.open()
+
+            with (
+                ui.button(icon="delete", on_click=handle_delete_current)
+                .props("flat color=red dense")
+                .classes("text-xs") as del_btn
+            ):
+                ui.tooltip(_("Remove selected project from history"))
+                # Visible if anything is selected in the dropdown
+                del_btn.bind_visibility_from(
+                    selector, "value", backward=lambda x: bool(x)
                 )
 
                 if not target_project:
