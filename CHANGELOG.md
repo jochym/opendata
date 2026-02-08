@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.11] - 2026-02-08
+### Fixed
+- **Scanning Engine:** Resolved a `NameError` in `start_analysis` where `exclude_patterns` was used before definition. Fixed incorrect tuple unpacking for `scan_project_lazy` returns.
+
 ## [0.9.10] - 2026-02-08
 ### Added
 - **High-Performance Scanning:**

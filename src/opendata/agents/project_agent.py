@@ -116,12 +116,13 @@ class ProjectAnalysisAgent:
         exclude_patterns = effective.get("exclude")
 
         # 1. Update Fingerprint and get file list for DB
-        self.current_fingerprint, full_files = scan_project_lazy(
+        res = scan_project_lazy(
             project_dir,
             progress_callback=progress_callback,
             stop_event=stop_event,
             exclude_patterns=exclude_patterns,
         )
+        self.current_fingerprint, full_files = res
 
         if stop_event and stop_event.is_set():
             return
@@ -163,13 +164,14 @@ class ProjectAnalysisAgent:
         if progress_callback:
             progress_callback(f"Scanning {project_dir}...", "", "")
 
-        # 1. Update Fingerprint and get file list for DB
-        self.current_fingerprint, full_files = scan_project_lazy(
-            project_dir,
-            progress_callback=progress_callback,
-            stop_event=stop_event,
-            exclude_patterns=exclude_patterns,
+        self.logger.info(f"DEBUG: start_analysis actual scan START for {project_dir}")
+        field_name = (
+            self.current_metadata.science_branches_mnisw[0]
+            if self.current_metadata.science_branches_mnisw
+            else None
         )
+        effective = self.pm.resolve_effective_protocol(self.project_id, field_name)
+        exclude_patterns = effective.get("exclude")
 
         if stop_event and stop_event.is_set():
             self.logger.warning("DEBUG: stop_event ALREADY SET. Clearing it.")
