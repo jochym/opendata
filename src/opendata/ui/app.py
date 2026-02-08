@@ -346,7 +346,9 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                                 ui.button("", on_click=handle_cancel_scan).props(
                                     "icon=close flat color=gray size=xs"
                                 ).classes("min-h-6 min-w-6 p-0.5")
-        ui.run_javascript("window.scrollTo(0, document.body.scrollHeight)")
+        # Only scroll if not in bulk loading mode
+        if not ScanState.is_loading_project:
+            ui.run_javascript("window.scrollTo(0, document.body.scrollHeight)")
 
     class ScanState:
         is_scanning = False
@@ -2064,9 +2066,10 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                 await asyncio.sleep(0.05)
                 render_preview_and_build.refresh()
                 await asyncio.sleep(0.1)
-                # CRITICAL: DO NOT refresh Package tab here - it may contain 10,000+ files
-                # which would overflow WebSocket. Package tab will lazy-load when user clicks it.
-                # render_package_tab.refresh()  # REMOVED
+                # CRITICAL: Package tab refresh is REMOVED from here.
+                # It contains too much data (AgGrid) and would overflow WebSocket.
+                # It will refresh automatically when user clicks the Package tab.
+
                 chat_messages_ui.refresh()
             except Exception as e:
                 logger.error(f"Failed during UI refresh: {e}")
