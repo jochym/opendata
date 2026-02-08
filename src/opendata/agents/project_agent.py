@@ -18,7 +18,7 @@ from opendata.models import (
 from opendata.extractors.base import ExtractorRegistry, PartialMetadata
 from opendata.workspace import WorkspaceManager
 from opendata.utils import scan_project_lazy, PromptManager
-from opendata.i18n.manager import setup_i18n, _
+from opendata.i18n.translator import setup_i18n, _
 
 logger = logging.getLogger(__name__)
 
@@ -200,7 +200,7 @@ class ProjectAnalysisAgent:
 
             # Use gettext if available, otherwise fallback
             try:
-                from opendata.i18n.manager import _
+                from opendata.i18n.translator import _
 
                 msg_status = _("Saving file inventory to database...")
             except:
