@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, field_validator
 from typing import List, Optional, Literal, Any, Dict
 from pathlib import Path
 from enum import Enum
@@ -76,51 +76,10 @@ class RelatedResource(BaseModel):
     id_number: Optional[str] = Field(None, description="Full URL identifier")
 
 
-from pydantic import BaseModel, Field, EmailStr, field_validator, BeforeValidator
-from typing import List, Optional, Literal, Any, Dict, Annotated
-from pathlib import Path
-from enum import Enum
-
-
-def ensure_list(v: Any) -> List[str]:
-    if v is None:
-        return []
-    if isinstance(v, str):
-        return [v]
-    return v
-
-
-StringList = Annotated[List[str], BeforeValidator(ensure_list)]
-
-
 class Metadata(BaseModel):
     # Field protection
     locked_fields: List[str] = Field(
         default_factory=list, description="Fields protected from AI updates"
-    )
-
-    # RODBUK Mandatory Fields (Made optional for intermediate drafting)
-    title: Optional[str] = Field(None, description="Full dataset title")
-    authors: List[PersonOrOrg] = Field(default_factory=list)
-    contacts: List[Contact] = Field(default_factory=list)
-    description: StringList = Field(
-        default_factory=list, description="Dataset summaries"
-    )
-    keywords: StringList = Field(default_factory=list)
-    science_branches_mnisw: StringList = Field(default_factory=list)
-    science_branches_oecd: StringList = Field(default_factory=list)
-    languages: StringList = Field(default=["English"])
-    kind_of_data: Optional[str] = Field(
-        None,
-        description="e.g., 'Experimental', 'Simulation'",
-        validation_alias="kindof_data",
-    )
-    license: Optional[str] = Field(
-        "CC-BY-4.0", description="Data license (e.g., CC-BY-4.0, MIT)"
-    )
-    software: StringList = Field(
-        default_factory=list,
-        description="Software and versions used (e.g., VASP 6.4.1)",
     )
 
     # RODBUK Mandatory Fields (Made optional for intermediate drafting)
@@ -159,6 +118,25 @@ class Metadata(BaseModel):
     related_datasets: List[RelatedResource] = Field(default_factory=list)
     funding: List[dict] = Field(default_factory=list)
     notes: Optional[str] = Field(None)
+
+    @field_validator(
+        "description",
+        "keywords",
+        "science_branches_mnisw",
+        "science_branches_oecd",
+        "languages",
+        "software",
+        mode="before",
+    )
+    @classmethod
+    def ensure_list_fields(cls, v: Any) -> List[str]:
+        if v is None:
+            return []
+        if isinstance(v, str):
+            if "," in v and "[" not in v:
+                return [i.strip() for i in v.split(",")]
+            return [v]
+        return v
 
 
 class ProjectFingerprint(BaseModel):
