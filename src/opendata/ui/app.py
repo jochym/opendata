@@ -1172,37 +1172,27 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
             with ui.card().classes("w-full p-6 shadow-md"):
                 ui.label(_("Final Selection Summary")).classes("text-h6 font-bold mb-2")
                 if agent.project_id:
-                    project_path = Path(ScanState.current_path)
-                    manifest = pkg_mgr.get_manifest(agent.project_id)
-                    # Resolve protocol to show current effective count
-                    field_name = (
-                        agent.current_metadata.science_branches_mnisw[0]
-                        if agent.current_metadata.science_branches_mnisw
-                        else None
-                    )
-                    effective = pm.resolve_effective_protocol(
-                        agent.project_id, field_name
-                    )
-                    protocol_excludes = effective.get("exclude", [])
-                    eff_list = pkg_mgr.get_effective_file_list(
-                        project_path, manifest, protocol_excludes
-                    )
-                    total_size = sum(p.stat().st_size for p in eff_list if p.exists())
-
-                    with ui.row().classes("gap-4 items-center"):
-                        ui.icon("inventory", size="md", color="slate-600")
-                        with ui.column().classes("gap-0"):
+                    # NOTE: Removed direct disk scanning from UI render
+                    # to prevent WebSocket timeouts on large projects (15,000+ files)
+                    ui.label(
+                        _("Summary depends on your selection in the Package tab.")
+                    ).classes("text-sm text-slate-500")
+                    if UIState.inventory_cache:
+                        included = [f for f in UIState.inventory_cache if f["included"]]
+                        total_size = sum(f["size"] for f in included)
+                        with ui.row().classes("gap-8 mt-2"):
                             ui.label(
-                                _("{count} files selected for inclusion").format(
-                                    count=len(eff_list)
-                                )
+                                _("Total Files: {count}").format(count=len(included))
                             ).classes("font-bold")
                             ui.label(
-                                _("Estimated Package Data Size: {size}").format(
+                                _("Estimated Size: {size}").format(
                                     size=format_size(total_size)
                                 )
-                            ).classes("text-sm text-slate-500")
-
+                            )
+                    else:
+                        ui.label(
+                            _("No summary available yet. Please open Package tab.")
+                        ).classes("text-xs italic text-slate-400")
                     ui.button(
                         _("Edit Selection"),
                         icon="edit",
@@ -2039,7 +2029,8 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
         if not path:
             return
 
-        logger.debug(f"Loading project: {path}")
+        start_time = time.time()
+        logger.info(f">>> DEBUG: Starting handle_load_project for: {path}")
         ScanState.is_loading_project = True
         safe_notify(_("Opening project..."))
 
@@ -2048,69 +2039,70 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
             project_id = wm.get_project_id(path_obj)
             agent.project_id = project_id
 
+            logger.info(f"DEBUG: Project ID resolved: {project_id}")
             UIState.last_inventory_project = ""
             UIState.inventory_cache = []
 
-            # Load project data in thread
+            # Load project data
+            logger.info("DEBUG: Loading state from disk...")
             metadata, history, fingerprint = await asyncio.to_thread(
                 wm.load_project_state, project_id
             )
             ScanState.current_path = str(path_obj)
             success = metadata is not None
-            logger.debug(
-                f"Project data loaded: success={success}, history_len={len(history)}, id={project_id}"
+            logger.info(
+                f"DEBUG: Disk load complete. Metadata: {success}, History lines: {len(history)}"
             )
 
-            # Assign loaded data to agent
+            # Assign to agent
             if metadata:
                 agent.current_metadata = metadata
                 agent.chat_history = history
                 agent.current_fingerprint = fingerprint
 
+            # Switch model
             if agent.current_metadata.ai_model:
-                ai.switch_model(agent.current_metadata.ai_model)
-                safe_notify(
-                    _("Restored project model: {model}").format(
-                        model=agent.current_metadata.ai_model
-                    )
+                logger.info(
+                    f"DEBUG: Switching AI model to: {agent.current_metadata.ai_model}"
                 )
+                ai.switch_model(agent.current_metadata.ai_model)
 
-            project_state_dir = wm.projects_dir / project_id
-            project_state_dir.mkdir(parents=True, exist_ok=True)
+            # Sequence UI Refresh with timing
+            logger.info("DEBUG: Starting sequential UI refresh...")
 
-            # Refresh UI components sequentially to prevent WebSocket overload
-            logger.debug("Refreshing UI components sequentially")
-            try:
-                header_content_ui.refresh()
-                await asyncio.sleep(0.05)
-                metadata_preview_ui.refresh()
-                await asyncio.sleep(0.05)
-                render_protocols_tab.refresh()
-                await asyncio.sleep(0.05)
-                render_preview_and_build.refresh()
-                await asyncio.sleep(0.1)
-                # CRITICAL: Package tab refresh is REMOVED from here.
-                # It contains too much data (AgGrid) and would overflow WebSocket.
-                # It will refresh automatically when user clicks the Package tab.
+            refresh_steps = [
+                ("Header", header_content_ui),
+                ("Metadata Preview", metadata_preview_ui),
+                ("Protocols Tab", render_protocols_tab),
+                ("Preview & Build", render_preview_and_build),
+                ("Chat Messages", chat_messages_ui),
+            ]
 
-                chat_messages_ui.refresh()
-            except Exception as e:
-                logger.error(f"Failed during UI refresh: {e}")
-                refresh_all()
+            for name, component in refresh_steps:
+                step_start = time.time()
+                logger.info(f"DEBUG: Refreshing {name}...")
+                try:
+                    component.refresh()
+                    logger.info(
+                        f"DEBUG: {name} refresh took {time.time() - step_start:.4f}s"
+                    )
+                except Exception as re:
+                    logger.error(f"DEBUG: ERROR refreshing {name}: {re}")
+                await asyncio.sleep(0.1)  # Increased sleep between components
 
-            # DISABLED: Don't auto-load inventory to prevent WebSocket overflow with 10K+ files
-            # Package tab will lazy-load inventory when user clicks the tab
-            # logger.debug("Scheduling inventory load (delayed 500ms)")
-            # await asyncio.sleep(0.5)
-            # asyncio.create_task(load_inventory_background())
-
+            logger.info(
+                f">>> DEBUG: handle_load_project FINISHED in {time.time() - start_time:.4f}s"
+            )
             safe_notify(
                 _("Project opened from history.")
                 if success
                 else _("New project directory opened.")
             )
+
         except Exception as e:
-            logger.error(f"Failed to load project: {e}", exc_info=True)
+            logger.error(
+                f"DEBUG: CRITICAL ERROR in handle_load_project: {e}", exc_info=True
+            )
             safe_notify(
                 _("Failed to load project: {error}").format(error=str(e)),
                 type="negative",
