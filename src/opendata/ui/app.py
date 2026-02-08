@@ -90,7 +90,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
             metadata_preview_ui.refresh()
             header_content_ui.refresh()
             render_protocols_tab.refresh()
-            render_package_tab.refresh()
+            # render_package_tab.refresh()  # REMOVED - too heavy
             render_preview_and_build.refresh()
         except Exception:
             pass
@@ -108,7 +108,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
             metadata_preview_ui.refresh()
             header_content_ui.refresh()
             render_protocols_tab.refresh()
-            render_package_tab.refresh()
+            # render_package_tab.refresh()  # REMOVED - too heavy
             render_preview_and_build.refresh()
         except Exception:
             pass
@@ -2063,18 +2063,20 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                 render_protocols_tab.refresh()
                 await asyncio.sleep(0.05)
                 render_preview_and_build.refresh()
-                await asyncio.sleep(0.05)
-                render_package_tab.refresh()
                 await asyncio.sleep(0.1)
+                # CRITICAL: DO NOT refresh Package tab here - it may contain 10,000+ files
+                # which would overflow WebSocket. Package tab will lazy-load when user clicks it.
+                # render_package_tab.refresh()  # REMOVED
                 chat_messages_ui.refresh()
             except Exception as e:
                 logger.error(f"Failed during UI refresh: {e}")
                 refresh_all()
 
-            # Start inventory load in background
-            logger.debug("Scheduling inventory load (delayed 500ms)")
-            await asyncio.sleep(0.5)
-            asyncio.create_task(load_inventory_background())
+            # DISABLED: Don't auto-load inventory to prevent WebSocket overflow with 10K+ files
+            # Package tab will lazy-load inventory when user clicks the tab
+            # logger.debug("Scheduling inventory load (delayed 500ms)")
+            # await asyncio.sleep(0.5)
+            # asyncio.create_task(load_inventory_background())
 
             safe_notify(
                 _("Project opened from history.")
