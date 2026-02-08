@@ -276,24 +276,35 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                 for conflict in analysis.conflicting_data:
                     field = conflict.get("field", "unknown")
                     sources = conflict.get("sources", [])
-                    # Ensure values are strings for select options keys
-                    options = {
-                        str(
-                            s.get("value", "")
-                        ): f"{str(s.get('value', ''))} (Source: {s.get('source', 'unknown')})"
-                        for s in sources
-                    }
+                    # Support both list of dicts and list of strings from AI
+                    options = {}
+                    for s in sources:
+                        if isinstance(s, dict):
+                            val = str(s.get("value", ""))
+                            label = f"{val} (Source: {s.get('source', 'unknown')})"
+                        else:
+                            val = str(s)
+                            label = val
+                        options[val] = label
 
                     with ui.row().classes("w-full items-center gap-2"):
                         ui.label(field.replace("_", " ").title()).classes(
                             "text-xs w-24"
                         )
+
+                        initial_val = ""
+                        if sources:
+                            s0 = sources[0]
+                            initial_val = (
+                                str(s0.get("value", ""))
+                                if isinstance(s0, dict)
+                                else str(s0)
+                            )
+
                         form_data[field] = (
                             ui.select(
                                 options=options,
-                                value=str(sources[0].get("value", ""))
-                                if sources
-                                else None,
+                                value=initial_val,
                             )
                             .props("dense outlined")
                             .classes("flex-grow")

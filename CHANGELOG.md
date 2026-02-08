@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.13] - 2026-02-08
+### Fixed
+- **Robust UI Forms:** Fixed an `AttributeError` in the refinement form when resolving data conflicts where the AI returns sources as a list of strings instead of objects.
+- **Model Flexibility:** Improved `Metadata` model to automatically handle single-string inputs for list fields (e.g., `description`, `keywords`) using Pydantic validators. This prevents UI crashes when AI returns simplified data formats.
+
 ## [0.9.12] - 2026-02-08
 ### Fixed
 - **AI Response Parsing:** Added `validation_alias` to Pydantic models to correctly handle AI responses using both camelCase and snake_case (e.g., `missingfields` vs `missing_fields`). This fixes the "failed to parse metadata" error when the AI returns non-compliant JSON keys.
