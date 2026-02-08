@@ -79,27 +79,36 @@ def walk_project_files(
             if entry.name.startswith(".") or entry.is_symlink():
                 continue
 
+            rel_entry_path = os.path.join(rel_dir, entry.name).replace("\\", "/")
+
             if entry.is_dir():
                 if entry.name in skip_dirs:
                     continue
                 if exclude_patterns:
-                    rel_d_path = (
-                        os.path.join(rel_dir, entry.name).replace("\\", "/") + "/"
-                    )
-                    if any(
-                        fnmatch.fnmatch(rel_d_path, p)
-                        or fnmatch.fnmatch(entry.name + "/", p)
-                        for p in exclude_patterns
-                    ):
+                    is_d_excluded = False
+                    for pattern in exclude_patterns:
+                        # Match directory specifically
+                        p_clean = pattern.rstrip("/")
+                        if (
+                            fnmatch.fnmatch(rel_entry_path, p_clean)
+                            or fnmatch.fnmatch(entry.name, p_clean)
+                            or rel_entry_path.startswith(p_clean + "/")
+                        ):
+                            is_d_excluded = True
+                            break
+                    if is_d_excluded:
                         continue
                 subdirs.append(entry.path)
             elif entry.is_file():
                 if exclude_patterns:
-                    rel_f_path = os.path.join(rel_dir, entry.name).replace("\\", "/")
-                    if any(
-                        fnmatch.fnmatch(rel_f_path, p) or fnmatch.fnmatch(entry.name, p)
-                        for p in exclude_patterns
-                    ):
+                    is_excluded = False
+                    for pattern in exclude_patterns:
+                        if fnmatch.fnmatch(rel_entry_path, pattern) or fnmatch.fnmatch(
+                            entry.name, pattern
+                        ):
+                            is_excluded = True
+                            break
+                    if is_excluded:
                         continue
                 try:
                     yield Path(entry.path), entry.stat()

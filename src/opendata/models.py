@@ -94,7 +94,9 @@ class Metadata(BaseModel):
     science_branches_oecd: List[str] = Field(default_factory=list)
     languages: List[str] = Field(default=["English"])
     kind_of_data: Optional[str] = Field(
-        None, description="e.g., 'Experimental', 'Simulation'"
+        None,
+        description="e.g., 'Experimental', 'Simulation'",
+        validation_alias="kindof_data",
     )
     license: Optional[str] = Field(
         "CC-BY-4.0", description="Data license (e.g., CC-BY-4.0, MIT)"
@@ -139,7 +141,13 @@ class Question(BaseModel):
 
 class AIAnalysis(BaseModel):
     summary: str
-    missing_fields: List[str] = Field(default_factory=list)
-    non_compliant: List[str] = Field(default_factory=list)
-    conflicting_data: List[Dict[str, Any]] = Field(default_factory=list)
+    missing_fields: List[str] = Field(
+        default_factory=list, validation_alias="missingfields"
+    )
+    non_compliant: List[str] = Field(
+        default_factory=list, validation_alias="noncompliant"
+    )
+    conflicting_data: List[Dict[str, Any]] = Field(
+        default_factory=list, validation_alias="conflictingdata"
+    )
     questions: List[Question] = Field(default_factory=list)

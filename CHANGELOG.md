@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.12] - 2026-02-08
+### Fixed
+- **AI Response Parsing:** Added `validation_alias` to Pydantic models to correctly handle AI responses using both camelCase and snake_case (e.g., `missingfields` vs `missing_fields`). This fixes the "failed to parse metadata" error when the AI returns non-compliant JSON keys.
+- **Precision Exclusions:** Refined `walk_project_files` to perform multi-stage glob matching against full relative paths and directory prefixes. This ensures that patterns like `data/` or `*.tmp` correctly exclude deeply nested files.
+
 ## [0.9.11] - 2026-02-08
 ### Fixed
 - **Scanning Engine:** Resolved a `NameError` in `start_analysis` where `exclude_patterns` was used before definition. Fixed incorrect tuple unpacking for `scan_project_lazy` returns.
