@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.3] - 2026-02-08
+### Fixed
+- **Critical Recovery:** Restored `app.py` from a healthy state after a partial overwrite during previous session.
+- **Project Management:** Finalized robust deletion logic for projects with missing metadata or "Unknown" paths.
+- **Repository Hygiene:** Permanently removed accidental `log` file from the git history and verified `.gitignore` rules.
+
+## [0.9.2] - 2026-02-08
+### Fixed
+- **Repository Hygiene:** Removed accidental `log` file from version control and ensured it's ignored via `.gitignore`.
+- **UI & Routing:** Fixed a potential 404 issue when accessing the app via specific hostnames by ensuring consistent base routing.
+
 ## [0.9.1] - 2026-02-08
 ### Fixed
 - **Project Management:**

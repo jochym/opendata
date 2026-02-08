@@ -1030,13 +1030,10 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
             )
 
             async def handle_delete_current():
-                # We need to find the project ID.
-                # If current_path is set, find ID by path.
-                # If path is 'Unknown', we need to get ID from selector value.
+                # Multi-stage ID resolution
                 current_id = None
                 projects = wm.list_projects()
 
-                # 1. Try to find by current path
                 if ScanState.current_path:
                     target = next(
                         (p for p in projects if p["path"] == ScanState.current_path),
@@ -1045,9 +1042,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                     if target:
                         current_id = target["id"]
 
-                # 2. Fallback: use selector's current value if it's a project ID
                 if not current_id and selector.value:
-                    # check if value is a path that exists in projects
                     target = next(
                         (p for p in projects if p["path"] == selector.value), None
                     )
@@ -1055,18 +1050,11 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                         current_id = target["id"]
 
                 if not current_id:
-                    ui.notify(
-                        _("Could not determine project ID to delete."), type="warning"
-                    )
+                    ui.notify(_("Select a project first"), type="warning")
                     return
 
-                # Use NiceGUI dialog
                 with ui.dialog() as confirm_dialog, ui.card().classes("p-4"):
-                    ui.label(
-                        _(
-                            "Are you sure you want to permanently delete this project state?"
-                        )
-                    )
+                    ui.label(_("Permanently delete project state?"))
                     with ui.row().classes("w-full justify-end gap-2 mt-4"):
                         ui.button(_("Cancel"), on_click=confirm_dialog.close).props(
                             "flat"
@@ -1075,22 +1063,16 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                         async def perform_delete():
                             confirm_dialog.close()
                             if wm.delete_project(current_id):
-                                ui.notify(_("Project deleted."))
+                                ui.notify(_("Project deleted"))
                                 ScanState.current_path = ""
                                 agent.reset_agent_state()
-                                # Refresh everything
                                 header_content_ui.refresh()
                                 metadata_preview_ui.refresh()
                                 chat_messages_ui.refresh()
-                            else:
-                                ui.notify(
-                                    _("Failed to delete project."), type="negative"
-                                )
 
                         ui.button(_("Delete"), on_click=perform_delete).props(
                             "color=red"
                         )
-
                 confirm_dialog.open()
 
     async def handle_load_project(path: str):
@@ -1197,24 +1179,8 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
             ui.notify(_("Please provide a path"), type="warning")
             return
 
-        # 1. Sanitize and Validate Path
-        clean_path = path.strip().strip('"').strip("'")
-        resolved_path = Path(clean_path).expanduser().resolve()
-
-        if not resolved_path.exists():
-            ui.notify(
-                _("Directory does not exist: {path}").format(path=resolved_path),
-                type="negative",
-            )
-            return
-
-        if not resolved_path.is_dir():
-            ui.notify(
-                _("Path is not a directory: {path}").format(path=resolved_path),
-                type="negative",
-            )
-            return
-
+        # Ensure we always use absolute resolved paths
+        resolved_path = Path(path).expanduser().resolve()
         ScanState.current_path = str(resolved_path)
         logger.info(f"DEBUG: Starting handle_scan for {resolved_path}")
 
@@ -1241,12 +1207,6 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
         )
         ScanState.is_scanning = False
         ScanState.stop_event = None
-
-        # CRITICAL: Force inventory cache invalidation and reload after scan
-        UIState.last_inventory_project = ""
-        UIState.inventory_cache = []
-        asyncio.create_task(load_inventory_background())
-
         chat_messages_ui.refresh()
         metadata_preview_ui.refresh()
 
