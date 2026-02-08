@@ -9,7 +9,7 @@ https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/READM
   import google.generativeai as genai
 [INFO] Starting server in no-GUI mode on http://0.0.0.0:8080
 NiceGUI ready to go on http://localhost:8080, http://10.0.3.1:8080, http://10.111.1.34:8080, http://10.33.1.16:8080, http://10.42.24.4:8080, http://100.123.102.85:8080, http://172.17.0.1:8080, and http://172.18.0.1:8080
-name 'logger' is not defined
+'ProjectAnalysisAgent' object has no attribute 'self'
 Traceback (most recent call last):
   File "/home/jochym/Projects/OpenData/venv/lib/python3.13/site-packages/nicegui/events.py", line 454, in wait_for_result
     await result
@@ -22,7 +22,7 @@ Traceback (most recent call last):
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   File "/usr/lib/python3.13/concurrent/futures/thread.py", line 59, in run
     result = self.fn(*self.args, **self.kwargs)
-  File "/home/jochym/Projects/OpenData/src/opendata/agents/project_agent.py", line 178, in start_analysis
-    logger.info(f"DEBUG: start_analysis actual scan START for {project_dir}")
-    ^^^^^^
-NameError: name 'logger' is not defined
+  File "/home/jochym/Projects/OpenData/src/opendata/agents/project_agent.py", line 179, in start_analysis
+    self.self.logger.info(
+    ^^^^^^^^^
+AttributeError: 'ProjectAnalysisAgent' object has no attribute 'self'
