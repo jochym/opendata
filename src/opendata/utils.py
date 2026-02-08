@@ -1,7 +1,7 @@
 import re
 from pathlib import Path
 import socket
-from typing import List, Set, Generator, Callable, Optional, Any
+from typing import List, Set, Generator, Callable, Optional, Any, Tuple
 from opendata.models import ProjectFingerprint
 
 
@@ -42,86 +42,74 @@ def walk_project_files(
     root: Path,
     stop_event: Optional[Any] = None,
     exclude_patterns: Optional[List[str]] = None,
-) -> Generator[Path, None, None]:
+) -> Generator[Tuple[Path, Any], None, None]:
     """
-    Yields file paths while skipping common non-research directories and user-defined patterns.
-    Does NOT follow symbolic links.
-    Skips the entire directory tree if a '.ignore' file is present in the root of that tree.
-    Supports cancellation via stop_event.
+    Yields (Path, stat) tuples for all relevant files, skipping excluded ones.
+    Optimized using os.scandir for high-performance directory traversal.
     """
     import os
     import fnmatch
 
     skip_dirs = {".git", ".venv", "node_modules", "__pycache__", ".opendata_tool"}
+    root_str = str(root)
 
-    for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
+    def _walk(current_dir):
         if stop_event and stop_event.is_set():
             return
 
-        # Relative path of the current directory for pattern matching
-        rel_dir = os.path.relpath(dirpath, root)
+        try:
+            with os.scandir(current_dir) as it:
+                entries = list(it)
+        except OSError:
+            return
+
+        # Check for '.ignore'
+        if any(e.name == ".ignore" for e in entries):
+            return
+
+        # Yield directory itself (with None for stat)
+        yield Path(current_dir), None
+
+        rel_dir = os.path.relpath(current_dir, root_str)
         if rel_dir == ".":
             rel_dir = ""
 
-        # Check for '.ignore' file in the current directory
-        if ".ignore" in filenames:
-            dirnames[:] = []
-            filenames[:] = []
-            continue
-
-        # Filter out directories
-        dirnames[:] = [
-            d
-            for d in dirnames
-            if d not in skip_dirs
-            and not d.startswith(".")
-            and not os.path.islink(os.path.join(dirpath, d))
-        ]
-
-        # Filter files using relative paths for accurate glob matching
-        final_filenames = []
-        for f in filenames:
-            if f.startswith(".") or os.path.islink(os.path.join(dirpath, f)):
+        subdirs = []
+        for entry in entries:
+            if entry.name.startswith(".") or entry.is_symlink():
                 continue
 
-            rel_f_path = os.path.join(rel_dir, f).replace("\\", "/")
-
-            is_excluded = False
-            if exclude_patterns:
-                for pattern in exclude_patterns:
-                    # Match against the relative path from project root
-                    if fnmatch.fnmatch(rel_f_path, pattern) or fnmatch.fnmatch(
-                        f, pattern
+            if entry.is_dir():
+                if entry.name in skip_dirs:
+                    continue
+                if exclude_patterns:
+                    rel_d_path = (
+                        os.path.join(rel_dir, entry.name).replace("\\", "/") + "/"
+                    )
+                    if any(
+                        fnmatch.fnmatch(rel_d_path, p)
+                        or fnmatch.fnmatch(entry.name + "/", p)
+                        for p in exclude_patterns
                     ):
-                        is_excluded = True
-                        break
-
-            if not is_excluded:
-                final_filenames.append(f)
-
-        # Directory filtering with patterns (if a whole dir matches pattern)
-        if exclude_patterns:
-            new_dirnames = []
-            for d in dirnames:
-                rel_d_path = os.path.join(rel_dir, d).replace("\\", "/") + "/"
-                is_d_excluded = False
-                for pattern in exclude_patterns:
-                    if fnmatch.fnmatch(rel_d_path, pattern) or fnmatch.fnmatch(
-                        d + "/", pattern
+                        continue
+                subdirs.append(entry.path)
+            elif entry.is_file():
+                if exclude_patterns:
+                    rel_f_path = os.path.join(rel_dir, entry.name).replace("\\", "/")
+                    if any(
+                        fnmatch.fnmatch(rel_f_path, p) or fnmatch.fnmatch(entry.name, p)
+                        for p in exclude_patterns
                     ):
-                        is_d_excluded = True
-                        break
-                if not is_d_excluded:
-                    new_dirnames.append(d)
-            dirnames[:] = new_dirnames
+                        continue
+                try:
+                    yield Path(entry.path), entry.stat()
+                except OSError:
+                    continue
 
-        # Yield the current directory for progress reporting
-        yield Path(dirpath)
+        for subdir in subdirs:
+            yield from _walk(subdir)
 
-        for f in final_filenames:
-            if stop_event and stop_event.is_set():
-                return
-            yield Path(dirpath) / f
+    yield from _walk(root_str)
 
 
 def scan_project_lazy(
@@ -129,11 +117,10 @@ def scan_project_lazy(
     progress_callback: Optional[Callable[[str, str, str], None]] = None,
     stop_event: Optional[Any] = None,
     exclude_patterns: Optional[List[str]] = None,
-) -> ProjectFingerprint:
+) -> Tuple[ProjectFingerprint, List[dict]]:
     """
-    Scans a directory recursively without reading file contents.
-    Optimized for huge datasets (TB scale).
-    Supports cancellation via stop_event.
+    Scans a directory recursively. Optimized for huge datasets.
+    Returns both the Fingerprint and the full file list for database indexing.
     """
     import time
 
@@ -141,21 +128,28 @@ def scan_project_lazy(
     total_size = 0
     extensions = set()
     structure_sample = []
+    full_inventory = []
 
     last_ui_update = 0
-    # Throttling UI updates to 10Hz to prevent flickering and performance lag
     UI_UPDATE_INTERVAL = 0.1
 
-    for p in walk_project_files(root, stop_event, exclude_patterns):
-        if p.is_file():
+    for p, stat in walk_project_files(root, stop_event, exclude_patterns):
+        if stat is None:  # It's a directory
+            pass
+        else:  # It's a file
             file_count += 1
-            try:
-                total_size += p.stat().st_size
-            except Exception:
-                pass
-            extensions.add(p.suffix.lower())
+            size = stat.st_size
+            total_size += size
+            suffix = p.suffix.lower()
+            extensions.add(suffix)
+
+            rel_path = str(p.relative_to(root))
+            full_inventory.append(
+                {"path": rel_path, "size": size, "mtime": stat.st_mtime}
+            )
+
             if len(structure_sample) < 50:
-                structure_sample.append(str(p.relative_to(root)))
+                structure_sample.append(rel_path)
 
         now = time.time()
         if progress_callback and (now - last_ui_update > UI_UPDATE_INTERVAL):
@@ -167,13 +161,14 @@ def scan_project_lazy(
             )
             last_ui_update = now
 
-    return ProjectFingerprint(
+    fp = ProjectFingerprint(
         root_path=str(root),
         file_count=file_count,
         total_size_bytes=total_size,
         extensions=list(extensions),
         structure_sample=structure_sample,
     )
+    return fp, full_inventory
 
 
 def list_project_files_full(

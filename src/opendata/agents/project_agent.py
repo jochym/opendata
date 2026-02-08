@@ -115,7 +115,8 @@ class ProjectAnalysisAgent:
         effective = self.pm.resolve_effective_protocol(self.project_id, field_name)
         exclude_patterns = effective.get("exclude")
 
-        self.current_fingerprint = scan_project_lazy(
+        # 1. Update Fingerprint and get file list for DB
+        self.current_fingerprint, full_files = scan_project_lazy(
             project_dir,
             progress_callback=progress_callback,
             stop_event=stop_event,
@@ -125,13 +126,10 @@ class ProjectAnalysisAgent:
         if stop_event and stop_event.is_set():
             return
 
+        # 2. Update SQLite
         try:
-            from opendata.utils import list_project_files_full
             from opendata.storage.project_db import ProjectInventoryDB
 
-            full_files = list_project_files_full(
-                project_dir, stop_event=stop_event, exclude_patterns=exclude_patterns
-            )
             db = ProjectInventoryDB(self.wm.get_project_db_path(self.project_id))
             db.update_inventory(full_files)
             self.logger.info(
@@ -165,25 +163,26 @@ class ProjectAnalysisAgent:
         if progress_callback:
             progress_callback(f"Scanning {project_dir}...", "", "")
 
-        self.logger.info(f"DEBUG: start_analysis actual scan START for {project_dir}")
-        field_name = (
-            self.current_metadata.science_branches_mnisw[0]
-            if self.current_metadata.science_branches_mnisw
-            else None
-        )
-        effective = self.pm.resolve_effective_protocol(self.project_id, field_name)
-        exclude_patterns = effective.get("exclude")
-
-        if stop_event and stop_event.is_set():
-            self.logger.warning("DEBUG: stop_event ALREADY SET. Clearing it.")
-            stop_event.clear()
-
-        self.current_fingerprint = scan_project_lazy(
+        # 1. Update Fingerprint and get file list for DB
+        self.current_fingerprint, full_files = scan_project_lazy(
             project_dir,
             progress_callback=progress_callback,
             stop_event=stop_event,
             exclude_patterns=exclude_patterns,
         )
+
+        if stop_event and stop_event.is_set():
+            self.logger.warning("DEBUG: stop_event ALREADY SET. Clearing it.")
+            stop_event.clear()
+
+        # Integrated scan: statistics and file inventory in one pass
+        res = scan_project_lazy(
+            project_dir,
+            progress_callback=progress_callback,
+            stop_event=stop_event,
+            exclude_patterns=exclude_patterns,
+        )
+        self.current_fingerprint, full_files = res
 
         self.logger.info(
             f"DEBUG: Fingerprint complete. Files: {self.current_fingerprint.file_count}"
@@ -192,27 +191,21 @@ class ProjectAnalysisAgent:
         if stop_event and stop_event.is_set():
             return "Scan cancelled by user."
 
-        # Persistent Inventory: The 'scan_project_lazy' already did the work,
-        # but we need the full file objects for the database.
+        # Persistent Inventory: Save all files to SQLite (Already collected in scan_project_lazy)
         try:
-            from opendata.utils import list_project_files_full
             from opendata.storage.project_db import ProjectInventoryDB
 
-            # Use gettext if available, otherwise fallback
+            msg_status = "Saving file inventory to database..."
             try:
                 from opendata.i18n.translator import _
 
                 msg_status = _("Saving file inventory to database...")
             except:
-                msg_status = "Saving file inventory to database..."
+                pass
 
             if progress_callback:
                 progress_callback(msg_status, "", "")
 
-            # Optimization: we use the already known project_dir and exclude_patterns
-            full_files = list_project_files_full(
-                project_dir, stop_event=stop_event, exclude_patterns=exclude_patterns
-            )
             db = ProjectInventoryDB(self.wm.get_project_db_path(self.project_id))
             db.update_inventory(full_files)
             self.logger.info(
@@ -230,12 +223,13 @@ class ProjectAnalysisAgent:
         current_file_idx = 0
         total_size_str = format_size(self.current_fingerprint.total_size_bytes)
 
-        for p in walk_project_files(
+        for p, p_stat in walk_project_files(
             project_dir, stop_event=stop_event, exclude_patterns=exclude_patterns
         ):
             if stop_event and stop_event.is_set():
                 break
-            if p.is_file():
+
+            if p_stat is not None:  # It's a file
                 current_file_idx += 1
                 if progress_callback:
                     progress_callback(
