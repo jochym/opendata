@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.6] - 2026-02-08
+### Fixed
+- **Project Management:**
+  - **Early State Assignment:** `ScanState.current_path` is now assigned immediately when a project is selected. This ensures the UI remains in sync even for corrupt projects that fail to load, allowing them to be targeted for deletion.
+  - **Graceful Failures:** Projects that fail to load from disk no longer crash the UI or reset the selector, providing a better recovery path for the user.
+
 ## [0.9.5] - 2026-02-08
 ### Fixed
 - **Project Management:**

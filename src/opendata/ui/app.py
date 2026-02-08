@@ -1962,9 +1962,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
         # Loading Guard: prevent infinite loops or concurrent loads
         if ScanState.is_loading_project:
-            logger.info(
-                f"DEBUG: Skipping handle_load_project - already loading something."
-            )
+            logger.info(f"DEBUG: Skipping handle_load_project - already loading.")
             return
 
         # Avoid reloading the exact same path if already loaded
@@ -1974,6 +1972,10 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
             )
             return
 
+        # CRITICAL: Always set current_path first to ensure UI stays in sync
+        # even if loading fails. This allows deletion of corrupt projects.
+        ScanState.current_path = path
+
         start_time = time.time()
         logger.info(f">>> DEBUG: Starting handle_load_project for: {path}")
         ScanState.is_loading_project = True
@@ -1981,6 +1983,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
         try:
             path_obj = Path(path).expanduser().resolve()
+            # Explicitly create project ID and activate it
             project_id = wm.get_project_id(path_obj)
             agent.project_id = project_id
 
@@ -1993,28 +1996,26 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
             metadata, history, fingerprint = await asyncio.to_thread(
                 wm.load_project_state, project_id
             )
-            ScanState.current_path = str(path_obj)
-            success = metadata is not None
-            logger.info(
-                f"DEBUG: Disk load complete. Metadata: {success}, History lines: {len(history)}"
-            )
 
-            # Assign to agent
-            if metadata:
-                agent.current_metadata = metadata
-                agent.chat_history = history
-                agent.current_fingerprint = fingerprint
+            success = metadata is not None
+            logger.info(f"DEBUG: Disk load complete. Metadata found: {success}")
+
+            # Assign to agent (even if empty/None to reset state)
+            agent.current_metadata = (
+                metadata if metadata else Metadata.model_construct()
+            )
+            agent.chat_history = history
+            agent.current_fingerprint = fingerprint
 
             # Switch model
             if agent.current_metadata.ai_model:
-                logger.info(
-                    f"DEBUG: Switching AI model to: {agent.current_metadata.ai_model}"
-                )
                 ai.switch_model(agent.current_metadata.ai_model)
 
-            # Sequence UI Refresh with timing
-            logger.info("DEBUG: Starting sequential UI refresh...")
+            # Ensure workspace directory exists for protocols
+            project_state_dir = wm.projects_dir / project_id
+            project_state_dir.mkdir(parents=True, exist_ok=True)
 
+            # Sequence UI Refresh
             refresh_steps = [
                 ("Header", header_content_ui),
                 ("Metadata Preview", metadata_preview_ui),
@@ -2024,34 +2025,22 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
             ]
 
             for name, component in refresh_steps:
-                step_start = time.time()
-                logger.info(f"DEBUG: Refreshing {name}...")
                 try:
                     component.refresh()
-                    logger.info(
-                        f"DEBUG: {name} refresh took {time.time() - step_start:.4f}s"
-                    )
                 except Exception as re:
                     logger.error(f"DEBUG: ERROR refreshing {name}: {re}")
-                await asyncio.sleep(0.1)  # Increased sleep between components
+                await asyncio.sleep(0.05)
 
-            logger.info(
-                f">>> DEBUG: handle_load_project FINISHED in {time.time() - start_time:.4f}s"
-            )
             safe_notify(
                 _("Project opened from history.")
                 if success
                 else _("New project directory opened.")
             )
-
         except Exception as e:
-            logger.error(
-                f"DEBUG: CRITICAL ERROR in handle_load_project: {e}", exc_info=True
-            )
-            safe_notify(
-                _("Failed to load project: {error}").format(error=str(e)),
-                type="negative",
-            )
+            logger.error(f"DEBUG: Error in handle_load_project: {e}", exc_info=True)
+            safe_notify(_("Failed to load project correctly."), type="warning")
+            # We still keep ScanState.current_path so it can be deleted
+            header_content_ui.refresh()
         finally:
             ScanState.is_loading_project = False
 
