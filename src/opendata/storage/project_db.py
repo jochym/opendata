@@ -13,6 +13,9 @@ class ProjectInventoryDB:
     def _init_db(self):
         """Initializes the database schema."""
         with sqlite3.connect(self.db_path) as conn:
+            # Performance PRAGMAs for fast bulk operations
+            conn.execute("PRAGMA journal_mode = WAL")
+            conn.execute("PRAGMA synchronous = NORMAL")
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS file_inventory (
                     path TEXT PRIMARY KEY,
@@ -23,14 +26,21 @@ class ProjectInventoryDB:
             conn.commit()
 
     def update_inventory(self, files: List[dict]):
-        """Replaces the entire inventory with new data."""
+        """Replaces the entire inventory with new data using an optimized transaction."""
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute("DELETE FROM file_inventory")
-            conn.executemany(
-                "INSERT INTO file_inventory (path, size, mtime) VALUES (:path, :size, :mtime)",
-                files,
-            )
-            conn.commit()
+            # Optimize transaction
+            conn.execute("PRAGMA synchronous = OFF")
+            conn.execute("BEGIN TRANSACTION")
+            try:
+                conn.execute("DELETE FROM file_inventory")
+                conn.executemany(
+                    "INSERT INTO file_inventory (path, size, mtime) VALUES (:path, :size, :mtime)",
+                    files,
+                )
+                conn.commit()
+            except Exception as e:
+                conn.rollback()
+                raise e
 
     def get_inventory(self) -> List[dict]:
         """Returns the complete cached inventory."""

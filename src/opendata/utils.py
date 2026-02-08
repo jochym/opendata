@@ -58,15 +58,18 @@ def walk_project_files(
         if stop_event and stop_event.is_set():
             return
 
+        # Relative path of the current directory for pattern matching
+        rel_dir = os.path.relpath(dirpath, root)
+        if rel_dir == ".":
+            rel_dir = ""
+
         # Check for '.ignore' file in the current directory
         if ".ignore" in filenames:
-            # Clear dirnames and filenames to skip this entire tree
             dirnames[:] = []
             filenames[:] = []
             continue
 
         # Filter out directories
-        original_dir_count = len(dirnames)
         dirnames[:] = [
             d
             for d in dirnames
@@ -75,34 +78,42 @@ def walk_project_files(
             and not os.path.islink(os.path.join(dirpath, d))
         ]
 
-        # Filter files
-        original_file_count = len(filenames)
-        final_filenames = [
-            f
-            for f in filenames
-            if not f.startswith(".") and not os.path.islink(os.path.join(dirpath, f))
-        ]
+        # Filter files using relative paths for accurate glob matching
+        final_filenames = []
+        for f in filenames:
+            if f.startswith(".") or os.path.islink(os.path.join(dirpath, f)):
+                continue
 
+            rel_f_path = os.path.join(rel_dir, f).replace("\\", "/")
+
+            is_excluded = False
+            if exclude_patterns:
+                for pattern in exclude_patterns:
+                    # Match against the relative path from project root
+                    if fnmatch.fnmatch(rel_f_path, pattern) or fnmatch.fnmatch(
+                        f, pattern
+                    ):
+                        is_excluded = True
+                        break
+
+            if not is_excluded:
+                final_filenames.append(f)
+
+        # Directory filtering with patterns (if a whole dir matches pattern)
         if exclude_patterns:
-            for pattern in exclude_patterns:
-                # If pattern ends with / it's a directory pattern
-                if pattern.endswith("/"):
-                    clean_p = pattern[:-1]
-                    dirnames[:] = [
-                        d for d in dirnames if not fnmatch.fnmatch(d, clean_p)
-                    ]
-                else:
-                    final_filenames = [
-                        f for f in final_filenames if not fnmatch.fnmatch(f, pattern)
-                    ]
-
-        if original_file_count > 0 and len(final_filenames) == 0:
-            # This is suspicious - we had files but filtered them all out
-            import logging
-
-            logging.getLogger("opendata.utils").debug(
-                f"Filtered out all {original_file_count} files in {dirpath}"
-            )
+            new_dirnames = []
+            for d in dirnames:
+                rel_d_path = os.path.join(rel_dir, d).replace("\\", "/") + "/"
+                is_d_excluded = False
+                for pattern in exclude_patterns:
+                    if fnmatch.fnmatch(rel_d_path, pattern) or fnmatch.fnmatch(
+                        d + "/", pattern
+                    ):
+                        is_d_excluded = True
+                        break
+                if not is_d_excluded:
+                    new_dirnames.append(d)
+            dirnames[:] = new_dirnames
 
         # Yield the current directory for progress reporting
         yield Path(dirpath)
@@ -274,7 +285,7 @@ class FullTextReader:
         try:
             from docx import Document  # type: ignore
 
-            doc = Document(filepath)
+            doc = Document(str(filepath))
             full_text = []
 
             # Extract paragraphs
