@@ -2075,8 +2075,24 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
             ui.notify(_("Please provide a path"), type="warning")
             return
 
-        # Ensure we always use absolute resolved paths
-        resolved_path = Path(path).expanduser().resolve()
+        # 1. Sanitize and Validate Path
+        clean_path = path.strip().strip('"').strip("'")
+        resolved_path = Path(clean_path).expanduser().resolve()
+
+        if not resolved_path.exists():
+            ui.notify(
+                _("Directory does not exist: {path}").format(path=resolved_path),
+                type="negative",
+            )
+            return
+
+        if not resolved_path.is_dir():
+            ui.notify(
+                _("Path is not a directory: {path}").format(path=resolved_path),
+                type="negative",
+            )
+            return
+
         ScanState.current_path = str(resolved_path)
         logger.info(f"DEBUG: Starting handle_scan for {resolved_path}")
 
@@ -2103,6 +2119,12 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
         )
         ScanState.is_scanning = False
         ScanState.stop_event = None
+
+        # CRITICAL: Force inventory cache invalidation and reload after scan
+        UIState.last_inventory_project = ""
+        UIState.inventory_cache = []
+        asyncio.create_task(load_inventory_background())
+
         chat_messages_ui.refresh()
         metadata_preview_ui.refresh()
 

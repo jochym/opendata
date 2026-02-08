@@ -18,6 +18,7 @@ from opendata.models import (
 from opendata.extractors.base import ExtractorRegistry, PartialMetadata
 from opendata.workspace import WorkspaceManager
 from opendata.utils import scan_project_lazy, PromptManager
+from opendata.i18n.manager import setup_i18n, _
 
 logger = logging.getLogger(__name__)
 
@@ -191,16 +192,32 @@ class ProjectAnalysisAgent:
         if stop_event and stop_event.is_set():
             return "Scan cancelled by user."
 
-        # Persistent Inventory: Save all files to SQLite
+        # Persistent Inventory: The 'scan_project_lazy' already did the work,
+        # but we need the full file objects for the database.
         try:
             from opendata.utils import list_project_files_full
             from opendata.storage.project_db import ProjectInventoryDB
 
+            # Use gettext if available, otherwise fallback
+            try:
+                from opendata.i18n.manager import _
+
+                msg_status = _("Saving file inventory to database...")
+            except:
+                msg_status = "Saving file inventory to database..."
+
+            if progress_callback:
+                progress_callback(msg_status, "", "")
+
+            # Optimization: we use the already known project_dir and exclude_patterns
             full_files = list_project_files_full(
                 project_dir, stop_event=stop_event, exclude_patterns=exclude_patterns
             )
             db = ProjectInventoryDB(self.wm.get_project_db_path(self.project_id))
             db.update_inventory(full_files)
+            self.logger.info(
+                f"DEBUG: SQLite inventory updated with {len(full_files)} files."
+            )
         except Exception as e:
             self.logger.error(f"DEBUG: Failed to save inventory: {e}")
 
@@ -243,7 +260,6 @@ class ProjectAnalysisAgent:
 
         self.current_metadata = Metadata.model_construct(**heuristics_data)
 
-        # Authors normalization
         if self.current_metadata.authors:
             processed_authors = []
             for author in self.current_metadata.authors:
@@ -252,7 +268,14 @@ class ProjectAnalysisAgent:
                         author["identifier_scheme"] = "ORCID"
                     processed_authors.append(PersonOrOrg.model_validate(author))
                 elif isinstance(author, str):
-                    processed_authors.append(PersonOrOrg(name=author))
+                    processed_authors.append(
+                        PersonOrOrg(
+                            name=author,
+                            affiliation=None,
+                            identifier_scheme=None,
+                            identifier=None,
+                        )
+                    )
                 else:
                     processed_authors.append(author)
             self.current_metadata.authors = processed_authors
