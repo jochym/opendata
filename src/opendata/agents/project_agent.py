@@ -249,8 +249,10 @@ class ProjectAnalysisAgent:
 
                 for extractor in self.registry.get_extractors_for(p):
                     partial = extractor.extract(p)
+                    # Filter only fields that exist in our Metadata model to avoid validation errors
+                    metadata_fields = Metadata.model_fields.keys()
                     for key, val in partial.model_dump(exclude_unset=True).items():
-                        if val:
+                        if val and key in metadata_fields:
                             if isinstance(val, list) and key in heuristics_data:
                                 for item in val:
                                     if item not in heuristics_data[key]:
@@ -258,40 +260,21 @@ class ProjectAnalysisAgent:
                             else:
                                 heuristics_data[key] = val
 
-        self.current_metadata = Metadata.model_construct(**heuristics_data)
+        # Heuristics extraction finished, now create a valid Metadata model
+        self.current_metadata = Metadata.model_validate(heuristics_data)
 
+        # Normalize authors and contacts to ensure they are full objects
         if self.current_metadata.authors:
-            processed_authors = []
-            for author in self.current_metadata.authors:
-                if isinstance(author, dict):
-                    if author.get("identifier") and not author.get("identifier_scheme"):
-                        author["identifier_scheme"] = "ORCID"
-                    processed_authors.append(PersonOrOrg.model_validate(author))
-                elif isinstance(author, str):
-                    processed_authors.append(
-                        PersonOrOrg(
-                            name=author,
-                            affiliation=None,
-                            identifier_scheme=None,
-                            identifier=None,
-                        )
-                    )
-                else:
-                    processed_authors.append(author)
-            self.current_metadata.authors = processed_authors
+            self.current_metadata.authors = [
+                PersonOrOrg.model_validate(a) if isinstance(a, dict) else a
+                for a in self.current_metadata.authors
+            ]
 
         if self.current_metadata.contacts:
-            processed_contacts = []
-            for contact in self.current_metadata.contacts:
-                if isinstance(contact, dict):
-                    if "name" in contact and "person_to_contact" not in contact:
-                        contact["person_to_contact"] = contact.pop("name")
-                    if "person_to_contact" in contact and "email" not in contact:
-                        contact["email"] = "missing@example.com"
-                    processed_contacts.append(Contact.model_validate(contact))
-                else:
-                    processed_contacts.append(contact)
-            self.current_metadata.contacts = processed_contacts
+            self.current_metadata.contacts = [
+                Contact.model_validate(c) if isinstance(c, dict) else c
+                for c in self.current_metadata.contacts
+            ]
 
         msg = f"I've scanned {self.current_fingerprint.file_count} files in your project. "
         found_fields = list(heuristics_data.keys())
