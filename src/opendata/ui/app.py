@@ -82,21 +82,43 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
         """Debounced refresh - waits 150ms before executing, skips if already pending."""
         if UIState.pending_refresh:
             return
+
+        # Check if we have an active client/connection before refreshing
+        try:
+            if not ui.context.client:
+                return
+        except Exception:
+            return
+
         UIState.pending_refresh = True
         await asyncio.sleep(0.15)
         UIState.pending_refresh = False
+
+        # Verify client again after sleep
+        try:
+            if not ui.context.client or not ui.context.client.has_socket_connection:
+                return
+        except Exception:
+            return
+
         try:
             chat_messages_ui.refresh()
             metadata_preview_ui.refresh()
             header_content_ui.refresh()
             render_protocols_tab.refresh()
-            # render_package_tab.refresh()  # REMOVED - too heavy
             render_preview_and_build.refresh()
         except Exception:
             pass
 
     def refresh_all():
         """Synchronous refresh with throttling - max once per 200ms."""
+        # Check if we have an active client
+        try:
+            if not ui.context.client or not ui.context.client.has_socket_connection:
+                return
+        except Exception:
+            return
+
         now = time.time()
         if now - UIState.last_refresh_time < 0.2:
             # Schedule async debounced refresh instead
@@ -108,7 +130,6 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
             metadata_preview_ui.refresh()
             header_content_ui.refresh()
             render_protocols_tab.refresh()
-            # render_package_tab.refresh()  # REMOVED - too heavy
             render_preview_and_build.refresh()
         except Exception:
             pass
@@ -383,38 +404,6 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
         # that could cause WebSocket overload. Header is refreshed via refresh_all() instead.
 
         fields = agent.current_metadata.model_dump(exclude_unset=True)
-
-        def create_expandable_text(text: str, key: str = None):
-            with ui.column().classes(
-                "w-full gap-0 bg-slate-50 border border-slate-100 rounded relative group"
-            ):
-                # Lock indicator
-                if key:
-                    is_locked = key in agent.current_metadata.locked_fields
-
-                    async def toggle_lock(e, k=key):
-                        if k in agent.current_metadata.locked_fields:
-                            agent.current_metadata.locked_fields.remove(k)
-                        else:
-                            agent.current_metadata.locked_fields.append(k)
-                        agent.save_state()
-                        metadata_preview_ui.refresh()
-
-                    with (
-                        ui.button(
-                            icon="lock" if is_locked else "lock_open",
-                            on_click=toggle_lock,
-                        )
-                        .props("flat dense")
-                        .classes(
-                            f"absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity {'text-orange-600 opacity-100' if is_locked else 'text-slate-400'}"
-                        )
-                    ):
-                        ui.tooltip(
-                            _("Lock field from AI updates")
-                            if not is_locked
-                            else _("Unlock field")
-                        )
 
         # Increased height to 110px to ensure 5 lines are fully visible without chopping descenders.
         def create_expandable_text(text: str, key: str = None):
@@ -1568,8 +1557,24 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                 ).classes("text-slate-400")
 
             # The Grid
+            MAX_GRID_ROWS = 2000
+            total_rows = len(inventory)
+            is_clipped = total_rows > MAX_GRID_ROWS
+
+            if is_clipped:
+                display_inventory = inventory[:MAX_GRID_ROWS]
+                ui.label(
+                    _(
+                        "⚠️ Large project: Showing first {max} of {total} files. Use filters below."
+                    ).format(max=MAX_GRID_ROWS, total=total_rows)
+                ).classes(
+                    "text-orange-600 font-bold bg-orange-50 p-2 rounded w-full border border-orange-200"
+                )
+            else:
+                display_inventory = inventory
+
             grid_data = []
-            for item in inventory:
+            for item in display_inventory:
                 grid_data.append(
                     {
                         "included": item["included"],
@@ -1632,21 +1637,39 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                 selected_rows = await grid.get_selected_rows()
                 selected_paths = {row["path"] for row in selected_rows}
 
-                new_force_include = []
-                new_force_exclude = []
+                # Visible paths - only these can be modified by this interaction
+                visible_paths = {item["path"] for item in display_inventory}
 
-                # Use UIState.inventory_cache directly
-                for item in UIState.inventory_cache:
-                    rel_path = item["path"]
-                    is_proto_excluded = item["is_proto_excluded"]
+                new_force_include = manifest.force_include.copy()
+                new_force_exclude = manifest.force_exclude.copy()
+
+                # Only update state for files that were actually visible and could be interacted with
+                for rel_path in visible_paths:
+                    # Find item in cache to check proto status
+                    cache_item = next(
+                        (i for i in UIState.inventory_cache if i["path"] == rel_path),
+                        None,
+                    )
+                    if not cache_item:
+                        continue
+
+                    is_proto_excluded = cache_item["is_proto_excluded"]
                     is_now_selected = rel_path in selected_paths
 
                     if is_proto_excluded:
                         if is_now_selected:
-                            new_force_include.append(rel_path)
+                            if rel_path not in new_force_include:
+                                new_force_include.append(rel_path)
+                        else:
+                            if rel_path in new_force_include:
+                                new_force_include.remove(rel_path)
                     else:
                         if not is_now_selected:
-                            new_force_exclude.append(rel_path)
+                            if rel_path not in new_force_exclude:
+                                new_force_exclude.append(rel_path)
+                        else:
+                            if rel_path in new_force_exclude:
+                                new_force_exclude.remove(rel_path)
 
                 manifest.force_include = new_force_include
                 manifest.force_exclude = new_force_exclude
