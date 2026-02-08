@@ -136,33 +136,40 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
     async def load_inventory_background():
         """Load inventory in background with lock to prevent concurrent runs."""
+        logger.info(
+            f">>> DEBUG: load_inventory_background START for {agent.project_id}"
+        )
         if not agent.project_id or ScanState.is_scanning:
+            logger.info("DEBUG: Load aborted - no project_id or scan in progress.")
             return
 
         # Prevent concurrent inventory loading
         if UIState.inventory_lock:
-            logger.info(
-                f"DEBUG: Inventory load skipped - already locked for {agent.project_id}"
-            )
+            logger.info(f"DEBUG: Inventory load skipped - already locked.")
             return
 
-        logger.info(f"DEBUG: Starting inventory load for {agent.project_id}")
         UIState.inventory_lock = True
         UIState.is_loading_inventory = True
 
         try:
+            # Step 1: UI feedback
+            logger.info("DEBUG: Inventory load step 1: Pre-refreshing Package tab...")
             render_package_tab.refresh()
-        except Exception as e:
-            logger.warning(f"DEBUG: Failed to refresh package tab (pre-load): {e}")
 
-        try:
+            # Step 2: Path check
             if not ScanState.current_path:
                 logger.error(
-                    "DEBUG: Cannot load inventory - ScanState.current_path is None"
+                    "DEBUG: Inventory load ERROR - ScanState.current_path is None"
                 )
                 return
 
             project_path = Path(ScanState.current_path)
+            logger.info(f"DEBUG: Inventory load step 2: Project path is {project_path}")
+
+            # Step 3: DB Load
+            logger.info(
+                "DEBUG: Inventory load step 3: Fetching from DB (background thread)..."
+            )
             manifest = pkg_mgr.get_manifest(agent.project_id)
 
             field_name = (
@@ -173,16 +180,17 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
             effective = pm.resolve_effective_protocol(agent.project_id, field_name)
             protocol_excludes = effective.get("exclude", [])
 
-            logger.info(f"DEBUG: Calling get_inventory_for_ui thread...")
             inventory = await asyncio.to_thread(
                 pkg_mgr.get_inventory_for_ui, project_path, manifest, protocol_excludes
             )
 
+            # Step 4: Cache update
             UIState.inventory_cache = inventory
             UIState.last_inventory_project = agent.project_id
-            logger.info(f"DEBUG: Inventory loaded successfully: {len(inventory)} files")
+            logger.info(
+                f"DEBUG: Inventory load step 4: SUCCESS. {len(inventory)} files found."
+            )
 
-            # Explicit notify for user feedback
             if len(inventory) > 0:
                 safe_notify(
                     _("File inventory loaded ({count} files)").format(
@@ -192,7 +200,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                 )
 
         except Exception as e:
-            logger.error(f"DEBUG: Failed to load inventory: {e}", exc_info=True)
+            logger.error(f"DEBUG: Inventory load CRITICAL ERROR: {e}", exc_info=True)
             safe_notify(
                 _("Error loading file list: {error}").format(error=str(e)),
                 type="negative",
@@ -200,12 +208,13 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
         finally:
             UIState.is_loading_inventory = False
             UIState.inventory_lock = False
-            # Force refresh after data is ready
-            logger.info("DEBUG: Final refresh of package tab after load.")
+            logger.info(
+                "DEBUG: load_inventory_background FINISHED. Refreshing Package tab..."
+            )
             try:
                 render_package_tab.refresh()
             except Exception as e:
-                logger.warning(f"DEBUG: Failed to refresh package tab (post-load): {e}")
+                logger.warning(f"DEBUG: Failed final refresh: {e}")
 
     def safe_notify(
         message: str,
@@ -1482,256 +1491,152 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
     @ui.refreshable
     def render_package_tab():
-        logger.info(
-            f"DEBUG: render_package_tab called. Project: {agent.project_id}, Cache project: {UIState.last_inventory_project}, Loading: {UIState.is_loading_inventory}"
-        )
+        logger.info(f">>> DEBUG: render_package_tab START. Project: {agent.project_id}")
 
         # Package Content Editor
         if not agent.project_id:
-            with ui.card().classes("w-full p-8 shadow-md"):
-                with ui.column().classes("w-full items-center p-8"):
-                    ui.icon("folder_open", size="lg", color="grey-400")
-                    ui.label(_("Please select and open a project first.")).classes(
-                        "text-orange-600 font-bold"
-                    )
-            return
-
-        # Explicit Requirement: Only use SQLite cache. Never scan disk implicitly during render.
-        # Check if project changed and we haven't loaded cache yet
-        if UIState.last_inventory_project != agent.project_id:
-            logger.info(f"DEBUG: Project mismatch. Triggering background load...")
-            # Only start if not already loading AND not locked (prevents race conditions)
-            if not UIState.is_loading_inventory and not UIState.inventory_lock:
-                asyncio.create_task(load_inventory_background())
-            else:
-                logger.info(
-                    f"DEBUG: Load already in progress or locked. Skipping task creation."
-                )
-
-        if UIState.is_loading_inventory and not UIState.inventory_cache:
-            with ui.column().classes("w-full items-center justify-center p-20 gap-4"):
-                ui.spinner(size="xl")
-                ui.label(_("Reading project inventory from database...")).classes(
-                    "text-slate-500 animate-pulse"
-                )
-            return
-
-        if not UIState.inventory_cache:
-            logger.info("DEBUG: inventory_cache is empty.")
-            with ui.column().classes("w-full items-center justify-center p-20 gap-4"):
-                ui.icon("inventory", size="xl", color="grey-400")
-                ui.label(_("No file inventory found.")).classes(
+            with ui.card().classes("w-full p-8 shadow-md items-center justify-center"):
+                ui.icon("folder_open", size="lg", color="grey-400")
+                ui.label(_("Please select and open a project first.")).classes(
                     "text-orange-600 font-bold"
                 )
-                ui.markdown(
-                    _(
-                        "Please click **Analyze Directory** in the Analysis tab to list project files."
-                    )
-                ).classes("text-sm text-slate-500")
-                ui.button(
-                    _("Go to Analysis"),
-                    on_click=lambda: UIState.main_tabs.set_value(UIState.analysis_tab),
-                ).props("outline")
             return
 
-        logger.info(f"DEBUG: Rendering grid with {len(UIState.inventory_cache)} items.")
-        project_path = Path(ScanState.current_path)
-        manifest = pkg_mgr.get_manifest(agent.project_id)
-        inventory = UIState.inventory_cache
-
         with ui.column().classes("w-full gap-4 h-full p-4"):
+            # 1. Header with Fingerprint Info (Immediate)
             with ui.row().classes("w-full items-center justify-between"):
                 with ui.column():
                     ui.label(_("Package Content Editor")).classes("text-2xl font-bold")
-                    ui.label(
-                        _(
-                            "Select files to include in the final RODBUK package. Changes are saved automatically."
-                        )
-                    ).classes("text-sm text-slate-500")
+                    if agent.current_fingerprint:
+                        fp = agent.current_fingerprint
+                        ui.label(
+                            _("Project contains {count} files ({size})").format(
+                                count=fp.file_count,
+                                size=format_size(fp.total_size_bytes),
+                            )
+                        ).classes("text-sm text-slate-600 font-bold")
+                    else:
+                        ui.label(
+                            _("Select files to include in the final RODBUK package.")
+                        ).classes("text-sm text-slate-500")
 
                 with ui.row().classes("gap-2"):
-                    with ui.row().bind_visibility_from(ScanState, "is_scanning"):
-                        ui.spinner(size="sm")
-                        ui.label().bind_text_from(ScanState, "progress").classes(
-                            "text-xs text-slate-500"
-                        )
-
                     ui.button(
-                        _("Refresh File List"),
+                        _("Refresh List"),
                         icon="refresh",
                         on_click=handle_refresh_inventory,
-                    ).props("outline color=primary").bind_visibility_from(
-                        ScanState, "is_scanning", backward=lambda x: not x
-                    )
-                    ui.button(
-                        _("Reset to Defaults"),
-                        icon="settings_backup_restore",
-                        on_click=lambda: handle_reset(),
-                    ).props("outline color=grey-7")
-                    ui.button(
-                        _("AI Assist (Coming Soon)"),
-                        icon="auto_awesome",
-                    ).props("flat color=primary disabled")
+                    ).props("outline color=primary")
 
-            # Statistics summary
-            included_files = [f for f in inventory if f["included"]]
-            total_size = sum(f["size"] for f in included_files)
+            # 2. Lazy Loading Logic
+            if UIState.last_inventory_project != agent.project_id:
+                logger.info("DEBUG: Project change in Package Tab. Triggering load.")
+                if not UIState.is_loading_inventory and not UIState.inventory_lock:
+                    asyncio.create_task(load_inventory_background())
+
+            # 3. Content Area
+            if UIState.is_loading_inventory and not UIState.inventory_cache:
+                with ui.column().classes("w-full items-center justify-center p-20"):
+                    ui.spinner(size="xl")
+                    ui.label(_("Loading files from database...")).classes(
+                        "animate-pulse"
+                    )
+                return
+
+            if not UIState.inventory_cache:
+                with ui.column().classes("w-full items-center justify-center p-20"):
+                    ui.icon("inventory", size="xl", color="grey-400")
+                    ui.label(_("No file inventory found.")).classes("font-bold")
+                    ui.button(
+                        _("Load Files"), on_click=load_inventory_background
+                    ).props("flat")
+                return
+
+            # 4. Grid (The actual data)
+            inventory = UIState.inventory_cache
+            manifest = pkg_mgr.get_manifest(agent.project_id)
+            included = [f for f in inventory if f["included"]]
+
             with ui.row().classes("w-full gap-8 p-3 bg-slate-50 rounded-lg border"):
-                ui.label(
-                    _("Included: {count} files").format(count=len(included_files))
-                ).classes("font-bold")
-                ui.label(_("Total Size: {size}").format(size=format_size(total_size)))
-                ui.label(
-                    _("Excluded: {count} files").format(
-                        count=len(inventory) - len(included_files)
-                    )
-                ).classes("text-slate-400")
-
-            # The Grid
-            MAX_GRID_ROWS = 2000
-            total_rows = len(inventory)
-            is_clipped = total_rows > MAX_GRID_ROWS
-
-            if is_clipped:
-                display_inventory = inventory[:MAX_GRID_ROWS]
-                ui.label(
-                    _(
-                        "⚠️ Large project: Showing first {max} of {total} files. Use filters below."
-                    ).format(max=MAX_GRID_ROWS, total=total_rows)
-                ).classes(
-                    "text-orange-600 font-bold bg-orange-50 p-2 rounded w-full border border-orange-200"
+                ui.label(_("Included: {count}").format(count=len(included))).classes(
+                    "font-bold text-green-700"
                 )
-            else:
-                display_inventory = inventory
+                ui.label(
+                    _("Total size: {size}").format(
+                        size=format_size(sum(f["size"] for f in included))
+                    )
+                )
+
+            MAX_ROWS = 2000
+            display_data = inventory[:MAX_ROWS]
 
             grid_data = []
-            for item in display_inventory:
+            for item in display_data:
                 grid_data.append(
                     {
                         "included": item["included"],
                         "path": item["path"],
-                        "size_val": item["size"],
                         "size": format_size(item["size"]),
                         "reason": item["reason"],
                     }
                 )
 
-            column_defs = [
-                {
-                    "headerName": _("Include"),
-                    "field": "included",
-                    "checkboxSelection": True,
-                    "showDisabledCheckboxes": True,
-                    "width": 100,
-                },
-                {
-                    "headerName": _("File Path"),
-                    "field": "path",
-                    "filter": "agTextColumnFilter",
-                    "flex": 1,
-                },
-                {
-                    "headerName": _("Size"),
-                    "field": "size",
-                    "sortable": True,
-                    "width": 120,
-                    "comparator": "valueGetter: node.data.size_val",
-                },
-                {
-                    "headerName": _("Inclusion Reason"),
-                    "field": "reason",
-                    "width": 180,
-                    "filter": "agTextColumnFilter",
-                },
-            ]
-
             grid = ui.aggrid(
                 {
-                    "columnDefs": column_defs,
+                    "columnDefs": [
+                        {
+                            "headerName": _("Include"),
+                            "field": "included",
+                            "checkboxSelection": True,
+                            "width": 100,
+                        },
+                        {
+                            "headerName": _("Path"),
+                            "field": "path",
+                            "filter": "agTextColumnFilter",
+                            "flex": 1,
+                        },
+                        {"headerName": _("Size"), "field": "size", "width": 120},
+                        {"headerName": _("Reason"), "field": "reason", "width": 150},
+                    ],
                     "rowData": grid_data,
                     "rowSelection": "multiple",
-                    "stopEditingWhenCellsLoseFocus": True,
                     "pagination": True,
                     "paginationPageSize": 50,
                 }
-            ).classes("w-full h-[600px] shadow-sm")
+            ).classes("w-full h-[500px] shadow-sm")
 
-            # Initial selection
             grid.options["selected_keys"] = [
                 i for i, f in enumerate(grid_data) if f["included"]
             ]
 
-            # Use javascript update to ensure grid data stays visible
-            grid.update()
+            async def on_selection():
+                rows = await grid.get_selected_rows()
+                selected_paths = {r["path"] for r in rows}
+                visible_paths = {i["path"] for i in display_data}
 
-            async def handle_selection_change():
-                selected_rows = await grid.get_selected_rows()
-                selected_paths = {row["path"] for row in selected_rows}
-
-                # Visible paths - only these can be modified by this interaction
-                visible_paths = {item["path"] for item in display_inventory}
-
-                new_force_include = manifest.force_include.copy()
-                new_force_exclude = manifest.force_exclude.copy()
-
-                # Only update state for files that were actually visible and could be interacted with
-                for rel_path in visible_paths:
-                    # Find item in cache to check proto status
-                    cache_item = next(
-                        (i for i in UIState.inventory_cache if i["path"] == rel_path),
-                        None,
-                    )
-                    if not cache_item:
-                        continue
-
-                    is_proto_excluded = cache_item["is_proto_excluded"]
-                    is_now_selected = rel_path in selected_paths
-
-                    if is_proto_excluded:
-                        if is_now_selected:
-                            if rel_path not in new_force_include:
-                                new_force_include.append(rel_path)
-                        else:
-                            if rel_path in new_force_include:
-                                new_force_include.remove(rel_path)
+                # Update manifest
+                for path in visible_paths:
+                    item = next(i for i in inventory if i["path"] == path)
+                    is_sel = path in selected_paths
+                    if item["is_proto_excluded"]:
+                        if is_sel and path not in manifest.force_include:
+                            manifest.force_include.append(path)
+                        if not is_sel and path in manifest.force_include:
+                            manifest.force_include.remove(path)
                     else:
-                        if not is_now_selected:
-                            if rel_path not in new_force_exclude:
-                                new_force_exclude.append(rel_path)
-                        else:
-                            if rel_path in new_force_exclude:
-                                new_force_exclude.remove(rel_path)
+                        if not is_sel and path not in manifest.force_exclude:
+                            manifest.force_exclude.append(path)
+                        if is_sel and path in manifest.force_exclude:
+                            manifest.force_exclude.remove(path)
 
-                manifest.force_include = new_force_include
-                manifest.force_exclude = new_force_exclude
                 pkg_mgr.save_manifest(manifest)
+                # Refresh local cache
+                for i in inventory:
+                    if i["path"] in visible_paths:
+                        i["included"] = i["path"] in selected_paths
+                render_package_tab.refresh()
 
-                # Update cache so UI reflects change immediately
-                for item in UIState.inventory_cache:
-                    rel_path = item["path"]
-                    if rel_path in manifest.force_include:
-                        item["included"] = True
-                        item["reason"] = "👤 User (Forced)"
-                    elif rel_path in manifest.force_exclude:
-                        item["included"] = False
-                        item["reason"] = "👤 User (Excluded)"
-                    else:
-                        item["included"] = not item["is_proto_excluded"]
-                        item["reason"] = (
-                            "📜 Protocol" if item["is_proto_excluded"] else "✅ Default"
-                        )
-
-                refresh_all()
-
-            grid.on("selectionChanged", handle_selection_change)
-
-            async def handle_reset():
-                manifest.force_include = []
-                manifest.force_exclude = []
-                pkg_mgr.save_manifest(manifest)
-                ui.notify(_("Selection reset to protocol defaults."), type="info")
-                # Selective refresh in background
-                asyncio.create_task(load_inventory_background())
+            grid.on("selectionChanged", on_selection)
 
     def render_package_placeholder():
         render_package_tab()
