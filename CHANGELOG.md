@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.8] - 2026-02-08
+### Fixed
+- **Project Management:**
+  - **Unique Corrupt Labels:** Ensured that projects with missing metadata or fingerprints are assigned unique display paths (e.g., "Unknown (ID: abc12345)"). This fixes a collision issue where multiple broken projects shared the same "Unknown" path, making them impossible to select or delete individually.
+  - **Reactivity:** Proper integration of translations in the workspace manager.
+
 ## [0.9.7] - 2026-02-08
 ### Fixed
 - **Project Management:**
