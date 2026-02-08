@@ -19,13 +19,14 @@ from opendata.workspace import WorkspaceManager
 from opendata.utils import scan_project_lazy, PromptManager
 
 
-class ProjectAnalysisAgent:
-    """
-    Agent specialized in analyzing research directories and proposing metadata.
-    Maintains the state of the 'Chat Loop' and uses external tools (arXiv, DOI, ORCID).
-    """
+import logging
 
+logger = logging.getLogger(__name__)
+
+
+class ProjectAnalysisAgent:
     def __init__(self, wm: WorkspaceManager):
+        self.logger = logger
         self.wm = wm
         from opendata.protocols.manager import ProtocolManager
 
@@ -175,7 +176,9 @@ class ProjectAnalysisAgent:
         if progress_callback:
             progress_callback(f"Scanning {project_dir}...", "", "")
 
-        logger.info(f"DEBUG: start_analysis actual scan START for {project_dir}")
+        self.self.logger.info(
+            f"DEBUG: start_analysis actual scan START for {project_dir}"
+        )
         # Get field from metadata if exists
         field_name = (
             self.current_metadata.science_branches_mnisw[0]
@@ -186,7 +189,7 @@ class ProjectAnalysisAgent:
         exclude_patterns = effective.get("exclude")
 
         if stop_event and stop_event.is_set():
-            logger.warning(
+            self.self.logger.warning(
                 "DEBUG: stop_event was ALREADY SET before scan. Clearing it."
             )
             stop_event.clear()
@@ -198,7 +201,7 @@ class ProjectAnalysisAgent:
             exclude_patterns=exclude_patterns,
         )
 
-        logger.info(
+        self.self.logger.info(
             f"DEBUG: Fingerprint complete. Files: {self.current_fingerprint.file_count}"
         )
 
