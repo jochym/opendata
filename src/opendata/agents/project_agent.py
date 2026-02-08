@@ -175,6 +175,7 @@ class ProjectAnalysisAgent:
         if progress_callback:
             progress_callback(f"Scanning {project_dir}...", "", "")
 
+        logger.info(f"DEBUG: start_analysis actual scan START for {project_dir}")
         # Get field from metadata if exists
         field_name = (
             self.current_metadata.science_branches_mnisw[0]
@@ -184,11 +185,21 @@ class ProjectAnalysisAgent:
         effective = self.pm.resolve_effective_protocol(self.project_id, field_name)
         exclude_patterns = effective.get("exclude")
 
+        if stop_event and stop_event.is_set():
+            logger.warning(
+                "DEBUG: stop_event was ALREADY SET before scan. Clearing it."
+            )
+            stop_event.clear()
+
         self.current_fingerprint = scan_project_lazy(
             project_dir,
             progress_callback=progress_callback,
             stop_event=stop_event,
             exclude_patterns=exclude_patterns,
+        )
+
+        logger.info(
+            f"DEBUG: Fingerprint complete. Files: {self.current_fingerprint.file_count}"
         )
 
         if stop_event and stop_event.is_set():

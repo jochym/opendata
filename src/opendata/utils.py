@@ -65,13 +65,22 @@ def walk_project_files(
             filenames[:] = []
             continue
 
-        # Filter out directories using global skip_dirs and user patterns
+        # Filter out directories
+        original_dir_count = len(dirnames)
         dirnames[:] = [
             d
             for d in dirnames
             if d not in skip_dirs
             and not d.startswith(".")
             and not os.path.islink(os.path.join(dirpath, d))
+        ]
+
+        # Filter files
+        original_file_count = len(filenames)
+        final_filenames = [
+            f
+            for f in filenames
+            if not f.startswith(".") and not os.path.islink(os.path.join(dirpath, f))
         ]
 
         if exclude_patterns:
@@ -82,20 +91,18 @@ def walk_project_files(
                     dirnames[:] = [
                         d for d in dirnames if not fnmatch.fnmatch(d, clean_p)
                     ]
-
-        # Filter files using global hidden rule and user patterns
-        final_filenames = [
-            f
-            for f in filenames
-            if not f.startswith(".") and not os.path.islink(os.path.join(dirpath, f))
-        ]
-
-        if exclude_patterns:
-            for pattern in exclude_patterns:
-                if not pattern.endswith("/"):
+                else:
                     final_filenames = [
                         f for f in final_filenames if not fnmatch.fnmatch(f, pattern)
                     ]
+
+        if original_file_count > 0 and len(final_filenames) == 0:
+            # This is suspicious - we had files but filtered them all out
+            import logging
+
+            logging.getLogger("opendata.utils").debug(
+                f"Filtered out all {original_file_count} files in {dirpath}"
+            )
 
         # Yield the current directory for progress reporting
         yield Path(dirpath)

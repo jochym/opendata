@@ -2074,8 +2074,12 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
         if not path:
             ui.notify(_("Please provide a path"), type="warning")
             return
-        ScanState.current_path = path
-        resolved_path = Path(path).expanduser()
+
+        # Ensure we always use absolute resolved paths
+        resolved_path = Path(path).expanduser().resolve()
+        ScanState.current_path = str(resolved_path)
+        logger.info(f"DEBUG: Starting handle_scan for {resolved_path}")
+
         import threading
 
         ScanState.stop_event = threading.Event()
