@@ -160,14 +160,22 @@ Every substantial step must have an accompanying automated test. Before completi
   - **Viewport Optimization:** Fixed vertical whitespace issues by accurately calculating header height (104px including tabs), removing body/html margins, and ensuring full-height propagation through tab panels and containers.
 
 - **Phase 17 High-Scale Performance & Stability [COMPLETE]:**
-  - **Persistent File Inventory:** Integrated SQLite-based storage for large-scale research projects (15,000+ files).
-  - **WebSocket Resilience:** Solved \"Connection Lost\" issues by implementing debounced sequential UI refreshes and throttling heavy AgGrid payloads.
-  - **Lazy Package Tab:** Redesigned file selection UI with immediate fingerprint stats and on-demand background loading.
-  - **Scanner Optimization:** Combined stat crawling and DB indexing into a single pass, eliminating performance bottlenecks and \"scanning pauses\".
-  - **Precise Exclusions:** Refactored pattern matching to support full relative path globs (e.g., `data/**/*.tmp`).
-  - **Loading Guards:** Implemented robust state-locking to prevent infinite UI loading loops and concurrent project switches.
+  - Integrated SQLite-based storage for large-scale research projects (15,000+ files).
+  - Solved \"Connection Lost\" issues by implementing debounced sequential UI refreshes and throttling heavy AgGrid payloads.
+  - Lazy Package Tab: Redesigned file selection UI with immediate fingerprint stats and on-demand background loading.
+  - Scanner Optimization: Combined stat crawling and DB indexing into a single pass.
+  - Precise Exclusions: Refactored pattern matching to support full relative path globs (e.g., `data/**/*.tmp`).
+  - Loading Guards: Implemented robust state-locking to prevent infinite UI loading loops.
+
+- **Phase 18 Architectural Refactoring & Modularization [COMPLETE]:**
+  - **Structural Decoupling:** Split monolithic `app.py` into feature-specific modules in `src/opendata/ui/components/` (Chat, Metadata, Package, etc.).
+  - **State Injection:** Introduced `AppContext` and `UIState` patterns to manage dependencies and session state without global variables.
+  - **Agent Thinning:** Moved JSON parsing and external tool handling from `ProjectAnalysisAgent` to specialized modules (`parsing.py`, `tools.py`).
+  - **Performance Caching:** Integrated project list caching in `WorkspaceManager` and asynchronous inventory summary calculations.
+  - **UX Robustness:** Replaced complex components in dialogs with stable native lists and added comprehensive loading states.
 
 ## Code Style Guidelines
+
 
 ### 1. Multi-Platform Compatibility & i18n
 - **Python-Centric:** All core logic must be written in Python 3.10+.

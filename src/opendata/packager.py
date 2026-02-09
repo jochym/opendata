@@ -76,8 +76,8 @@ class PackagingService:
                         zf.write(p, arcname=rel_path)
             else:
                 # Fallback to old behavior if no list provided
-                for p in walk_project_files(project_dir):
-                    if p.is_file():
+                for p, stat in walk_project_files(project_dir):
+                    if stat is not None:
                         rel_path = p.relative_to(project_dir)
                         zf.write(p, arcname=rel_path)
 

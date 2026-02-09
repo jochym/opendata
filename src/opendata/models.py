@@ -161,12 +161,14 @@ class Question(BaseModel):
 class AIAnalysis(BaseModel):
     summary: str
     missing_fields: List[str] = Field(
-        default_factory=list, validation_alias="missingfields"
+        default_factory=list, validation_alias="missingfields", alias="missing_fields"
     )
     non_compliant: List[str] = Field(
-        default_factory=list, validation_alias="noncompliant"
+        default_factory=list, validation_alias="noncompliant", alias="non_compliant"
     )
     conflicting_data: List[Dict[str, Any]] = Field(
-        default_factory=list, validation_alias="conflictingdata"
+        default_factory=list,
+        validation_alias="conflictingdata",
+        alias="conflicting_data",
     )
     questions: List[Question] = Field(default_factory=list)

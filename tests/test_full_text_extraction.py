@@ -62,6 +62,10 @@ def test_project_agent_detects_full_text_candidate(latex_full_file, tmp_path):
     wm_mock = MagicMock()
     wm_mock.get_project_id.return_value = "test_project"
     wm_mock.load_project_state.return_value = (None, [], None)
+    # Mock projects_dir to a real temp path to avoid OSError in ProtocolManager
+    wm_mock.projects_dir = tmp_path / "projects"
+    wm_mock.projects_dir.mkdir()
+    (wm_mock.projects_dir / "test_project").mkdir()
 
     agent = ProjectAnalysisAgent(wm_mock)
 
@@ -73,11 +77,14 @@ def test_project_agent_detects_full_text_candidate(latex_full_file, tmp_path):
     assert "process its full text" in response
 
 
-def test_project_agent_triggers_full_text_analysis(latex_full_file):
+def test_project_agent_triggers_full_text_analysis(latex_full_file, tmp_path):
     # Setup
     wm_mock = MagicMock()
     wm_mock.get_project_id.return_value = "test_project"
     wm_mock.load_project_state.return_value = (None, [], None)
+    wm_mock.projects_dir = tmp_path / "projects"
+    wm_mock.projects_dir.mkdir(exist_ok=True)
+    (wm_mock.projects_dir / "test_project").mkdir(exist_ok=True)
 
     agent = ProjectAnalysisAgent(wm_mock)
 
@@ -130,11 +137,14 @@ def test_project_agent_triggers_full_text_analysis(latex_full_file):
     assert "Methodology" in call_args
 
 
-def test_project_agent_handles_structured_analysis_response(latex_full_file):
+def test_project_agent_handles_structured_analysis_response(latex_full_file, tmp_path):
     # Setup
     wm_mock = MagicMock()
     wm_mock.get_project_id.return_value = "test_project"
     wm_mock.load_project_state.return_value = (None, [], None)
+    wm_mock.projects_dir = tmp_path / "projects"
+    wm_mock.projects_dir.mkdir(exist_ok=True)
+    (wm_mock.projects_dir / "test_project").mkdir(exist_ok=True)
     agent = ProjectAnalysisAgent(wm_mock)
 
     agent.current_fingerprint = ProjectFingerprint(

@@ -23,7 +23,11 @@ A browser-centric, AI-assisted tool for preparing scientific metadata and packag
    ```
 
 ## Architecture
-The tool uses an **Agentic Backend** that performs heuristic extraction (regex/parsers) and AI-assisted interpretation. It follows a strictly **read-only** policy, storing all generated data in a separate workspace.
+The tool uses a modular **Agentic Backend** and a component-based **NiceGUI Frontend**.
+
+- **Frontend (`src/opendata/ui/`)**: Decoupled into functional components (`components/`) and session-managed via `AppContext`.
+- **Backend (`src/opendata/agents/`)**: Agentic reasoning loop with specialized modules for parsing and tool execution.
+- **Data Safety**: Strictly **read-only** policy for research data. All persistence happens in `~/.opendata_tool/`.
 
 ## Contributing
 See `AGENTS.md` for detailed coding standards and the agentic workflow.

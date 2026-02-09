@@ -190,11 +190,14 @@ def list_project_files_full(
     Skips directories, yields only files.
     """
     files = []
-    for p in walk_project_files(root, stop_event, exclude_patterns=exclude_patterns):
-        if p.is_file():
+    for p, stat in walk_project_files(
+        root, stop_event, exclude_patterns=exclude_patterns
+    ):
+        # walk_project_files yields (Path, stat)
+        # if stat is None, it's a directory
+        if stat is not None:
             rel_path = str(p.relative_to(root))
             try:
-                stat = p.stat()
                 files.append(
                     {
                         "path": rel_path,
@@ -203,7 +206,6 @@ def list_project_files_full(
                     }
                 )
             except Exception:
-                # Handle files that might have disappeared or are inaccessible
                 pass
     return files
 

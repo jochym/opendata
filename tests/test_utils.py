@@ -17,7 +17,7 @@ def test_lazy_scanner_no_reads():
         (tmp_path / "sub").mkdir()
         (tmp_path / "sub" / "paper.tex").write_text("\\title{Test Paper}")
 
-        fingerprint = scan_project_lazy(tmp_path)
+        fingerprint, full_files = scan_project_lazy(tmp_path)
 
         assert fingerprint.file_count == 2
         assert fingerprint.total_size_bytes > 1000000

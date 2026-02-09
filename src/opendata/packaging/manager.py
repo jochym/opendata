@@ -62,7 +62,7 @@ class PackageManager:
 
         try:
             # Walk and build
-            for p in walk_project_files(
+            for p, stat in walk_project_files(
                 root_path, exclude_patterns=None
             ):  # We handle exclusions visually
                 path_str = str(p)
@@ -88,7 +88,7 @@ class PackageManager:
                     "id": path_str,
                     "label": p.name,
                     "children": [],
-                    "icon": "description" if p.is_file() else "folder",
+                    "icon": "description" if stat is not None else "folder",
                     "path": str(p),
                     "excluded": is_excluded,
                 }
@@ -122,10 +122,10 @@ class PackageManager:
         """
         final_list = []
 
-        for p in walk_project_files(
+        for p, stat in walk_project_files(
             project_path, exclude_patterns=None
         ):  # Get RAW list
-            if not p.is_file():
+            if stat is None:
                 continue
 
             rel_p = str(p.relative_to(project_path))

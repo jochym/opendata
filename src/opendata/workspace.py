@@ -13,6 +13,7 @@ class WorkspaceManager:
     """Manages the hidden workspace and YAML persistence for the tool."""
 
     def __init__(self, base_path: Path | None = None):
+        self._projects_cache: List[Dict[str, str]] | None = None
         # Default to ~/.opendata_tool if no path provided
         self.base_path = base_path or Path.home() / ".opendata_tool"
         self.protocols_dir = self.base_path / "protocols"
@@ -57,6 +58,7 @@ class WorkspaceManager:
         fingerprint: ProjectFingerprint | None,
     ):
         """Persists the complete state of a project."""
+        self._projects_cache = None  # Invalidate cache
         pdir = self.get_project_dir(project_id)
         pdir.mkdir(parents=True, exist_ok=True)
 
@@ -102,8 +104,17 @@ class WorkspaceManager:
 
         return metadata, history, fingerprint
 
+    async def list_projects_async(self) -> List[Dict[str, str]]:
+        """Asynchronously lists all projects."""
+        import asyncio
+
+        return await asyncio.to_thread(self.list_projects)
+
     def list_projects(self) -> List[Dict[str, str]]:
-        """Lists all projects that have a persisted state."""
+        """Lists all projects that have a persisted state (cached)."""
+        if getattr(self, "_projects_cache", None) is not None:
+            return self._projects_cache
+
         projects = []
         if not self.projects_dir.exists():
             return []
@@ -111,8 +122,6 @@ class WorkspaceManager:
             if not pdir.is_dir():
                 continue
 
-            # A project is valid if it has at least metadata OR chat history OR fingerprint
-            # OR even just the directory exists (to allow deleting empty/corrupt projects)
             try:
                 metadata = self.load_yaml(Metadata, str(pdir / "metadata.yaml"))
                 title = metadata.title if metadata else "Untitled Project"
@@ -123,9 +132,6 @@ class WorkspaceManager:
                     with open(fp_path, "r", encoding="utf-8") as f:
                         fp = json.load(f)
                         root_path = fp.get("root_path", "Unknown")
-                else:
-                    # Try to infer path from project ID if possible, but usually Unknown is safer
-                    pass
 
                 projects.append(
                     {
@@ -135,7 +141,6 @@ class WorkspaceManager:
                     }
                 )
             except Exception as e:
-                # Still include the project so it can be deleted
                 projects.append(
                     {
                         "id": pdir.name,
@@ -143,20 +148,42 @@ class WorkspaceManager:
                         "path": "Unknown",
                     }
                 )
-                print(f"[DEBUG] Error listing project {pdir.name}: {e}")
+
+        self._projects_cache = projects
         return projects
 
     def delete_project(self, project_id: str):
         """Permanently deletes a project's persisted state."""
         import shutil
         import os
+        import gc
 
         pdir = self.projects_dir / project_id
         if pdir.exists() and pdir.is_dir():
             try:
-                shutil.rmtree(pdir)
-                # Double check to ensure it's gone
-                return not os.path.exists(pdir)
+                gc.collect()
+                shutil.rmtree(pdir, ignore_errors=True)
+                if pdir.exists():
+                    for root, dirs, files in os.walk(str(pdir), topdown=False):
+                        for name in files:
+                            try:
+                                os.remove(os.path.join(root, name))
+                            except:
+                                pass
+                        for name in dirs:
+                            try:
+                                os.rmdir(os.path.join(root, name))
+                            except:
+                                pass
+                    try:
+                        os.rmdir(str(pdir))
+                    except:
+                        pass
+
+                success = not pdir.exists()
+                if success:
+                    self._projects_cache = None
+                return success
             except Exception as e:
                 print(f"[ERROR] Failed to delete project directory {pdir}: {e}")
                 return False
@@ -191,7 +218,6 @@ class WorkspaceManager:
                     return None
                 return model_class.model_validate(data)
         except Exception as e:
-            print(f"[ERROR] Failed to load YAML from {target_path}: {e}")
             return None
 
     def get_settings(self) -> UserSettings:

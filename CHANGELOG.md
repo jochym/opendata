@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.0] - 2026-02-09
+### Added
+- **Major Architectural Overhaul:**
+  - Modularized the monolithic `app.py` (>2000 lines) into a feature-based component structure in `src/opendata/ui/components/`.
+  - Introduced `AppContext` for explicit dependency injection and session-specific state management, removing reliance on global UI variables.
+  - Extracted agent logic into `parsing.py` (response extraction) and `tools.py` (external APIs) to improve maintainability.
+- **Performance & Stability:**
+  - Implemented `_projects_cache` in `WorkspaceManager` to eliminate redundant disk I/O during UI refreshes.
+  - Optimized UI refresh logic with global locks and debouncing to prevent infinite loops and WebSocket disconnection.
+  - Moved heavy file inventory processing and summary calculation to background threads with reactive UI updates.
+- **Improved UX:**
+  - Replaced AG Grid with a stable `ui.list` for the server-side directory picker.
+  - Added visual loading feedback (spinners) during project and inventory loading.
+  - Implemented robust project deletion that handles corrupt or "Unknown" project states by targeting unique project IDs.
+
+### Fixed
+- Resolved `AttributeError` and `Circular Import` issues introduced during modularization.
+- Fixed `IndentationError` in package management components.
+- Corrected Pydantic model aliases for AI analysis to ensure consistent metadata extraction.
+
+### Known Issues (To be addressed in next phase)
+- Switching projects may not immediately update the file selection state in the Package tab.
+- Manual directory rescanning in the Package tab lacks real-time progress feedback.
+- The Preview tab summary only updates after a background rescan completes.
+
 ## [0.9.14] - 2026-02-09
 ### Fixed
 - **System Restoration:** Restored full logic for [System] feedback, tool recognition (arXiv/DOI/ORCID), and @file context expansion.
