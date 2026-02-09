@@ -3,6 +3,7 @@ import re
 import platform
 import sys
 import datetime
+import logging
 from typing import List, Optional, Dict, Any, Tuple, Callable
 from pathlib import Path
 from opendata.models import (
@@ -17,6 +18,8 @@ from opendata.workspace import WorkspaceManager
 from opendata.utils import scan_project_lazy, PromptManager, FullTextReader
 from opendata.agents.parsing import extract_metadata_from_ai_response
 from opendata.agents.tools import handle_external_tools
+
+logger = logging.getLogger("opendata.agents.project_agent")
 
 
 class ProjectAnalysisAgent:
@@ -270,6 +273,7 @@ class ProjectAnalysisAgent:
         ai_service: Any,
         skip_user_append: bool = False,
         on_update: Optional[Callable[[], None]] = None,
+        mode: str = "metadata",
     ) -> str:
         """Main iterative loop with Context Persistence and Tool recognition."""
         if not skip_user_append:
@@ -280,8 +284,9 @@ class ProjectAnalysisAgent:
         if user_text.strip().lower().startswith("/bug"):
             return self._handle_bug_command(user_text)
 
-        # 1. DETECT MODE AND EXTRACT @FILES/GLOBS
-        mode = "metadata"
+        logger.info(f"Processing user input in mode: {mode}")
+
+        # 1. EXTRACT @FILES AND GLOBS
         extra_files = []
         at_matches = re.findall(r"@([^\s,]+)", user_text)
 
@@ -291,9 +296,8 @@ class ProjectAnalysisAgent:
 
             patterns_found = []
             for fname in at_matches:
-                # Check for wildcards -> Switch to CURATOR mode
+                # Check for wildcards
                 if any(x in fname for x in ["*", "?", "["]):
-                    mode = "curator"
                     found = list(project_dir.glob(fname))
                     if not found and not fname.startswith("**/"):
                         found = list(project_dir.glob(f"**/{fname}"))
@@ -321,19 +325,6 @@ class ProjectAnalysisAgent:
             # Remove patterns from user text so AI doesn't get confused
             for pat in patterns_found:
                 user_text = user_text.replace(f"@{pat}", f"(pattern @{pat} processed)")
-
-        # Additional trigger for Curator mode
-        curator_keywords = [
-            "curate",
-            "select",
-            "package",
-            "include",
-            "files",
-            "structure",
-            "data",
-        ]
-        if any(kw in user_text.lower() for kw in curator_keywords):
-            mode = "curator"
 
         # 2. ZERO-TOKEN CONFIRMATION CHECK
         last_agent_msg = (
@@ -458,6 +449,15 @@ class ProjectAnalysisAgent:
             clean_msg, analysis, metadata = extract_metadata_from_ai_response(
                 wrapped_response, self.current_metadata
             )
+
+            # BLOCK METADATA UPDATE IN CURATOR MODE
+            if mode == "curator":
+                logger.info(
+                    "Curator mode active: ignoring metadata updates from AI response."
+                )
+                # We still keep the analysis (suggestions), but revert metadata to current state
+                metadata = self.current_metadata
+
             self.current_analysis = analysis
             self.current_metadata = metadata
 

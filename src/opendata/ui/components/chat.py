@@ -163,9 +163,18 @@ def render_analysis_dashboard(ctx: AppContext):
             with ui.column().classes("w-full h-full pr-2"):
                 with ui.card().classes("w-full h-full p-0 shadow-md flex flex-col"):
                     with ui.row().classes(
-                        "bg-slate-100 text-slate-800 p-3 w-full justify-between items-center shrink-0"
+                        "bg-slate-100 text-slate-800 p-2 w-full justify-between items-center shrink-0 border-b"
                     ):
-                        ui.label(_("Agent Interaction")).classes("font-bold")
+                        with ui.row().classes("items-center gap-2"):
+                            ui.label(_("Agent Mode:")).classes("text-xs font-bold")
+                            ui.toggle(
+                                {"metadata": _("Metadata"), "curator": _("Curator")},
+                                value=ScanState.agent_mode,
+                                on_change=lambda e: setattr(
+                                    ScanState, "agent_mode", e.value
+                                ),
+                            ).props("dense size=sm").bind_value(ScanState, "agent_mode")
+
                         with ui.row().classes("gap-2"):
                             ui.button(
                                 icon="delete_sweep",
@@ -296,6 +305,7 @@ async def handle_user_msg(ctx: AppContext, input_element):
         ctx.ai,
         skip_user_append=True,
         on_update=ctx.refresh_all,
+        mode=ScanState.agent_mode,
     )
     ScanState.is_processing_ai = False
     ctx.refresh_all()

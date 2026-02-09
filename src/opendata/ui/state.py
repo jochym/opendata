@@ -1,5 +1,5 @@
 import logging
-from typing import List, Any, Dict, Optional
+from typing import List, Any, Dict, Optional, Literal
 
 logger = logging.getLogger("opendata.ui.state")
 
@@ -26,6 +26,7 @@ class UIState:
 class ScanState:
     is_scanning = False
     is_processing_ai = False
+    agent_mode: Literal["metadata", "curator"] = "metadata"
     progress = ""
     short_path = ""
     full_path = ""

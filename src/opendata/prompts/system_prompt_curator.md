@@ -15,16 +15,13 @@ INSTRUCTIONS:
 5. List specific file suggestions in the ANALYSIS block.
 
 Response format (STRICT):
-You MUST return a JSON structure containing two root keys: `ANALYSIS` and `METADATA`.
-Note: Since you are in Curator mode, you should keep the `METADATA` key as-is (passed from context) unless you found information that should update it (like software version or data kind).
+You MUST return a JSON structure containing only one root key: `ANALYSIS`.
+Do NOT include a `METADATA` key in your response in this mode.
 
 ANALYSIS:
 - summary: A conversational explanation of your analysis and why you recommend certain files.
 - file_suggestions: list of {{"path": "relative/path/to/file", "reason": "Brief explanation why this file is important"}}.
 - questions: list of {{"field": "...", "label": "...", "question": "...", "type": "text|choice", "options": [...]}} if you need clarification from the user.
-
-METADATA:
-- The current metadata state.
 
 JSON Requirements:
 - Use DOUBLE quotes (") for all strings.
