@@ -58,6 +58,11 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                 ui.button(_("Logout"), on_click=logout_action, color="red")
         dialog.open()
 
+    import time
+    import logging
+
+    logger = logging.getLogger("opendata.ui")
+
     class UIState:
         main_tabs: Any = None
         analysis_tab: Any = None
@@ -66,6 +71,79 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
         inventory_cache: List[dict] = []
         last_inventory_project: str = ""
         is_loading_inventory: bool = False
+        # Performance & Stability state
+        inventory_lock: bool = False
+        last_refresh_time: float = 0.0
+        pending_refresh: bool = False
+
+    async def load_inventory_background():
+        """Load inventory in background with lock to prevent concurrent runs."""
+        if not agent.project_id or ScanState.is_scanning:
+            return
+
+        if UIState.inventory_lock:
+            return
+
+        UIState.inventory_lock = True
+        UIState.is_loading_inventory = True
+        try:
+            render_package_tab.refresh()
+            project_path = Path(ScanState.current_path)
+            manifest = pkg_mgr.get_manifest(agent.project_id)
+
+            field_name = (
+                agent.current_metadata.science_branches_mnisw[0]
+                if agent.current_metadata.science_branches_mnisw
+                else None
+            )
+            from opendata.protocols.manager import ProtocolManager
+
+            pm_internal = ProtocolManager(wm)
+            effective = pm_internal.resolve_effective_protocol(
+                agent.project_id, field_name
+            )
+            protocol_excludes = effective.get("exclude", [])
+
+            inventory = await asyncio.to_thread(
+                pkg_mgr.get_inventory_for_ui, project_path, manifest, protocol_excludes
+            )
+
+            UIState.inventory_cache = inventory
+            UIState.last_inventory_project = agent.project_id
+        except Exception as e:
+            logger.error(f"Failed to load inventory: {e}")
+        finally:
+            UIState.is_loading_inventory = False
+            UIState.inventory_lock = False
+            render_package_tab.refresh()
+
+    async def refresh_all_debounced():
+        if UIState.pending_refresh:
+            return
+        UIState.pending_refresh = True
+        await asyncio.sleep(0.15)
+        UIState.pending_refresh = False
+        try:
+            chat_messages_ui.refresh()
+            metadata_preview_ui.refresh()
+            header_content_ui.refresh()
+            render_preview_and_build.refresh()
+        except Exception:
+            pass
+
+    def refresh_all():
+        now = time.time()
+        if now - UIState.last_refresh_time < 0.2:
+            asyncio.create_task(refresh_all_debounced())
+            return
+        UIState.last_refresh_time = now
+        try:
+            chat_messages_ui.refresh()
+            metadata_preview_ui.refresh()
+            header_content_ui.refresh()
+            render_preview_and_build.refresh()
+        except Exception:
+            pass
 
     # --- REFRESHABLE COMPONENTS ---
 
