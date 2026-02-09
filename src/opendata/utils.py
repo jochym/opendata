@@ -38,6 +38,19 @@ def format_size(size_bytes: int) -> str:
     return f"{size_bytes / (1024**i):.1f} {units[i]}"
 
 
+def format_file_list(files: List[Path], root: Path) -> str:
+    """Formats a list of files with sizes for AI context."""
+    lines = []
+    for p in sorted(files):
+        try:
+            rel_p = p.relative_to(root)
+            size = format_size(p.stat().st_size)
+            lines.append(f"- {rel_p} ({size})")
+        except Exception:
+            continue
+    return "\n".join(lines)
+
+
 def is_path_excluded(rel_path_str: str, name: str, exclude_patterns: List[str]) -> bool:
     """Checks if a relative path string or filename is excluded by any pattern using robust pathlib matching."""
     if not exclude_patterns:
@@ -337,6 +350,34 @@ class FullTextReader:
             return f"[Error reading Docx file: {e}]"
 
     @staticmethod
+    def read_ipynb_full(filepath: Path) -> str:
+        """
+        Reads a Jupyter Notebook (.ipynb) and returns only text from markdown and code cells.
+        Skips binary outputs and metadata.
+        """
+        try:
+            import json
+
+            with open(filepath, "r", encoding="utf-8", errors="replace") as f:
+                nb = json.load(f)
+
+            content = []
+            for cell in nb.get("cells", []):
+                cell_type = cell.get("cell_type")
+                source = cell.get("source", [])
+                if isinstance(source, list):
+                    source = "".join(source)
+
+                if cell_type == "markdown":
+                    content.append(source)
+                elif cell_type == "code":
+                    content.append(f"```python\n{source}\n```")
+
+            return "\n\n".join(content)
+        except Exception as e:
+            return f"[Error reading Jupyter Notebook: {e}]"
+
+    @staticmethod
     def read_full_text(filepath: Path) -> str:
         """
         Dispatches to the appropriate reader based on file extension.
@@ -346,6 +387,8 @@ class FullTextReader:
             return FullTextReader.read_latex_full(filepath)
         elif suffix == ".docx":
             return FullTextReader.read_docx_full(filepath)
+        elif suffix == ".ipynb":
+            return FullTextReader.read_ipynb_full(filepath)
         else:
             # Fallback for plain text files
             try:

@@ -15,6 +15,7 @@ INSTRUCTIONS:
 3. NEVER ask for information already present in the CURRENT METADATA DRAFT.
 4. If multiple pieces of information are missing, provide a list of questions in the ANALYSIS block so the user can answer them all at once via a form.
 5. If the user mentions a specific file for extraction, focus on that file's inferred content.
+6. To inspect the content of specific files (e.g. to find data dependencies or more details), use the syntax `READ_FILE: path/to/file1, path/to/file2` on a separate line. You can request up to 10 files in one response.
 
 Response format (STRICT):
 You MUST return a JSON structure containing two root keys: `ANALYSIS` and `METADATA`.

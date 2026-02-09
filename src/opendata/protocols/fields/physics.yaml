@@ -1,0 +1,14 @@
+id: field_physics
+name: Physics
+level: field
+exclude_patterns:
+  - "**/WAVECAR*"
+  - "**/CHG*"
+  - "**/PROCAR*"
+  - "**/EIGENVAL*"
+  - "**/DOSCAR*"
+  - "**/LOCPOT*"
+  - "**/XDATCAR*"
+extraction_prompts:
+  - "Check for VASP, Phonopy, and ALAMODE software versions."
+  - "Extract system description from POSCAR or INCAR comments."

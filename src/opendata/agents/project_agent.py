@@ -264,8 +264,6 @@ class ProjectAnalysisAgent:
         self.save_state()
         return msg
 
-        return msg
-
     def process_user_input(
         self,
         user_text: str,
@@ -282,24 +280,44 @@ class ProjectAnalysisAgent:
         if user_text.strip().lower().startswith("/bug"):
             return self._handle_bug_command(user_text)
 
-        # 1. EXTRACT @FILES
+        # 1. EXTRACT @FILES AND GLOBS
         extra_files = []
         at_matches = re.findall(r"@([^\s,]+)", user_text)
         if at_matches and self.current_fingerprint:
             project_dir = Path(self.current_fingerprint.root_path)
+            from opendata.utils import format_file_list
+
+            patterns_found = []
             for fname in at_matches:
-                if "/" in fname or "\\" in fname:
-                    p = project_dir / fname
-                    if p.exists():
-                        extra_files.append(p)
-                else:
-                    p = project_dir / fname
-                    if p.exists():
-                        extra_files.append(p)
-                    else:
+                # Check for wildcards
+                if any(x in fname for x in ["*", "?", "["]):
+                    found = list(project_dir.glob(fname))
+                    if not found and not fname.startswith("**/"):
                         found = list(project_dir.glob(f"**/{fname}"))
-                        if found:
-                            extra_files.append(found[0])
+
+                    if found:
+                        file_list_str = format_file_list(found, project_dir)
+                        self.chat_history.append(
+                            (
+                                "agent",
+                                f"[System] Found {len(found)} files matching pattern `@{fname}`:\n\n{file_list_str}",
+                            )
+                        )
+                        patterns_found.append(fname)
+                        continue
+
+                # Standard file handling
+                p = project_dir / fname
+                if p.exists() and p.is_file():
+                    extra_files.append(p)
+                else:
+                    found = list(project_dir.glob(f"**/{fname}"))
+                    if found and found[0].is_file():
+                        extra_files.append(found[0])
+
+            # Remove patterns from user text so AI doesn't get confused
+            for pat in patterns_found:
+                user_text = user_text.replace(f"@{pat}", f"(pattern @{pat} processed)")
 
         # 2. ZERO-TOKEN CONFIRMATION CHECK
         last_agent_msg = (
@@ -356,37 +374,82 @@ class ProjectAnalysisAgent:
                     + "\n".join(extra_context)
                 )
 
-        # 4. CALL AI
-        effective = self.pm.resolve_effective_protocol(self.project_id)
-        excl = effective.get("exclude")
-        print(f"[DEBUG] Effective excludes for AI: {excl}")
-        context = self.generate_ai_prompt()
-        history_str = "\n".join(
-            [f"{role}: {m}" for role, m in self.chat_history[-10:-1]]
-        )
-        full_prompt = self.prompt_manager.render(
-            "chat_wrapper",
-            {"history": history_str, "user_input": enhanced_input, "context": context},
-        )
+        # 4. CALL AI (With Tool Loop)
+        max_tool_iterations = 5
+        for _ in range(max_tool_iterations):
+            effective = self.pm.resolve_effective_protocol(self.project_id)
+            excl = effective.get("exclude")
+            print(f"[DEBUG] Effective excludes for AI: {excl}")
+            context = self.generate_ai_prompt()
 
-        ai_response = ai_service.ask_agent(full_prompt)
-        wrapped_response = (
-            f"METADATA:\n{ai_response}"
-            if "METADATA:" not in ai_response
-            else ai_response
-        )
+            # Use only a window of history for context
+            history_str = "\n".join(
+                [f"{role}: {m}" for role, m in self.chat_history[-15:]]
+            )
 
-        clean_msg, analysis, metadata = extract_metadata_from_ai_response(
-            wrapped_response, self.current_metadata
-        )
-        self.current_analysis = analysis
-        self.current_metadata = metadata
+            full_prompt = self.prompt_manager.render(
+                "chat_wrapper",
+                {
+                    "history": history_str,
+                    "user_input": enhanced_input,
+                    "context": context,
+                },
+            )
 
-        self.chat_history.append(("agent", clean_msg))
-        self.save_state()
-        if on_update:
-            on_update()
-        return clean_msg
+            ai_response = ai_service.ask_agent(full_prompt)
+
+            # Check for READ_FILE command
+            read_match = re.search(r"READ_FILE:\s*(.+)", ai_response)
+            if read_match and self.current_fingerprint:
+                file_paths_str = read_match.group(1).strip()
+                requested_files = [f.strip() for f in file_paths_str.split(",")]
+                project_dir_to_use = Path(self.current_fingerprint.root_path)
+
+                tool_output = []
+                for rf in requested_files:
+                    p = project_dir_to_use / rf
+                    if p.exists() and p.is_file():
+                        content = FullTextReader.read_full_text(p)
+                        tool_output.append(f"--- FILE CONTENT: {rf} ---\n{content}")
+                    else:
+                        tool_output.append(f"--- FILE NOT FOUND: {rf} ---")
+
+                # Append the AI's "thought" and the "system response"
+                self.chat_history.append(("agent", ai_response))
+                self.chat_history.append(
+                    (
+                        "user",
+                        "[System] READ_FILE Tool Results:\n\n"
+                        + "\n\n".join(tool_output),
+                    )
+                )
+
+                # Update UI and continue the loop
+                if on_update:
+                    on_update()
+                enhanced_input = "Please analyze the provided file content and continue with the metadata extraction."
+                continue  # Next iteration of the loop
+
+            # If no READ_FILE, finish
+            wrapped_response = (
+                f"METADATA:\n{ai_response}"
+                if "METADATA:" not in ai_response
+                else ai_response
+            )
+
+            clean_msg, analysis, metadata = extract_metadata_from_ai_response(
+                wrapped_response, self.current_metadata
+            )
+            self.current_analysis = analysis
+            self.current_metadata = metadata
+
+            self.chat_history.append(("agent", clean_msg))
+            self.save_state()
+            if on_update:
+                on_update()
+            return clean_msg
+
+        return "Tool loop exceeded maximum iterations."
 
     def analyze_full_text(
         self,

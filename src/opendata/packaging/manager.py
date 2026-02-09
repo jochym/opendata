@@ -197,8 +197,8 @@ class PackageManager:
                         break
 
             # Apply overrides
-            is_included = not is_proto_excluded
-            reason = "📜 Protocol" if is_proto_excluded else "✅ Default"
+            is_included = False
+            reason = "⚪ Default (Excluded)"
 
             if rel_path in manifest.force_include:
                 is_included = True
@@ -206,6 +206,9 @@ class PackageManager:
             elif rel_path in manifest.force_exclude:
                 is_included = False
                 reason = "👤 User (Excluded)"
+            elif is_proto_excluded:
+                is_included = False
+                reason = "📜 Protocol"
 
             inventory.append(
                 {
