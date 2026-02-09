@@ -183,8 +183,15 @@ class PackageManager:
             is_proto_excluded = False
             if protocol_excludes:
                 for pattern in protocol_excludes:
+                    # Robust matching for both filename and relative path
                     if fnmatch.fnmatch(filename, pattern) or fnmatch.fnmatch(
                         rel_path, pattern
+                    ):
+                        is_proto_excluded = True
+                        break
+                    # Also try matching without **/ prefix if pattern has it
+                    if pattern.startswith("**/") and fnmatch.fnmatch(
+                        rel_path, pattern[3:]
                     ):
                         is_proto_excluded = True
                         break

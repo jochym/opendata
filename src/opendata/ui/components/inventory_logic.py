@@ -18,34 +18,46 @@ async def load_inventory_background(ctx: AppContext):
         logger.info("Inventory lock active, skipping background load")
         return
 
+    # Clear old cache to prevent cross-project pollution
+    if UIState.last_inventory_project != ctx.agent.project_id:
+        UIState.inventory_cache = []
+        UIState.grid_rows = []
+        UIState.total_files_count = 0
+        UIState.total_files_size = 0
+        ctx.refresh("package")
+        ctx.refresh("preview")
+
     UIState.inventory_lock = True
     UIState.is_loading_inventory = True
 
     # Wait a bit to let the initial project load UI stabilize
-    await asyncio.sleep(0.5)
+    await asyncio.sleep(0.3)
 
     try:
-
-        def should_refresh():
-            # Only refresh if the package tab is actually visible
-            return UIState.main_tabs and UIState.main_tabs.value == UIState.package_tab
-
         project_path = Path(ScanState.current_path)
         if not project_path.exists():
             logger.warning(f"Project path does not exist: {project_path}")
+            UIState.is_loading_inventory = False
+            UIState.inventory_lock = False
             return
 
         logger.info(f"Loading inventory for {ctx.agent.project_id}...")
         manifest = ctx.pkg_mgr.get_manifest(ctx.agent.project_id)
 
-        field_name = (
-            ctx.agent.current_metadata.science_branches_mnisw[0]
-            if ctx.agent.current_metadata.science_branches_mnisw
-            else None
-        )
+        field_name = None
+        if ctx.agent.current_metadata.science_branches_mnisw:
+            # Normalize for protocol lookup
+            field_name = (
+                ctx.agent.current_metadata.science_branches_mnisw[0]
+                .lower()
+                .replace(" ", "_")
+            )
 
         effective = ctx.pm.resolve_effective_protocol(ctx.agent.project_id, field_name)
         protocol_excludes = effective.get("exclude", [])
+        logger.info(
+            f"Loading inventory for UI. Effective excludes: {protocol_excludes}"
+        )
 
         inventory = await asyncio.to_thread(
             ctx.pkg_mgr.get_inventory_for_ui, project_path, manifest, protocol_excludes
@@ -71,20 +83,20 @@ async def load_inventory_background(ctx: AppContext):
             return count, size, rows
 
         count, size, rows = await asyncio.to_thread(prepare_ui_data)
+        print(f"[DEBUG] Inventory prepared. Rows: {len(rows)}, Count: {count}")
 
         UIState.total_files_count = count
         UIState.total_files_size = size
-        UIState.grid_rows = rows
+        # Update rows list in place or replace it cleanly
+        UIState.grid_rows.clear()
+        UIState.grid_rows.extend(rows)
         UIState.last_inventory_project = ctx.agent.project_id
 
-        if should_refresh():
-            logger.info("Refreshing package tab after inventory load")
-            ctx.refresh("package")
-            ctx.refresh("preview")
-        else:
-            logger.info("Inventory loaded to cache, package tab not visible")
-            # Still refresh preview if it might be visible
-            ctx.refresh("preview")
+        # Always refresh preview and package (if initialized)
+        ctx.refresh("preview")
+        ctx.refresh("package")
+        print("[DEBUG] Refresh calls sent to preview and package")
+        logger.info(f"Inventory load complete for {ctx.agent.project_id}")
 
     except Exception as e:
         logger.error(f"Failed to load inventory: {e}")

@@ -38,6 +38,31 @@ def format_size(size_bytes: int) -> str:
     return f"{size_bytes / (1024**i):.1f} {units[i]}"
 
 
+def is_path_excluded(rel_path_str: str, name: str, exclude_patterns: List[str]) -> bool:
+    """Checks if a relative path string or filename is excluded by any pattern using robust pathlib matching."""
+    if not exclude_patterns:
+        return False
+
+    # Use Path for robust glob matching (handles **/ and name matching correctly)
+    p = Path(rel_path_str)
+
+    for pattern in exclude_patterns:
+        clean_pat = pattern.rstrip("/")
+        try:
+            # Path.match handles exact names (e.g. "build") and paths ("src/build")
+            # as well as glob patterns ("**/*.py")
+            if p.match(clean_pat):
+                return True
+
+            # Special case: **/foo should match "foo" at root
+            if clean_pat.startswith("**/") and p.match(clean_pat[3:]):
+                return True
+        except ValueError:
+            # Invalid pattern ignored
+            pass
+    return False
+
+
 def walk_project_files(
     root: Path,
     stop_event: Optional[Any] = None,
@@ -48,75 +73,74 @@ def walk_project_files(
     Optimized using os.scandir for high-performance directory traversal.
     """
     import os
-    import fnmatch
 
     skip_dirs = {".git", ".venv", "node_modules", "__pycache__", ".opendata_tool"}
-    root_str = str(root)
+    root_str = str(root.expanduser().resolve())
+    excludes = exclude_patterns or []
+
+    import logging
+
+    logger = logging.getLogger("opendata.utils")
+    if excludes:
+        logger.debug(f"Walking {root_str} with exclusions: {excludes}")
 
     def _walk(current_dir):
         if stop_event and stop_event.is_set():
             return
 
-        try:
-            with os.scandir(current_dir) as it:
-                entries = list(it)
-        except OSError:
+        # Fast check for .ignore file to skip entire directory tree
+        if (Path(current_dir) / ".ignore").exists():
             return
 
-        # Check for '.ignore'
-        if any(e.name == ".ignore" for e in entries):
+        rel_dir = os.path.relpath(current_dir, root_str).replace("\\", "/")
+        if rel_dir == ".":
+            rel_dir = ""
+
+        # Check if directory itself is excluded (defensive)
+        if rel_dir and is_path_excluded(
+            rel_dir, os.path.basename(current_dir), excludes
+        ):
             return
 
         # Yield directory itself (with None for stat)
         yield Path(current_dir), None
 
-        rel_dir = os.path.relpath(current_dir, root_str)
-        if rel_dir == ".":
-            rel_dir = ""
+        try:
+            # Stream entries to handle massive directories gracefully
+            with os.scandir(current_dir) as it:
+                subdirs = []
+                for entry in it:
+                    if stop_event and stop_event.is_set():
+                        return
 
-        subdirs = []
-        for entry in entries:
-            if entry.name.startswith(".") or entry.is_symlink():
-                continue
-
-            rel_entry_path = os.path.join(rel_dir, entry.name).replace("\\", "/")
-
-            if entry.is_dir():
-                if entry.name in skip_dirs:
-                    continue
-                if exclude_patterns:
-                    is_d_excluded = False
-                    for pattern in exclude_patterns:
-                        # Match directory specifically
-                        p_clean = pattern.rstrip("/")
-                        if (
-                            fnmatch.fnmatch(rel_entry_path, p_clean)
-                            or fnmatch.fnmatch(entry.name, p_clean)
-                            or rel_entry_path.startswith(p_clean + "/")
-                        ):
-                            is_d_excluded = True
-                            break
-                    if is_d_excluded:
+                    if entry.name.startswith(".") or entry.is_symlink():
                         continue
-                subdirs.append(entry.path)
-            elif entry.is_file():
-                if exclude_patterns:
-                    is_excluded = False
-                    for pattern in exclude_patterns:
-                        if fnmatch.fnmatch(rel_entry_path, pattern) or fnmatch.fnmatch(
-                            entry.name, pattern
-                        ):
-                            is_excluded = True
-                            break
-                    if is_excluded:
-                        continue
-                try:
-                    yield Path(entry.path), entry.stat()
-                except OSError:
-                    continue
 
-        for subdir in subdirs:
-            yield from _walk(subdir)
+                    rel_entry_path = (
+                        os.path.join(rel_dir, entry.name).replace("\\", "/")
+                        if rel_dir
+                        else entry.name
+                    )
+
+                    # In-scan exclusion: Skip excluded files/dirs immediately
+                    if is_path_excluded(rel_entry_path, entry.name, excludes):
+                        continue
+
+                    if entry.is_dir():
+                        if entry.name in skip_dirs:
+                            continue
+                        subdirs.append(entry.path)
+                    elif entry.is_file():
+                        try:
+                            yield Path(entry.path), entry.stat()
+                        except OSError:
+                            continue
+
+                # Recurse after streaming current dir
+                for subdir in subdirs:
+                    yield from _walk(subdir)
+        except OSError:
+            return
 
     yield from _walk(root_str)
 

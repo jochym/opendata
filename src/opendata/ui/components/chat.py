@@ -1,5 +1,7 @@
 import asyncio
 import threading
+import re
+from typing import Any
 from pathlib import Path
 from nicegui import ui
 from opendata.i18n.translator import _
@@ -253,14 +255,26 @@ async def handle_user_msg(ctx: AppContext, input_element):
     if not text:
         return
     input_element.value = ""
+
+    # 1. Immediate echo of user message
+    ctx.agent.chat_history.append(("user", text))
+
+    # 2. Add System Report if @files are detected
+    at_matches = re.findall(r"@([^\s,]+)", text)
+    if at_matches:
+        file_list = ", ".join([f"`{m}`" for m in at_matches])
+        ctx.agent.chat_history.append(
+            ("agent", f"[System] sending context from: {file_list}")
+        )
+
     ScanState.is_processing_ai = True
-    ctx.refresh_all()
+    ctx.refresh("chat")
 
     await asyncio.to_thread(
         ctx.agent.process_user_input,
         text,
         ctx.ai,
-        skip_user_append=False,
+        skip_user_append=True,
         on_update=ctx.refresh_all,
     )
     ScanState.is_processing_ai = False
@@ -292,10 +306,21 @@ async def handle_scan(ctx: AppContext, path: str, force: bool = False):
     ScanState.progress = _("Initializing...")
     ctx.refresh("metadata")
 
+    import time
+
+    last_refresh = 0
+
     def update_progress(msg, full_path="", short_path=""):
+        nonlocal last_refresh
         ScanState.progress = msg
         ScanState.full_path = full_path
         ScanState.short_path = short_path
+
+        now = time.time()
+        if now - last_refresh > 0.5:
+            ctx.refresh("metadata")
+            ctx.refresh("chat")
+            last_refresh = now
 
     await asyncio.to_thread(
         ctx.agent.start_analysis,

@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import List, Dict, Optional
 import yaml
+import logging
 from ..models import ExtractionProtocol, ProtocolLevel
 from ..workspace import WorkspaceManager
 
@@ -17,6 +18,62 @@ class ProtocolManager:
         self.fields_dir.mkdir(parents=True, exist_ok=True)
 
         self.system_protocol = self._init_system_protocol()
+
+    def _get_predefined_fields(self) -> Dict[str, ExtractionProtocol]:
+        """Returns standard built-in field protocols."""
+        return {
+            "physics": ExtractionProtocol(
+                id="field_physics",
+                name="Physics",
+                level=ProtocolLevel.FIELD,
+                exclude_patterns=[
+                    "**/WAVECAR*",
+                    "**/CHG*",
+                    "**/PROCAR*",
+                    "**/EIGENVAL*",
+                    "**/DOSCAR*",
+                    "**/LOCPOT*",
+                    "**/XDATCAR*",
+                ],
+                extraction_prompts=[
+                    "Check for VASP, Phonopy, and ALAMODE software versions."
+                ],
+            ),
+            "computational_physics": ExtractionProtocol(
+                id="field_comp_phys",
+                name="Computational Physics",
+                level=ProtocolLevel.FIELD,
+                exclude_patterns=[
+                    "**/WAVECAR*",
+                    "**/CHG*",
+                    "**/PROCAR*",
+                    "**/EIGENVAL*",
+                    "**/DOSCAR*",
+                    "**/LOCPOT*",
+                    "**/XDATCAR*",
+                ],
+                extraction_prompts=[
+                    "Identify specific calculation parameters (ENECUT, ISMEAR, etc)."
+                ],
+            ),
+            "nauki_fizyczne": ExtractionProtocol(
+                id="field_nauki_fizyczne",
+                name="Nauki Fizyczne",
+                level=ProtocolLevel.FIELD,
+                exclude_patterns=[
+                    "**/WAVECAR*",
+                    "**/CHG*",
+                    "**/PROCAR*",
+                    "**/EIGENVAL*",
+                    "**/DOSCAR*",
+                    "**/LOCPOT*",
+                    "**/XDATCAR*",
+                ],
+                extraction_prompts=[
+                    "Sprawdź wersje oprogramowania VASP, Phonopy i ALAMODE."
+                ],
+            ),
+        }
 
     def _init_system_protocol(self) -> ExtractionProtocol:
         """Returns the hardcoded base system protocol."""
@@ -65,19 +122,31 @@ class ProtocolManager:
             )
 
     def list_fields(self) -> List[str]:
-        return [p.stem for p in self.fields_dir.glob("*.yaml")]
+        """Lists available fields by merging built-ins and disk files."""
+        built_ins = list(self._get_predefined_fields().keys())
+        on_disk = [p.stem for p in self.fields_dir.glob("*.yaml")]
+        return list(set(built_ins + on_disk))
 
     def get_field_protocol(self, field_name: str) -> ExtractionProtocol:
-        path = self.fields_dir / f"{field_name}.yaml"
+        """Retrieves a field protocol, checking user overrides first."""
+        norm_name = field_name.lower().replace(" ", "_")
+
+        # 1. Check disk (user override)
+        path = self.fields_dir / f"{norm_name}.yaml"
         if path.exists():
             with open(path, "r", encoding="utf-8") as f:
                 try:
-                    data = yaml.safe_load(f)
-                    return ExtractionProtocol.model_validate(data)
-                except Exception as e:
-                    print(f"[ERROR] Failed to load field protocol {field_name}: {e}")
+                    return ExtractionProtocol.model_validate(yaml.safe_load(f))
+                except Exception:
+                    pass
+
+        # 2. Check built-ins
+        built_ins = self._get_predefined_fields()
+        if norm_name in built_ins:
+            return built_ins[norm_name]
+
         return ExtractionProtocol(
-            id=f"field_{field_name}", name=field_name, level=ProtocolLevel.FIELD
+            id=f"field_{norm_name}", name=field_name, level=ProtocolLevel.FIELD
         )
 
     def save_field_protocol(self, protocol: ExtractionProtocol):
@@ -138,5 +207,13 @@ class ProtocolManager:
         effective["include"] = list(dict.fromkeys(effective["include"]))
         effective["exclude"] = list(dict.fromkeys(effective["exclude"]))
         effective["prompts"] = list(dict.fromkeys(effective["prompts"]))
+
+        import logging
+
+        import logging
+
+        logger = logging.getLogger("opendata.protocols")
+        msg = f"Effective Protocol for {project_id} (Field: {field_name}):\n - Exclude: {effective['exclude']}\n - Include: {effective['include']}"
+        logger.debug(msg)
 
         return effective

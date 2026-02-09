@@ -112,8 +112,8 @@ class WorkspaceManager:
 
     def list_projects(self) -> List[Dict[str, str]]:
         """Lists all projects that have a persisted state (cached)."""
-        if getattr(self, "_projects_cache", None) is not None:
-            return self._projects_cache
+        if self._projects_cache is not None:
+            return self._projects_cache  # type: ignore
 
         projects = []
         if not self.projects_dir.exists():

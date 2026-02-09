@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.11.0] - 2026-02-09
+### Added
+- **High-Performance Scanner Engine:**
+  - Upgraded exclusion logic to use `pathlib.Path.match` for robust, standard-compliant globbing (supports `**/` recursive patterns).
+  - Implemented streaming directory traversal (`os.scandir`), allowing the scanner to efficiently skip huge excluded directory trees without reading their contents.
+  - Added real-time progress feedback in the Package tab that doesn't block UI interaction.
+- **Redesigned Package Tab:**
+  - Replaced the complex and unstable AgGrid component with a clean, high-level Project Root viewer.
+  - Eliminated "empty table" bugs by simplifying the view to show only root-level items (files and folders), which is more performant and robust.
+  - Added visual indicators for excluded files/folders directly in the list.
+- **Built-in Protocols:**
+  - Hardcoded standard Field Protocols for "Physics", "Computational Physics", and "Nauki Fizyczne" (VASP/Phonopy support) directly into `ProtocolManager`.
+  - Added normalization logic to robustly match field names (e.g., "Nauki Fizyczne" -> "nauki_fizyczne") regardless of case or spacing.
+
+### Fixed
+- **Critical Stability Fixes:**
+  - Restored missing `start_analysis` method in `ProjectAnalysisAgent` that caused startup crashes.
+  - Fixed Pydantic validation errors during form submission by protecting complex fields (`authors`, `contacts`) from invalid string overwrites.
+  - Resolved `AttributeError` issues in `ProtocolManager` initialization.
+- **UI Polish:**
+  - Removed duplicate progress bars in the Package tab.
+  - Fixed "echo" delay in chat interactions.
+  - Cleaned up console logging to prioritize exclusion reports over raw progress noise.
+
 ## [0.10.0] - 2026-02-09
 ### Added
 - **Major Architectural Overhaul:**

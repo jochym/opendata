@@ -32,7 +32,12 @@ def render_package_tab(ctx: AppContext):
         if not UIState.is_loading_inventory:
             asyncio.create_task(load_inventory_background(ctx))
 
-    if UIState.is_loading_inventory and not UIState.inventory_cache:
+    # ONLY block with big spinner when reading from DB (initial load)
+    if (
+        UIState.is_loading_inventory
+        and not UIState.inventory_cache
+        and not UIState.grid_rows
+    ):
         with ui.column().classes("w-full items-center justify-center p-20 gap-4"):
             ui.spinner(size="xl")
             ui.label(_("Reading project inventory from database...")).classes(
@@ -52,23 +57,27 @@ def render_package_tab(ctx: AppContext):
                     "Please click **Analyze Directory** in the Analysis tab to list project files."
                 )
             ).classes("text-sm text-slate-500")
-            ui.button(
-                _("Go to Analysis"),
-                on_click=lambda: UIState.main_tabs.set_value(UIState.analysis_tab),
-            ).props("outline")
+            with ui.row().classes("gap-2"):
+                ui.button(
+                    _("Go to Analysis"),
+                    on_click=lambda: UIState.main_tabs.set_value(UIState.analysis_tab),
+                ).props("outline")
+                ui.button(
+                    _("Scan Project Inventory"),
+                    icon="search",
+                    on_click=lambda: handle_refresh_inventory(ctx),
+                ).props("elevated color=primary")
         return
 
     manifest = ctx.pkg_mgr.get_manifest(project_id)
     inventory = UIState.inventory_cache
 
-    with ui.column().classes("w-full gap-4 h-full p-4"):
+    with ui.column().classes("w-full gap-4 h-[calc(100vh-130px)] p-4"):
         with ui.row().classes("w-full items-center justify-between"):
             with ui.column():
                 ui.label(_("Package Content Editor")).classes("text-2xl font-bold")
                 ui.label(
-                    _(
-                        "Select files to include in the final RODBUK package. Changes are saved automatically."
-                    )
+                    _("Overview of files included in the final RODBUK package.")
                 ).classes("text-sm text-slate-500")
 
             with ui.row().classes("gap-2"):
@@ -85,6 +94,23 @@ def render_package_tab(ctx: AppContext):
                     on_click=lambda: handle_reset(ctx),
                 ).props("outline color=grey-7")
 
+        # Progress for background tasks
+        if ScanState.is_scanning or UIState.is_loading_inventory:
+            with ui.row().classes(
+                "w-full items-center gap-2 p-2 bg-blue-50 border border-blue-100 rounded"
+            ):
+                ui.spinner(size="xs")
+                ui.label().bind_text_from(ScanState, "progress").classes(
+                    "text-xs text-blue-700"
+                )
+                if ScanState.is_scanning:
+                    ui.label().bind_text_from(ScanState, "short_path").classes(
+                        "text-[10px] text-blue-400 truncate flex-grow"
+                    )
+
+        ui.label(f"Rows in UIState: {len(UIState.grid_rows)}").classes(
+            "text-[10px] text-slate-400"
+        )
         # Statistics summary
         included_files = [f for f in inventory if f["included"]]
         total_size = sum(f["size"] for f in included_files)
@@ -99,93 +125,67 @@ def render_package_tab(ctx: AppContext):
                 )
             ).classes("text-slate-400")
 
-        column_defs = [
-            {
-                "headerName": _("Include"),
-                "field": "included",
-                "checkboxSelection": True,
-                "showDisabledCheckboxes": True,
-                "width": 100,
-            },
-            {
-                "headerName": _("File Path"),
-                "field": "path",
-                "filter": "agTextColumnFilter",
-                "flex": 1,
-            },
-            {
-                "headerName": _("Size"),
-                "field": "size",
-                "sortable": True,
-                "width": 120,
-                "comparator": "valueGetter: node.data.size_val",
-            },
-            {
-                "headerName": _("Inclusion Reason"),
-                "field": "reason",
-                "width": 180,
-                "filter": "agTextColumnFilter",
-            },
-        ]
+        # Simplified High-Level View
+        ui.label(_("Project Root Contents:")).classes(
+            "text-sm font-bold text-slate-700 mt-2"
+        )
 
-        # The Grid
-        grid = ui.aggrid(
-            {
-                "columnDefs": column_defs,
-                "rowData": UIState.grid_rows,
-                "rowSelection": "multiple",
-                "stopEditingWhenCellsLoseFocus": True,
-                "pagination": True,
-                "paginationPageSize": 50,
-            }
-        ).classes("w-full h-[600px] shadow-sm")
+        with ui.scroll_area().classes(
+            "w-full flex-grow border rounded-lg bg-white p-2"
+        ):
+            root_path = Path(ScanState.current_path)
 
-        # Initial selection
-        grid.options["selected_keys"] = [
-            i for i, f in enumerate(UIState.grid_rows) if f["included"]
-        ]
+            # Resolve effective excludes for visual filtering
+            field_name = None
+            if ctx.agent.current_metadata.science_branches_mnisw:
+                field_name = (
+                    ctx.agent.current_metadata.science_branches_mnisw[0]
+                    .lower()
+                    .replace(" ", "_")
+                )
+            effective = ctx.pm.resolve_effective_protocol(
+                ctx.agent.project_id, field_name
+            )
+            excludes = effective.get("exclude", [])
 
-        async def handle_selection_change():
-            selected_rows = await grid.get_selected_rows()
-            selected_paths = {row["path"] for row in selected_rows}
+            try:
+                # Sort: Directories first, then files
+                items = sorted(
+                    list(root_path.iterdir()),
+                    key=lambda p: (not p.is_dir(), p.name.lower()),
+                )
 
-            new_force_include = []
-            new_force_exclude = []
+                from opendata.utils import is_path_excluded
 
-            for item in UIState.inventory_cache:
-                rel_path = item["path"]
-                is_proto_excluded = item["is_proto_excluded"]
-                is_now_selected = rel_path in selected_paths
+                with ui.list().classes("w-full").props("dense"):
+                    for item in items:
+                        if item.name.startswith("."):
+                            continue
 
-                if is_proto_excluded:
-                    if is_now_selected:
-                        new_force_include.append(rel_path)
-                else:
-                    if not is_now_selected:
-                        new_force_exclude.append(rel_path)
+                        # Apply visual exclusion check
+                        rel_path_str = item.name  # Root items
+                        if is_path_excluded(rel_path_str, item.name, excludes):
+                            continue
 
-            manifest.force_include = new_force_include
-            manifest.force_exclude = new_force_exclude
-            ctx.pkg_mgr.save_manifest(manifest)
+                        is_dir = item.is_dir()
 
-            # Update cache
-            for item in UIState.inventory_cache:
-                rel_path = item["path"]
-                if rel_path in manifest.force_include:
-                    item["included"] = True
-                    item["reason"] = "👤 User (Forced)"
-                elif rel_path in manifest.force_exclude:
-                    item["included"] = False
-                    item["reason"] = "👤 User (Excluded)"
-                else:
-                    item["included"] = not item["is_proto_excluded"]
-                    item["reason"] = (
-                        "📜 Protocol" if item["is_proto_excluded"] else "✅ Default"
-                    )
-
-            ctx.refresh_all()
-
-        grid.on("selectionChanged", handle_selection_change)
+                        with ui.item().classes("q-py-xs"):
+                            with ui.item_section().props("side"):
+                                ui.icon(
+                                    "folder" if is_dir else "description",
+                                    color="primary" if is_dir else "grey-7",
+                                )
+                            with ui.item_section():
+                                ui.item_label(item.name).classes("text-sm")
+                                if not is_dir:
+                                    size = format_size(item.stat().st_size)
+                                    ui.item_label(size).props("caption").classes(
+                                        "text-[10px]"
+                                    )
+            except Exception as e:
+                ui.label(
+                    _("Error reading directory: {error}").format(error=str(e))
+                ).classes("text-red-500 text-xs")
 
 
 async def handle_refresh_inventory(ctx: AppContext):
@@ -196,12 +196,18 @@ async def handle_refresh_inventory(ctx: AppContext):
     resolved_path = Path(ScanState.current_path).expanduser()
     import threading
 
+    # DO NOT clear cache here - it causes UI to flip to "No inventory" state
+    # Instead, we just mark as scanning and refresh to show progress bar
     ScanState.stop_event = threading.Event()
     ScanState.is_scanning = True
     ui.notify(_("Refreshing file list..."))
+    ctx.refresh("package")
 
     def update_progress(msg, full_path="", short_path=""):
         ScanState.progress = msg
+        ScanState.full_path = full_path
+        ScanState.short_path = short_path
+        # Removed periodic refresh to prevent list flickering during scan
 
     await asyncio.to_thread(
         ctx.agent.refresh_inventory,
@@ -216,7 +222,12 @@ async def handle_refresh_inventory(ctx: AppContext):
     # Force cache reload
     UIState.last_inventory_project = ""
     await load_inventory_background(ctx)
-    ui.notify(_("File list updated."), type="positive")
+
+    # Safely notify
+    try:
+        ui.notify(_("File list updated."), type="positive")
+    except Exception:
+        pass
 
 
 async def handle_reset(ctx: AppContext):

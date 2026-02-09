@@ -100,49 +100,6 @@ class ProjectAnalysisAgent:
         self.current_fingerprint = None
         self.project_id = None
 
-    def refresh_inventory(
-        self,
-        project_dir: Path,
-        progress_callback: Optional[Callable[[str, str, str], None]] = None,
-        stop_event: Optional[Any] = None,
-    ):
-        """
-        Performs a fast file scan and updates the SQLite inventory without running heuristics or AI.
-        """
-        self.project_id = self.wm.get_project_id(project_dir)
-
-        # Get field from metadata if exists
-        field_name = (
-            self.current_metadata.science_branches_mnisw[0]
-            if self.current_metadata.science_branches_mnisw
-            else None
-        )
-        effective = self.pm.resolve_effective_protocol(self.project_id, field_name)
-        exclude_patterns = effective.get("exclude")
-
-        # 1. Quick fingerpint update
-        res = scan_project_lazy(
-            project_dir,
-            progress_callback=progress_callback,
-            stop_event=stop_event,
-            exclude_patterns=exclude_patterns,
-        )
-        self.current_fingerprint, full_files = res
-
-        if stop_event and stop_event.is_set():
-            return
-
-        # 2. Update SQLite Inventory
-        try:
-            from opendata.storage.project_db import ProjectInventoryDB
-
-            db = ProjectInventoryDB(self.wm.get_project_db_path(self.project_id))
-            db.update_inventory(full_files)
-        except Exception as e:
-            print(f"[ERROR] Failed to refresh inventory in SQLite: {e}")
-
-        self.save_state()
-
     def start_analysis(
         self,
         project_dir: Path,
@@ -166,18 +123,36 @@ class ProjectAnalysisAgent:
         if progress_callback:
             progress_callback(f"Scanning {project_dir}...", "", "")
 
+        return self.refresh_inventory(project_dir, progress_callback, stop_event)
+
+    def refresh_inventory(
+        self,
+        project_dir: Path,
+        progress_callback: Optional[Callable[[str, str, str], None]] = None,
+        stop_event: Optional[Any] = None,
+    ) -> str:
+        """
+        Performs a fast file scan and updates the SQLite inventory without running heuristics or AI.
+        """
+        self.project_id = self.wm.get_project_id(project_dir)
+
+        # Get field from metadata if exists
         field_name = (
             self.current_metadata.science_branches_mnisw[0]
             if self.current_metadata.science_branches_mnisw
             else None
         )
         effective = self.pm.resolve_effective_protocol(self.project_id, field_name)
-        exclude_patterns = effective.get("exclude")
+        exclude_patterns = effective.get("exclude", [])
 
-        # 1. Start Analysis
+        # 1. Quick fingerpint update
+        def wrapped_cb(msg, fpath="", spath=""):
+            if progress_callback:
+                progress_callback(msg, fpath, spath)
+
         res = scan_project_lazy(
             project_dir,
-            progress_callback=progress_callback,
+            progress_callback=wrapped_cb,
             stop_event=stop_event,
             exclude_patterns=exclude_patterns,
         )
@@ -193,7 +168,7 @@ class ProjectAnalysisAgent:
             db = ProjectInventoryDB(self.wm.get_project_db_path(self.project_id))
             db.update_inventory(full_files)
         except Exception as e:
-            print(f"[ERROR] Failed to save inventory to SQLite: {e}")
+            print(f"[ERROR] Failed to refresh inventory in SQLite: {e}")
 
         # Heuristics
         heuristics_data: Dict[str, Any] = {}
@@ -289,6 +264,8 @@ class ProjectAnalysisAgent:
         self.save_state()
         return msg
 
+        return msg
+
     def process_user_input(
         self,
         user_text: str,
@@ -348,6 +325,7 @@ class ProjectAnalysisAgent:
         # 3. ADD EXTRA FILES TO CONTEXT
         if extra_files and self.current_fingerprint:
             extra_context = []
+            read_files = []
             project_dir_to_use = Path(self.current_fingerprint.root_path)
             for p in extra_files:
                 content = FullTextReader.read_full_text(p)
@@ -360,13 +338,28 @@ class ProjectAnalysisAgent:
                     extra_context.append(
                         f"--- USER-REQUESTED FILE: {rel_p} ---\n{content}"
                     )
+                    read_files.append(f"`{rel_p}`")
+
             if extra_context:
+                # Add a stable system message about what was actually read
+                self.chat_history.append(
+                    (
+                        "agent",
+                        f"[System] context expanded with: {', '.join(read_files)}",
+                    )
+                )
+                if on_update:
+                    on_update()
+
                 enhanced_input = (
                     f"{enhanced_input}\n\n[CONTEXT FROM ATTACHED FILES]\n"
                     + "\n".join(extra_context)
                 )
 
         # 4. CALL AI
+        effective = self.pm.resolve_effective_protocol(self.project_id)
+        excl = effective.get("exclude")
+        print(f"[DEBUG] Effective excludes for AI: {excl}")
         context = self.generate_ai_prompt()
         history_str = "\n".join(
             [f"{role}: {m}" for role, m in self.chat_history[-10:-1]]
@@ -469,13 +462,17 @@ class ProjectAnalysisAgent:
     def submit_analysis_answers(
         self, answers: Dict[str, Any], on_update: Optional[Callable[[], None]] = None
     ) -> str:
-        """Updates metadata based on form answers and clears current analysis."""
+        """
+        Updates metadata based on form answers and clears current analysis.
+        Adheres to robust validation and modular update logic.
+        """
         if not self.current_analysis:
             return "No active analysis to answer."
 
-        current_dict = self.current_metadata.model_dump(exclude_unset=True)
-        processed_answers = {}
-        list_fields = [
+        # Prepare list of fields that should be treated as lists of objects or strings
+        # 'authors' and 'contacts' are lists of Pydantic models, not simple strings
+        complex_list_fields = ["authors", "contacts"]
+        simple_list_fields = [
             "science_branches_oecd",
             "science_branches_mnisw",
             "keywords",
@@ -483,12 +480,36 @@ class ProjectAnalysisAgent:
             "software",
         ]
 
-        for k, v in answers.items():
-            processed_answers[k] = [v] if k in list_fields and isinstance(v, str) else v
+        current_dict = self.current_metadata.model_dump(exclude_unset=True)
+        processed_answers = {}
 
-        current_dict.update(processed_answers)
-        self.current_metadata = Metadata.model_validate(current_dict)
-        self.current_analysis = None
+        for k, v in answers.items():
+            if not v:
+                continue
+
+            # Special handling for complex list fields - don't overwrite with strings from form
+            if k in complex_list_fields:
+                # If the value from the form is a string (e.g. choice),
+                # we need to find the matching object or ignore if it's just a label
+                if isinstance(v, str):
+                    # Check if this looks like a JSON or identifier,
+                    # for now we skip raw string overwrites of PersonOrOrg lists
+                    continue
+
+            # Simple list fields can take strings and convert them to single-item lists
+            if k in simple_list_fields and isinstance(v, str):
+                processed_answers[k] = [v]
+            else:
+                processed_answers[k] = v
+
+        try:
+            current_dict.update(processed_answers)
+            self.current_metadata = Metadata.model_validate(current_dict)
+            self.current_analysis = None
+        except Exception as e:
+            # Re-raise with context but protect agent state
+            print(f"[ERROR] Metadata validation failed during form submission: {e}")
+            raise e
 
         human_answers = []
         for k, v in processed_answers.items():
@@ -497,9 +518,9 @@ class ProjectAnalysisAgent:
             human_answers.append(f"- **{label}**: {val_str}")
 
         self.chat_history.append(
-            ("user", f"Updated fields:\n\n" + "\n".join(human_answers))
+            ("user", f"Updated fields via form:\n\n" + "\n".join(human_answers))
         )
-        msg = "Thank you! I've updated the metadata with your answers."
+        msg = "Thank you! I've updated the metadata with your choices."
         self.chat_history.append(("agent", msg))
         self.save_state()
 

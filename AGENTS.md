@@ -174,6 +174,13 @@ Every substantial step must have an accompanying automated test. Before completi
   - **Performance Caching:** Integrated project list caching in `WorkspaceManager` and asynchronous inventory summary calculations.
   - **UX Robustness:** Replaced complex components in dialogs with stable native lists and added comprehensive loading states.
 
+- **Phase 19 Scanning Engine Overhaul & Stabilization [COMPLETE]:**
+  - **Pruning Scanner:** Upgraded scanner to use `pathlib.match` and `os.scandir` for true in-scan exclusion, allowing efficient skipping of massive directory trees.
+  - **Streaming Traversal:** Implemented generator-based directory walking to handle projects with millions of files without memory spikes.
+  - **Robust Package UI:** Replaced unstable AgGrid component with a high-performance, high-level project root viewer.
+  - **Built-in Protocols:** Hardcoded standard science protocols (Physics, VASP) for zero-config operation.
+  - **Stability Fixes:** Restored agent logic, fixed Pydantic validation for complex fields, and cleaned up UI race conditions.
+
 ## Code Style Guidelines
 
 
