@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.14] - 2026-02-09
+### Fixed
+- **System Restoration:** Restored full logic for [System] feedback, tool recognition (arXiv/DOI/ORCID), and @file context expansion.
+- **Scanning Performance:** Integrated Phase 17 optimizations into the restored healthy codebase.
+- **Metadata Consistency:** Unified Pydantic validation across all drafting phases.
+
 ## [0.9.13] - 2026-02-08
 ### Fixed
 - **Robust UI Forms:** Fixed an `AttributeError` in the refinement form when resolving data conflicts where the AI returns sources as a list of strings instead of objects.

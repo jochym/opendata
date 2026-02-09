@@ -5,7 +5,6 @@ from typing import Any, Dict, List, Type, TypeVar
 from pydantic import BaseModel
 from opendata.models import UserSettings, Metadata, ProjectFingerprint
 import json
-from opendata.i18n.translator import _
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -128,15 +127,10 @@ class WorkspaceManager:
                     # Try to infer path from project ID if possible, but usually Unknown is safer
                     pass
 
-                if not metadata or root_path == "Unknown":
-                    # For corrupt or incomplete projects, ensure path is unique so they can be deleted
-                    root_path = f"Unknown (ID: {pdir.name[:8]})"
-                    title = title or f"{_('Corrupt Project')} ({pdir.name[:8]})"
-
                 projects.append(
                     {
                         "id": pdir.name,
-                        "title": title or _("Untitled Project"),
+                        "title": title or "Untitled Project",
                         "path": root_path,
                     }
                 )
@@ -145,8 +139,8 @@ class WorkspaceManager:
                 projects.append(
                     {
                         "id": pdir.name,
-                        "title": f"{_('Corrupt Project')} ({pdir.name[:8]})",
-                        "path": f"Unknown (ID: {pdir.name[:8]})",
+                        "title": f"Corrupt Project ({pdir.name[:8]})",
+                        "path": "Unknown",
                     }
                 )
                 print(f"[DEBUG] Error listing project {pdir.name}: {e}")

@@ -4,7 +4,7 @@ import asyncio
 from nicegui import ui
 import webbrowser
 from pathlib import Path
-from typing import Any, List, Literal
+from typing import Any, List
 from opendata.utils import get_local_ip, format_size
 from opendata.workspace import WorkspaceManager
 from opendata.packager import PackagingService
@@ -66,164 +66,6 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
         inventory_cache: List[dict] = []
         last_inventory_project: str = ""
         is_loading_inventory: bool = False
-        # Debouncing state
-        last_refresh_time: float = 0.0
-        pending_refresh: bool = False
-        # Inventory loading lock
-        inventory_lock: bool = False
-
-    import time
-    import logging
-
-    # Setup diagnostic logging for connection issues
-    logger = logging.getLogger("opendata.ui")
-
-    async def refresh_all_debounced():
-        """Debounced refresh - waits 150ms before executing, skips if already pending."""
-        if UIState.pending_refresh:
-            return
-
-        # Check if we have an active client/connection before refreshing
-        try:
-            if not ui.context.client:
-                return
-        except Exception:
-            return
-
-        UIState.pending_refresh = True
-        await asyncio.sleep(0.15)
-        UIState.pending_refresh = False
-
-        # Verify client again after sleep
-        try:
-            if not ui.context.client or not ui.context.client.has_socket_connection:
-                return
-        except Exception:
-            return
-
-        try:
-            chat_messages_ui.refresh()
-            metadata_preview_ui.refresh()
-            header_content_ui.refresh()
-            render_protocols_tab.refresh()
-            render_preview_and_build.refresh()
-        except Exception:
-            pass
-
-    def refresh_all():
-        """Synchronous refresh with throttling - max once per 200ms."""
-        # Check if we have an active client
-        try:
-            if not ui.context.client or not ui.context.client.has_socket_connection:
-                return
-        except Exception:
-            return
-
-        now = time.time()
-        if now - UIState.last_refresh_time < 0.2:
-            # Schedule async debounced refresh instead
-            asyncio.create_task(refresh_all_debounced())
-            return
-        UIState.last_refresh_time = now
-        try:
-            chat_messages_ui.refresh()
-            metadata_preview_ui.refresh()
-            header_content_ui.refresh()
-            render_protocols_tab.refresh()
-            render_preview_and_build.refresh()
-        except Exception:
-            pass
-
-    async def load_inventory_background():
-        """Load inventory in background with lock to prevent concurrent runs."""
-        logger.info(
-            f">>> DEBUG: load_inventory_background START for {agent.project_id}"
-        )
-        if not agent.project_id or ScanState.is_scanning:
-            logger.info("DEBUG: Load aborted - no project_id or scan in progress.")
-            return
-
-        # Prevent concurrent inventory loading
-        if UIState.inventory_lock:
-            logger.info(f"DEBUG: Inventory load skipped - already locked.")
-            return
-
-        UIState.inventory_lock = True
-        UIState.is_loading_inventory = True
-
-        try:
-            # Step 1: UI feedback
-            logger.info("DEBUG: Inventory load step 1: Pre-refreshing Package tab...")
-            render_package_tab.refresh()
-
-            # Step 2: Path check
-            if not ScanState.current_path:
-                logger.error(
-                    "DEBUG: Inventory load ERROR - ScanState.current_path is None"
-                )
-                return
-
-            project_path = Path(ScanState.current_path)
-            logger.info(f"DEBUG: Inventory load step 2: Project path is {project_path}")
-
-            # Step 3: DB Load
-            logger.info(
-                "DEBUG: Inventory load step 3: Fetching from DB (background thread)..."
-            )
-            manifest = pkg_mgr.get_manifest(agent.project_id)
-
-            field_name = (
-                agent.current_metadata.science_branches_mnisw[0]
-                if agent.current_metadata.science_branches_mnisw
-                else None
-            )
-            effective = pm.resolve_effective_protocol(agent.project_id, field_name)
-            protocol_excludes = effective.get("exclude", [])
-
-            inventory = await asyncio.to_thread(
-                pkg_mgr.get_inventory_for_ui, project_path, manifest, protocol_excludes
-            )
-
-            # Step 4: Cache update
-            UIState.inventory_cache = inventory
-            UIState.last_inventory_project = agent.project_id
-            logger.info(
-                f"DEBUG: Inventory load step 4: SUCCESS. {len(inventory)} files found."
-            )
-
-            if len(inventory) > 0:
-                safe_notify(
-                    _("File inventory loaded ({count} files)").format(
-                        count=len(inventory)
-                    ),
-                    type="positive",
-                )
-
-        except Exception as e:
-            logger.error(f"DEBUG: Inventory load CRITICAL ERROR: {e}", exc_info=True)
-            safe_notify(
-                _("Error loading file list: {error}").format(error=str(e)),
-                type="negative",
-            )
-        finally:
-            UIState.is_loading_inventory = False
-            UIState.inventory_lock = False
-            logger.info(
-                "DEBUG: load_inventory_background FINISHED. Refreshing Package tab..."
-            )
-            try:
-                render_package_tab.refresh()
-            except Exception as e:
-                logger.warning(f"DEBUG: Failed final refresh: {e}")
-
-    def safe_notify(
-        message: str,
-        type: Literal["positive", "negative", "warning", "info", "ongoing"] = "info",
-    ):
-        try:
-            ui.notify(message, type=type)
-        except Exception:
-            print(f"[NOTIFY FALLBACK] {type.upper()}: {message}")
 
     # --- REFRESHABLE COMPONENTS ---
 
@@ -276,35 +118,24 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                 for conflict in analysis.conflicting_data:
                     field = conflict.get("field", "unknown")
                     sources = conflict.get("sources", [])
-                    # Support both list of dicts and list of strings from AI
-                    options = {}
-                    for s in sources:
-                        if isinstance(s, dict):
-                            val = str(s.get("value", ""))
-                            label = f"{val} (Source: {s.get('source', 'unknown')})"
-                        else:
-                            val = str(s)
-                            label = val
-                        options[val] = label
+                    # Ensure values are strings for select options keys
+                    options = {
+                        str(
+                            s.get("value", "")
+                        ): f"{str(s.get('value', ''))} (Source: {s.get('source', 'unknown')})"
+                        for s in sources
+                    }
 
                     with ui.row().classes("w-full items-center gap-2"):
                         ui.label(field.replace("_", " ").title()).classes(
                             "text-xs w-24"
                         )
-
-                        initial_val = ""
-                        if sources:
-                            s0 = sources[0]
-                            initial_val = (
-                                str(s0.get("value", ""))
-                                if isinstance(s0, dict)
-                                else str(s0)
-                            )
-
                         form_data[field] = (
                             ui.select(
                                 options=options,
-                                value=initial_val,
+                                value=str(sources[0].get("value", ""))
+                                if sources
+                                else None,
                             )
                             .props("dense outlined")
                             .classes("flex-grow")
@@ -346,26 +177,8 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
     @ui.refreshable
     def chat_messages_ui():
-        # Performance: limit rendered messages to last 50 to avoid WebSocket overload
-        MAX_VISIBLE_MESSAGES = 50
-        history = agent.chat_history
-        total = len(history)
-        start_idx = max(0, total - MAX_VISIBLE_MESSAGES)
-        visible_history = history[start_idx:]
-
         with ui.column().classes("w-full gap-1 overflow-x-hidden"):
-            # Show truncation notice if history was clipped
-            if total > MAX_VISIBLE_MESSAGES:
-                with ui.row().classes("w-full justify-center"):
-                    ui.label(
-                        _("Showing last {count} of {total} messages").format(
-                            count=MAX_VISIBLE_MESSAGES, total=total
-                        )
-                    ).classes("text-xs text-slate-400 italic")
-
-            for i, (role, msg) in enumerate(visible_history):
-                # Adjust index for original position (for detecting last message)
-                original_idx = start_idx + i
+            for i, (role, msg) in enumerate(agent.chat_history):
                 if role == "user":
                     with ui.row().classes("w-full justify-start"):
                         with ui.card().classes(
@@ -385,7 +198,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
                             # If this is the last agent message and we have an active analysis, show the form
                             if (
-                                original_idx == len(agent.chat_history) - 1
+                                i == len(agent.chat_history) - 1
                                 and agent.current_analysis
                             ):
                                 render_analysis_form(agent.current_analysis)
@@ -409,14 +222,11 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                                 ui.button("", on_click=handle_cancel_scan).props(
                                     "icon=close flat color=gray size=xs"
                                 ).classes("min-h-6 min-w-6 p-0.5")
-        # Only scroll if not in bulk loading mode
-        if not ScanState.is_loading_project:
-            ui.run_javascript("window.scrollTo(0, document.body.scrollHeight)")
+        ui.run_javascript("window.scrollTo(0, document.body.scrollHeight)")
 
     class ScanState:
         is_scanning = False
         is_processing_ai = False
-        is_loading_project = False  # NEW: Track project loading
         progress = ""
         short_path = ""
         full_path = ""
@@ -442,10 +252,45 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                 ScanState.progress_label = lbl  # type: ignore[attr-defined]
             return
 
-        # NOTE: Removed header_content_ui.refresh() call here to prevent cascade refreshes
-        # that could cause WebSocket overload. Header is refreshed via refresh_all() instead.
+        # Explicitly refresh header when metadata changes to sync project selector
+        try:
+            header_content_ui.refresh()  # type: ignore
+        except Exception:
+            pass
 
         fields = agent.current_metadata.model_dump(exclude_unset=True)
+
+        def create_expandable_text(text: str, key: str = None):
+            with ui.column().classes(
+                "w-full gap-0 bg-slate-50 border border-slate-100 rounded relative group"
+            ):
+                # Lock indicator
+                if key:
+                    is_locked = key in agent.current_metadata.locked_fields
+
+                    async def toggle_lock(e, k=key):
+                        if k in agent.current_metadata.locked_fields:
+                            agent.current_metadata.locked_fields.remove(k)
+                        else:
+                            agent.current_metadata.locked_fields.append(k)
+                        agent.save_state()
+                        metadata_preview_ui.refresh()
+
+                    with (
+                        ui.button(
+                            icon="lock" if is_locked else "lock_open",
+                            on_click=toggle_lock,
+                        )
+                        .props("flat dense")
+                        .classes(
+                            f"absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity {'text-orange-600 opacity-100' if is_locked else 'text-slate-400'}"
+                        )
+                    ):
+                        ui.tooltip(
+                            _("Lock field from AI updates")
+                            if not is_locked
+                            else _("Unlock field")
+                        )
 
         # Increased height to 110px to ensure 5 lines are fully visible without chopping descenders.
         def create_expandable_text(text: str, key: str = None):
@@ -803,34 +648,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                     ui.label(key.replace("_", " ").title()).classes(
                         "text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-wider"
                     )
-                    with ui.row().classes(
-                        "w-full gap-1 flex-wrap items-center relative group mt--1"
-                    ) as list_container:
-                        list_container.on(
-                            "click", lambda _e, k=key: open_edit_dialog(k)
-                        )
-
-                        # Lock for lists
-                        is_locked = key in agent.current_metadata.locked_fields
-                        with (
-                            ui.button(
-                                icon="lock" if is_locked else "lock_open",
-                                on_click=lambda _e, k=key: toggle_lock_list(_e, k),
-                            )
-                            .props("flat dense")
-                            .classes(
-                                f"absolute -top-4 right-0 z-10 opacity-0 group-hover:opacity-100 transition-opacity {'text-orange-600 opacity-100' if is_locked else 'text-slate-400'}"
-                            )
-                            .style(
-                                "font-size: 10px; background: white; border-radius: 50%; border: 1px solid #eee; width: 20px; height: 20px;"
-                            )
-                        ):
-                            ui.tooltip(
-                                _("Lock field from AI updates")
-                                if not is_locked
-                                else _("Unlock field")
-                            )
-
+                    with ui.row().classes("w-full gap-1 flex-wrap items-center mt--1"):
                         for item in value:
                             ui.label(str(item)).classes(
                                 "text-sm bg-slate-100 py-0.5 px-2 rounded border border-slate-200 inline-block mr-1 mb-1"
@@ -1039,56 +857,34 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                 .props("dark dense options-dark behavior=menu")
                 .classes("w-48 text-xs")
             )
+            # Bind selector value to ScanState.current_path to keep it in sync
+            selector.bind_value(ScanState, "current_path")
 
             async def handle_delete_current():
-                # Use selector value if current_path is not set (helps with corrupt projects)
-                project_path_to_del = (
-                    selector.value if selector.value else ScanState.current_path
-                )
-                if not project_path_to_del:
+                if not ScanState.current_path:
                     return
-
+                # Use the same logic as list_projects to find the project to delete
                 projects = wm.list_projects()
-
-                # 1. Try matching by path
-                target_p = next(
-                    (p for p in projects if p["path"] == project_path_to_del), None
+                # Find project that matches current path exactly or by ID
+                # If path is 'Unknown', try matching current_path or resolving current project ID
+                target_project = next(
+                    (p for p in projects if p["path"] == ScanState.current_path), None
                 )
 
-                # 2. Try matching by ID (in case selector.value IS the ID)
-                if not target_p:
-                    target_p = next(
-                        (p for p in projects if p["id"] == project_path_to_del), None
-                    )
-
-                if not target_p:
-                    # Last resort: if it's a corrupt project, the ID is often in the path string
-                    # e.g., "Unknown (ID: abc12345)"
-                    import re
-
-                    match = re.search(r"ID: ([a-f0-9]+)", project_path_to_del)
-                    if match:
-                        project_id = match.group(1)
-                    else:
-                        # Fallback to agent's current ID if we are sure it's the one
-                        if agent.project_id:
-                            project_id = agent.project_id
-                        else:
-                            ui.notify(
-                                _("Could not determine project ID to delete"),
-                                type="negative",
-                            )
-                            return
+                if not target_project:
+                    # Try resolving ID from ScanState.current_path
+                    path_obj = Path(ScanState.current_path).resolve()
+                    project_id = agent.wm.get_project_id(path_obj)
                 else:
-                    project_id = target_p["id"]
+                    project_id = target_project["id"]
 
-                logger.info(f"DEBUG: Attempting to delete project ID: {project_id}")
+                print(f"[DEBUG] UI Current Path: {ScanState.current_path}")
+                print(f"[DEBUG] Determined Project ID for deletion: {project_id}")
 
+                # Use NiceGUI dialog instead of run_javascript(confirm) which times out in some environments
                 with ui.dialog() as confirm_dialog, ui.card().classes("p-4"):
                     ui.label(
-                        _(
-                            "Are you sure you want to permanently delete this project state?"
-                        )
+                        _("Are you sure you want to remove this project from the list?")
                     )
                     with ui.row().classes("w-full justify-end gap-2 mt-4"):
                         ui.button(_("Cancel"), on_click=confirm_dialog.close).props(
@@ -1096,22 +892,41 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                         )
 
                         async def perform_delete():
+                            # Close dialog first
                             confirm_dialog.close()
-                            if wm.delete_project(project_id):
-                                ui.notify(_("Project state deleted permanently."))
+
+                            # Perform deletion
+                            success = wm.delete_project(project_id)
+                            if success:
+                                ui.notify(_("Project removed from workspace."))
+                                # Force reset all state
                                 ScanState.current_path = ""
                                 agent.reset_agent_state()
-                                # Refresh UI
-                                header_content_ui.refresh()
+                                # Refresh UI components
+                                project_selector_ui.refresh()
                                 metadata_preview_ui.refresh()
                                 chat_messages_ui.refresh()
+                                header_content_ui.refresh()
                             else:
-                                ui.notify(
-                                    _("Failed to delete project directory."),
-                                    type="negative",
-                                )
+                                # Fallback deletion attempt for "Unknown" paths if we have agent.project_id
+                                if agent.project_id and wm.delete_project(
+                                    agent.project_id
+                                ):
+                                    ui.notify(_("Project removed from workspace."))
+                                    ScanState.current_path = ""
+                                    agent.reset_agent_state()
+                                    project_selector_ui.refresh()
+                                    metadata_preview_ui.refresh()
+                                    chat_messages_ui.refresh()
+                                    header_content_ui.refresh()
+                                else:
+                                    ui.notify(
+                                        _("Failed to delete project folder."),
+                                        type="negative",
+                                    )
 
                         ui.button(_("Delete"), on_click=perform_delete, color="red")
+
                 confirm_dialog.open()
 
             with (
@@ -1121,7 +936,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
             ):
                 ui.tooltip(_("Remove current project from history"))
                 del_btn.bind_visibility_from(
-                    selector, "value", backward=lambda x: bool(x)
+                    ScanState, "current_path", backward=lambda x: bool(x)
                 )
 
     @ui.page("/")
@@ -1151,24 +966,12 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
             "bg-slate-800 text-white py-2 px-4 justify-between items-center shadow-lg"
         ):
             header_content_ui()
-
             with ui.tabs().classes("bg-slate-800") as main_tabs:
                 analysis_tab = ui.tab(_("Analysis"), icon="analytics")
                 protocols_tab = ui.tab(_("Protocols"), icon="rule")
                 package_tab = ui.tab(_("Package"), icon="inventory_2")
                 preview_tab = ui.tab(_("Preview"), icon="visibility")
                 settings_tab = ui.tab(_("Settings"), icon="settings")
-
-                async def handle_tab_change(e):
-                    logger.info(f"DEBUG: Tab changed to: {e.value}")
-                    if e.value == package_tab:
-                        render_package_tab.refresh()
-                    elif e.value == preview_tab:
-                        render_preview_and_build.refresh()
-                    elif e.value == protocols_tab:
-                        render_protocols_tab.refresh()
-
-                main_tabs.on_value_change(handle_tab_change)
 
                 UIState.main_tabs = main_tabs
                 UIState.analysis_tab = analysis_tab
@@ -1194,7 +997,6 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                     with ui.tab_panel(settings_tab):
                         render_settings_tab()
 
-    @ui.refreshable
     def render_preview_and_build():
         with ui.column().classes("w-full gap-4"):
             with ui.card().classes("w-full p-6 shadow-md border-t-4 border-green-600"):
@@ -1229,27 +1031,37 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
             with ui.card().classes("w-full p-6 shadow-md"):
                 ui.label(_("Final Selection Summary")).classes("text-h6 font-bold mb-2")
                 if agent.project_id:
-                    # NOTE: Removed direct disk scanning from UI render
-                    # to prevent WebSocket timeouts on large projects (15,000+ files)
-                    ui.label(
-                        _("Summary depends on your selection in the Package tab.")
-                    ).classes("text-sm text-slate-500")
-                    if UIState.inventory_cache:
-                        included = [f for f in UIState.inventory_cache if f["included"]]
-                        total_size = sum(f["size"] for f in included)
-                        with ui.row().classes("gap-8 mt-2"):
+                    project_path = Path(ScanState.current_path)
+                    manifest = pkg_mgr.get_manifest(agent.project_id)
+                    # Resolve protocol to show current effective count
+                    field_name = (
+                        agent.current_metadata.science_branches_mnisw[0]
+                        if agent.current_metadata.science_branches_mnisw
+                        else None
+                    )
+                    effective = pm.resolve_effective_protocol(
+                        agent.project_id, field_name
+                    )
+                    protocol_excludes = effective.get("exclude", [])
+                    eff_list = pkg_mgr.get_effective_file_list(
+                        project_path, manifest, protocol_excludes
+                    )
+                    total_size = sum(p.stat().st_size for p in eff_list if p.exists())
+
+                    with ui.row().classes("gap-4 items-center"):
+                        ui.icon("inventory", size="md", color="slate-600")
+                        with ui.column().classes("gap-0"):
                             ui.label(
-                                _("Total Files: {count}").format(count=len(included))
+                                _("{count} files selected for inclusion").format(
+                                    count=len(eff_list)
+                                )
                             ).classes("font-bold")
                             ui.label(
-                                _("Estimated Size: {size}").format(
+                                _("Estimated Package Data Size: {size}").format(
                                     size=format_size(total_size)
                                 )
-                            )
-                    else:
-                        ui.label(
-                            _("No summary available yet. Please open Package tab.")
-                        ).classes("text-xs italic text-slate-400")
+                            ).classes("text-sm text-slate-500")
+
                     ui.button(
                         _("Edit Selection"),
                         icon="edit",
@@ -1507,155 +1319,213 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
     @ui.refreshable
     def render_package_tab():
-        logger.info(f">>> DEBUG: render_package_tab START. Project: {agent.project_id}")
-
         # Package Content Editor
         if not agent.project_id:
-            with ui.card().classes("w-full p-8 shadow-md items-center justify-center"):
-                ui.icon("folder_open", size="lg", color="grey-400")
-                ui.label(_("Please select and open a project first.")).classes(
-                    "text-orange-600 font-bold"
+            with ui.card().classes("w-full p-8 shadow-md"):
+                with ui.column().classes("w-full items-center p-8"):
+                    ui.icon("folder_open", size="lg", color="grey-400")
+                    ui.label(_("Please select and open a project first.")).classes(
+                        "text-orange-600 font-bold"
+                    )
+            return
+
+        # Explicit Requirement: Only use SQLite cache. Never scan disk implicitly during render.
+        # Check if project changed and we haven't loaded cache yet
+        if UIState.last_inventory_project != agent.project_id:
+            # We don't trigger scanning here. We just show empty state or trigger loading if DB exists.
+            # However, handle_load_project should have triggered load_inventory_background.
+            if not UIState.is_loading_inventory:
+                asyncio.create_task(load_inventory_background())
+
+        if UIState.is_loading_inventory and not UIState.inventory_cache:
+            with ui.column().classes("w-full items-center justify-center p-20 gap-4"):
+                ui.spinner(size="xl")
+                ui.label(_("Reading project inventory from database...")).classes(
+                    "text-slate-500 animate-pulse"
                 )
             return
 
+        if not UIState.inventory_cache:
+            with ui.column().classes("w-full items-center justify-center p-20 gap-4"):
+                ui.icon("inventory", size="xl", color="grey-400")
+                ui.label(_("No file inventory found.")).classes(
+                    "text-orange-600 font-bold"
+                )
+                ui.markdown(
+                    _(
+                        "Please click **Analyze Directory** in the Analysis tab to list project files."
+                    )
+                ).classes("text-sm text-slate-500")
+                ui.button(
+                    _("Go to Analysis"),
+                    on_click=lambda: UIState.main_tabs.set_value(UIState.analysis_tab),
+                ).props("outline")
+            return
+
+        project_path = Path(ScanState.current_path)
+        manifest = pkg_mgr.get_manifest(agent.project_id)
+        inventory = UIState.inventory_cache
+
         with ui.column().classes("w-full gap-4 h-full p-4"):
-            # 1. Header with Fingerprint Info (Immediate)
             with ui.row().classes("w-full items-center justify-between"):
                 with ui.column():
                     ui.label(_("Package Content Editor")).classes("text-2xl font-bold")
-                    if agent.current_fingerprint:
-                        fp = agent.current_fingerprint
-                        ui.label(
-                            _("Project contains {count} files ({size})").format(
-                                count=fp.file_count,
-                                size=format_size(fp.total_size_bytes),
-                            )
-                        ).classes("text-sm text-slate-600 font-bold")
-                    else:
-                        ui.label(
-                            _("Select files to include in the final RODBUK package.")
-                        ).classes("text-sm text-slate-500")
+                    ui.label(
+                        _(
+                            "Select files to include in the final RODBUK package. Changes are saved automatically."
+                        )
+                    ).classes("text-sm text-slate-500")
 
                 with ui.row().classes("gap-2"):
                     ui.button(
-                        _("Refresh List"),
+                        _("Refresh File List"),
                         icon="refresh",
                         on_click=handle_refresh_inventory,
-                    ).props("outline color=primary")
-
-            # 2. Lazy Loading Logic
-            if UIState.last_inventory_project != agent.project_id:
-                logger.info("DEBUG: Project change in Package Tab. Triggering load.")
-                if not UIState.is_loading_inventory and not UIState.inventory_lock:
-                    asyncio.create_task(load_inventory_background())
-
-            # 3. Content Area
-            if UIState.is_loading_inventory and not UIState.inventory_cache:
-                with ui.column().classes("w-full items-center justify-center p-20"):
-                    ui.spinner(size="xl")
-                    ui.label(_("Loading files from database...")).classes(
-                        "animate-pulse"
+                    ).props("outline color=primary").bind_visibility_from(
+                        ScanState, "is_scanning", backward=lambda x: not x
                     )
-                return
-
-            if not UIState.inventory_cache:
-                with ui.column().classes("w-full items-center justify-center p-20"):
-                    ui.icon("inventory", size="xl", color="grey-400")
-                    ui.label(_("No file inventory found.")).classes("font-bold")
                     ui.button(
-                        _("Load Files"), on_click=load_inventory_background
-                    ).props("flat")
-                return
+                        _("Reset to Defaults"),
+                        icon="settings_backup_restore",
+                        on_click=lambda: handle_reset(),
+                    ).props("outline color=grey-7")
+                    ui.button(
+                        _("AI Assist (Coming Soon)"),
+                        icon="auto_awesome",
+                    ).props("flat color=primary disabled")
 
-            # 4. Grid (The actual data)
-            inventory = UIState.inventory_cache
-            manifest = pkg_mgr.get_manifest(agent.project_id)
-            included = [f for f in inventory if f["included"]]
-
+            # Statistics summary
+            included_files = [f for f in inventory if f["included"]]
+            total_size = sum(f["size"] for f in included_files)
             with ui.row().classes("w-full gap-8 p-3 bg-slate-50 rounded-lg border"):
-                ui.label(_("Included: {count}").format(count=len(included))).classes(
-                    "font-bold text-green-700"
-                )
                 ui.label(
-                    _("Total size: {size}").format(
-                        size=format_size(sum(f["size"] for f in included))
+                    _("Included: {count} files").format(count=len(included_files))
+                ).classes("font-bold")
+                ui.label(_("Total Size: {size}").format(size=format_size(total_size)))
+                ui.label(
+                    _("Excluded: {count} files").format(
+                        count=len(inventory) - len(included_files)
                     )
-                )
+                ).classes("text-slate-400")
 
-            MAX_ROWS = 2000
-            display_data = inventory[:MAX_ROWS]
-
+            # The Grid
             grid_data = []
-            for item in display_data:
+            for item in inventory:
                 grid_data.append(
                     {
                         "included": item["included"],
                         "path": item["path"],
+                        "size_val": item["size"],
                         "size": format_size(item["size"]),
                         "reason": item["reason"],
                     }
                 )
 
+            column_defs = [
+                {
+                    "headerName": _("Include"),
+                    "field": "included",
+                    "checkboxSelection": True,
+                    "showDisabledCheckboxes": True,
+                    "width": 100,
+                },
+                {
+                    "headerName": _("File Path"),
+                    "field": "path",
+                    "filter": "agTextColumnFilter",
+                    "flex": 1,
+                },
+                {
+                    "headerName": _("Size"),
+                    "field": "size",
+                    "sortable": True,
+                    "width": 120,
+                    "comparator": "valueGetter: node.data.size_val",
+                },
+                {
+                    "headerName": _("Inclusion Reason"),
+                    "field": "reason",
+                    "width": 180,
+                    "filter": "agTextColumnFilter",
+                },
+            ]
+
             grid = ui.aggrid(
                 {
-                    "columnDefs": [
-                        {
-                            "headerName": _("Include"),
-                            "field": "included",
-                            "checkboxSelection": True,
-                            "width": 100,
-                        },
-                        {
-                            "headerName": _("Path"),
-                            "field": "path",
-                            "filter": "agTextColumnFilter",
-                            "flex": 1,
-                        },
-                        {"headerName": _("Size"), "field": "size", "width": 120},
-                        {"headerName": _("Reason"), "field": "reason", "width": 150},
-                    ],
+                    "columnDefs": column_defs,
                     "rowData": grid_data,
                     "rowSelection": "multiple",
+                    "stopEditingWhenCellsLoseFocus": True,
                     "pagination": True,
                     "paginationPageSize": 50,
                 }
-            ).classes("w-full h-[500px] shadow-sm")
+            ).classes("w-full h-[600px] shadow-sm")
 
+            # Initial selection
             grid.options["selected_keys"] = [
                 i for i, f in enumerate(grid_data) if f["included"]
             ]
 
-            async def on_selection():
-                rows = await grid.get_selected_rows()
-                selected_paths = {r["path"] for r in rows}
-                visible_paths = {i["path"] for i in display_data}
+            async def handle_selection_change():
+                selected_rows = await grid.get_selected_rows()
+                selected_paths = {row["path"] for row in selected_rows}
 
-                # Update manifest
-                for path in visible_paths:
-                    item = next(i for i in inventory if i["path"] == path)
-                    is_sel = path in selected_paths
-                    if item["is_proto_excluded"]:
-                        if is_sel and path not in manifest.force_include:
-                            manifest.force_include.append(path)
-                        if not is_sel and path in manifest.force_include:
-                            manifest.force_include.remove(path)
+                new_force_include = []
+                new_force_exclude = []
+
+                # Use UIState.inventory_cache directly
+                for item in UIState.inventory_cache:
+                    rel_path = item["path"]
+                    is_proto_excluded = item["is_proto_excluded"]
+                    is_now_selected = rel_path in selected_paths
+
+                    if is_proto_excluded:
+                        if is_now_selected:
+                            new_force_include.append(rel_path)
                     else:
-                        if not is_sel and path not in manifest.force_exclude:
-                            manifest.force_exclude.append(path)
-                        if is_sel and path in manifest.force_exclude:
-                            manifest.force_exclude.remove(path)
+                        if not is_now_selected:
+                            new_force_exclude.append(rel_path)
 
+                manifest.force_include = new_force_include
+                manifest.force_exclude = new_force_exclude
                 pkg_mgr.save_manifest(manifest)
-                # Refresh local cache
-                for i in inventory:
-                    if i["path"] in visible_paths:
-                        i["included"] = i["path"] in selected_paths
-                render_package_tab.refresh()
 
-            grid.on("selectionChanged", on_selection)
+                # Update cache so UI reflects change immediately
+                for item in UIState.inventory_cache:
+                    rel_path = item["path"]
+                    if rel_path in manifest.force_include:
+                        item["included"] = True
+                        item["reason"] = "👤 User (Forced)"
+                    elif rel_path in manifest.force_exclude:
+                        item["included"] = False
+                        item["reason"] = "👤 User (Excluded)"
+                    else:
+                        item["included"] = not item["is_proto_excluded"]
+                        item["reason"] = (
+                            "📜 Protocol" if item["is_proto_excluded"] else "✅ Default"
+                        )
+
+                refresh_all()
+
+            grid.on("selectionChanged", handle_selection_change)
+
+            async def handle_reset():
+                manifest.force_include = []
+                manifest.force_exclude = []
+                pkg_mgr.save_manifest(manifest)
+                ui.notify(_("Selection reset to protocol defaults."), type="info")
+                # Selective refresh in background
+                asyncio.create_task(load_inventory_background())
 
     def render_package_placeholder():
         render_package_tab()
+
+    def refresh_all():
+        chat_messages_ui.refresh()
+        metadata_preview_ui.refresh()
+        header_content_ui.refresh()
+        render_protocols_tab.refresh()
+        render_package_tab.refresh()
 
     def render_setup_wizard():
         with ui.card().classes(
@@ -1953,7 +1823,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
     async def handle_refresh_inventory():
         if not ScanState.current_path:
-            safe_notify(_("Please select a project first."), type="warning")
+            ui.notify(_("Please select a project first."), type="warning")
             return
 
         resolved_path = Path(ScanState.current_path).expanduser()
@@ -1962,12 +1832,12 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
         ScanState.stop_event = threading.Event()
         ScanState.is_scanning = True
-        safe_notify(_("Refreshing file list..."))
+        ui.notify(_("Refreshing file list..."))
 
         def update_progress(msg, full_path="", short_path=""):
             ScanState.progress = msg
-            # Force UI update for progress
-            metadata_preview_ui.refresh()
+            # We reuse the global progress bar if visible, but mostly this is background
+            pass
 
         await asyncio.to_thread(
             agent.refresh_inventory,
@@ -1981,112 +1851,55 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
 
         # Force cache reload
         UIState.last_inventory_project = ""
-        try:
-            await load_inventory_background()
-            safe_notify(_("File list updated."), type="positive")
-        except Exception:
-            pass
+        await load_inventory_background()
+        ui.notify(_("File list updated."), type="positive")
 
     async def handle_load_project(path: str):
         if not path:
             return
+        ui.notify(_("Opening project..."))
 
-        # Loading Guard: prevent infinite loops or concurrent loads
-        if ScanState.is_loading_project:
-            logger.info(f"DEBUG: Skipping handle_load_project - already loading.")
-            return
+        path_obj = Path(path).expanduser().resolve()
+        # Explicitly create project ID and active it
+        project_id = wm.get_project_id(path_obj)
+        agent.project_id = project_id
 
-        # Avoid reloading the exact same path if already loaded
-        if ScanState.current_path == path and agent.project_id:
-            logger.info(
-                f"DEBUG: Skipping handle_load_project - project already active."
-            )
-            return
+        # Force refresh of all components that depend on project_id
+        # including the Protocols tab
+        success = await asyncio.to_thread(agent.load_project, path_obj)
+        ScanState.current_path = str(path_obj)
 
-        # CRITICAL: Always set current_path first to ensure UI stays in sync
-        # even if loading fails. This allows deletion of corrupt projects.
-        ScanState.current_path = path
-
-        start_time = time.time()
-        logger.info(f">>> DEBUG: Starting handle_load_project for: {path}")
-        ScanState.is_loading_project = True
-        safe_notify(_("Opening project..."))
-
-        try:
-            path_obj = Path(path).expanduser().resolve()
-            # Explicitly create project ID and activate it
-            project_id = wm.get_project_id(path_obj)
-            agent.project_id = project_id
-
-            logger.info(f"DEBUG: Project ID resolved: {project_id}")
-            UIState.last_inventory_project = ""
-            UIState.inventory_cache = []
-
-            # Load project data
-            logger.info("DEBUG: Loading state from disk...")
-            metadata, history, fingerprint = await asyncio.to_thread(
-                wm.load_project_state, project_id
+        if agent.current_metadata.ai_model:
+            ai.switch_model(agent.current_metadata.ai_model)
+            ui.notify(
+                _("Restored project model: {model}").format(
+                    model=agent.current_metadata.ai_model
+                )
             )
 
-            success = metadata is not None
-            logger.info(f"DEBUG: Disk load complete. Metadata found: {success}")
+        # Ensure workspace directory exists for protocols
+        project_state_dir = wm.projects_dir / project_id
+        project_state_dir.mkdir(parents=True, exist_ok=True)
 
-            # Assign to agent (even if empty/None to reset state)
-            agent.current_metadata = (
-                metadata if metadata else Metadata.model_construct()
-            )
-            agent.chat_history = history
-            agent.current_fingerprint = fingerprint
+        refresh_all()
 
-            # Switch model
-            if agent.current_metadata.ai_model:
-                ai.switch_model(agent.current_metadata.ai_model)
+        # Start inventory scan in background immediately after project load
+        asyncio.create_task(load_inventory_background())
 
-            # Ensure workspace directory exists only when needed (e.g. for protocols)
-            # NOTE: Removed aggressive mkdir(parents=True) here to prevent
-            # automatic creation of empty project folders when just browsing/deleting.
-            # project_state_dir = wm.projects_dir / project_id
-            # project_state_dir.mkdir(parents=True, exist_ok=True)
+        # Refresh the entire tab view to propagate project_id
+        render_protocols_tab.refresh()
 
-            # Sequence UI Refresh
-            refresh_steps = [
-                ("Header", header_content_ui),
-                ("Metadata Preview", metadata_preview_ui),
-                ("Protocols Tab", render_protocols_tab),
-                ("Preview & Build", render_preview_and_build),
-                ("Chat Messages", chat_messages_ui),
-            ]
-
-            for name, component in refresh_steps:
-                try:
-                    component.refresh()
-                except Exception as re:
-                    logger.error(f"DEBUG: ERROR refreshing {name}: {re}")
-                await asyncio.sleep(0.05)
-
-            safe_notify(
-                _("Project opened from history.")
-                if success
-                else _("New project directory opened.")
-            )
-        except Exception as e:
-            logger.error(f"DEBUG: Error in handle_load_project: {e}", exc_info=True)
-            safe_notify(_("Failed to load project correctly."), type="warning")
-            # We still keep ScanState.current_path so it can be deleted
-            header_content_ui.refresh()
-        finally:
-            ScanState.is_loading_project = False
+        if success:
+            ui.notify(_("Project opened from history."))
+        else:
+            ui.notify(_("New project directory opened."))
 
     async def handle_scan(path: str, force: bool = False):
         if not path:
             ui.notify(_("Please provide a path"), type="warning")
             return
-
-        # Ensure we always use absolute resolved paths
-        resolved_path = Path(path).expanduser().resolve()
-        ScanState.current_path = str(resolved_path)
-        logger.info(f"DEBUG: Starting handle_scan for {resolved_path}")
-
+        ScanState.current_path = path
+        resolved_path = Path(path).expanduser()
         import threading
 
         ScanState.stop_event = threading.Event()
@@ -2135,10 +1948,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
         )
         ScanState.is_processing_ai = False
         refresh_all()
-        try:
-            ui.run_javascript("window.scrollTo(0, document.body.scrollHeight)")
-        except Exception:
-            pass
+        ui.run_javascript("window.scrollTo(0, document.body.scrollHeight)")
 
     async def handle_clear_chat():
         agent.clear_chat_history()
