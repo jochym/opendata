@@ -403,7 +403,19 @@ class ProjectAnalysisAgent:
 
             ai_response = ai_service.ask_agent(full_prompt)
 
-            # Check for READ_FILE command
+            # Ensure ai_response starts with JSON context if it looks like JSON
+            if (
+                ai_response.strip().startswith("{")
+                and "METADATA" not in ai_response
+                and "ANALYSIS" not in ai_response
+            ):
+                # Wrap it to satisfy the extractor
+                ai_response = f"METADATA:\n{ai_response}"
+            elif "METADATA:" not in ai_response and "ANALYSIS" not in ai_response:
+                # Try to find a JSON block even if not labeled
+                json_match = re.search(r"({.*})", ai_response, re.DOTALL)
+                if json_match:
+                    ai_response = f"METADATA:\n{ai_response}"
             read_match = re.search(r"READ_FILE:\s*(.+)", ai_response)
             if read_match and self.current_fingerprint:
                 file_paths_str = read_match.group(1).strip()
@@ -457,6 +469,9 @@ class ProjectAnalysisAgent:
                 )
                 # We still keep the analysis (suggestions), but revert metadata to current state
                 metadata = self.current_metadata
+            else:
+                # In metadata mode, we don't expect file suggestions, but if they come, we can keep them
+                pass
 
             self.current_analysis = analysis
             self.current_metadata = metadata

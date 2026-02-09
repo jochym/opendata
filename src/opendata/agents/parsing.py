@@ -66,22 +66,24 @@ def extract_metadata_from_ai_response(
             else:
                 raise
 
-        if "METADATA" in data and "ANALYSIS" in data:
-            updates = data["METADATA"]
+        if ("METADATA" in data) or ("ANALYSIS" in data):
+            updates = data.get("METADATA", {})
             try:
-                analysis_data = data["ANALYSIS"]
-                # Normalize keys for AIAnalysis model aliases (missing_fields -> missingfields)
-                normalized_analysis = {}
-                mapping = {
-                    "missing_fields": "missingfields",
-                    "non_compliant": "noncompliant",
-                    "conflicting_data": "conflictingdata",
-                }
-                for k, v in analysis_data.items():
-                    target_key = mapping.get(k, k)
-                    normalized_analysis[target_key] = v
+                analysis_data = data.get("ANALYSIS")
+                if analysis_data:
+                    # Normalize keys for AIAnalysis model aliases (missing_fields -> missingfields)
+                    normalized_analysis = {}
+                    mapping = {
+                        "missing_fields": "missingfields",
+                        "non_compliant": "noncompliant",
+                        "conflicting_data": "conflictingdata",
+                        "file_suggestions": "filesuggestions",
+                    }
+                    for k, v in analysis_data.items():
+                        target_key = mapping.get(k, k)
+                        normalized_analysis[target_key] = v
 
-                current_analysis = AIAnalysis.model_validate(normalized_analysis)
+                    current_analysis = AIAnalysis.model_validate(normalized_analysis)
             except Exception as e:
                 print(f"[ERROR] Failed to validate AIAnalysis: {e}")
         else:
@@ -152,6 +154,8 @@ def extract_metadata_from_ai_response(
                 msg += f"❗ **Non-compliant:** {', '.join(current_analysis.non_compliant)}\n"
             if current_analysis.conflicting_data:
                 msg += "⚠️ **Conflicts detected!** Check the form below.\n"
+            if current_analysis.file_suggestions:
+                msg += f"💡 **AI found {len(current_analysis.file_suggestions)} file suggestions!** Review them in the **Package** tab.\n"
             if current_analysis.questions:
                 msg += "\nI've prepared a form to help you fill in the missing details."
             return msg.strip(), current_analysis, updated_metadata
