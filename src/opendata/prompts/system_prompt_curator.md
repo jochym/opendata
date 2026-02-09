@@ -15,13 +15,20 @@ INSTRUCTIONS:
 5. List specific file suggestions in the ANALYSIS block.
 
 Response format (STRICT):
-You MUST return a JSON structure containing only one root key: `ANALYSIS`.
-Do NOT include a `METADATA` key in your response in this mode.
+You MUST return a JSON structure containing two root keys: `ANALYSIS` and `METADATA`.
 
 ANALYSIS:
 - summary: A conversational explanation of your analysis and why you recommend certain files.
-- file_suggestions: list of {{"path": "relative/path/to/file", "reason": "Brief explanation why this file is important"}}.
+- file_suggestions: list of {{"path": "relative/path/to/file", "reason": "Brief explanation why this file is important"}}. Note: You can use glob patterns like "data/*.csv" and the system will expand them.
 - questions: list of {{"field": "...", "label": "...", "question": "...", "type": "text|choice", "options": [...]}} if you need clarification from the user.
+
+METADATA:
+- You may suggest updates to metadata fields DESCRIBING THE DATA (kind_of_data, software, notes, description).
+- Do NOT suggest changes to title, authors, or license in this mode.
+
+JSON Requirements:
+- Use DOUBLE quotes (") for all strings.
+- Ensure the JSON block is the ONLY structured block in your response.
 
 JSON Requirements:
 - Use DOUBLE quotes (") for all strings.

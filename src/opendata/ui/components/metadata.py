@@ -422,9 +422,49 @@ def metadata_preview_ui(ctx: AppContext):
                         )
             # Fallback for other fields
             else:
-                ui.label(key.replace("_", " ").title()).classes(
+                label_text = key.replace("_", " ").title()
+                label_class = (
                     "text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-wider"
                 )
+
+                # Special styling for Title
+                if key == "title":
+                    ui.label(_("Dataset Title")).classes(label_class)
+                    with ui.column().classes("w-full mt--1 mb-2"):
+                        with ui.column().classes(
+                            "w-full gap-0 bg-white border border-slate-200 rounded-lg relative group shadow-sm p-3"
+                        ):
+                            # Lock indicator for title
+                            is_locked = key in ctx.agent.current_metadata.locked_fields
+
+                            async def toggle_lock_title(e, k=key):
+                                if k in ctx.agent.current_metadata.locked_fields:
+                                    ctx.agent.current_metadata.locked_fields.remove(k)
+                                else:
+                                    ctx.agent.current_metadata.locked_fields.append(k)
+                                ctx.agent.save_state()
+                                ctx.refresh("metadata")
+
+                            with (
+                                ui.button(
+                                    icon="lock" if is_locked else "lock_open",
+                                    on_click=toggle_lock_title,
+                                )
+                                .props("flat dense")
+                                .classes(
+                                    f"absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity {'text-orange-600 opacity-100' if is_locked else 'text-slate-400'}"
+                                )
+                            ):
+                                ui.tooltip(_("Lock field from AI updates"))
+
+                            content = ui.markdown(f"### {value}").classes(
+                                "text-slate-900 cursor-pointer m-0 p-0"
+                            )
+                            content.on("click", lambda: open_edit_dialog(ctx, key))
+                    continue
+
+                ui.label(label_text).classes(label_class)
+
                 if isinstance(value, list):
                     with ui.column().classes("w-full gap-1 mt--1"):
                         for v_item in value:

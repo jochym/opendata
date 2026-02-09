@@ -497,15 +497,29 @@ class ProjectAnalysisAgent:
 
                 analysis.file_suggestions = expanded_suggestions
 
-            # BLOCK METADATA UPDATE IN CURATOR MODE
+            # SELECTIVE METADATA UPDATE IN CURATOR MODE
             if mode == "curator":
                 logger.info(
-                    "Curator mode active: ignoring metadata updates from AI response."
+                    "Curator mode active: allowing only data-related metadata updates."
                 )
-                # We still keep the analysis (suggestions), but revert metadata to current state
-                metadata = self.current_metadata
+                allowed_curator_fields = {
+                    "kind_of_data",
+                    "software",
+                    "notes",
+                    "description",
+                }
+
+                # Create a hybrid metadata: current base + allowed updates from AI
+                current_dict = self.current_metadata.model_dump()
+                new_dict = metadata.model_dump()
+
+                for field in allowed_curator_fields:
+                    if field in new_dict and new_dict[field]:
+                        current_dict[field] = new_dict[field]
+
+                metadata = Metadata.model_validate(current_dict)
             else:
-                # In metadata mode, we don't expect file suggestions, but if they come, we can keep them
+                # In metadata mode, all fields are updatable (respecting locked_fields inside extract_metadata)
                 pass
 
             self.current_analysis = analysis
