@@ -280,17 +280,20 @@ class ProjectAnalysisAgent:
         if user_text.strip().lower().startswith("/bug"):
             return self._handle_bug_command(user_text)
 
-        # 1. EXTRACT @FILES AND GLOBS
+        # 1. DETECT MODE AND EXTRACT @FILES/GLOBS
+        mode = "metadata"
         extra_files = []
         at_matches = re.findall(r"@([^\s,]+)", user_text)
+
         if at_matches and self.current_fingerprint:
             project_dir = Path(self.current_fingerprint.root_path)
             from opendata.utils import format_file_list
 
             patterns_found = []
             for fname in at_matches:
-                # Check for wildcards
+                # Check for wildcards -> Switch to CURATOR mode
                 if any(x in fname for x in ["*", "?", "["]):
+                    mode = "curator"
                     found = list(project_dir.glob(fname))
                     if not found and not fname.startswith("**/"):
                         found = list(project_dir.glob(f"**/{fname}"))
@@ -300,7 +303,7 @@ class ProjectAnalysisAgent:
                         self.chat_history.append(
                             (
                                 "agent",
-                                f"[System] Found {len(found)} files matching pattern `@{fname}`:\n\n{file_list_str}",
+                                f"[System] context expanded with list of {len(found)} files matching pattern `@{fname}`:\n\n{file_list_str}",
                             )
                         )
                         patterns_found.append(fname)
@@ -318,6 +321,19 @@ class ProjectAnalysisAgent:
             # Remove patterns from user text so AI doesn't get confused
             for pat in patterns_found:
                 user_text = user_text.replace(f"@{pat}", f"(pattern @{pat} processed)")
+
+        # Additional trigger for Curator mode
+        curator_keywords = [
+            "curate",
+            "select",
+            "package",
+            "include",
+            "files",
+            "structure",
+            "data",
+        ]
+        if any(kw in user_text.lower() for kw in curator_keywords):
+            mode = "curator"
 
         # 2. ZERO-TOKEN CONFIRMATION CHECK
         last_agent_msg = (
@@ -353,17 +369,18 @@ class ProjectAnalysisAgent:
                         if p.is_relative_to(project_dir_to_use)
                         else p.name
                     )
+                    # Content goes to enhanced_input but NOT to visible history
                     extra_context.append(
                         f"--- USER-REQUESTED FILE: {rel_p} ---\n{content}"
                     )
                     read_files.append(f"`{rel_p}`")
 
             if extra_context:
-                # Add a stable system message about what was actually read
+                # Add a stable system message about what was actually read (visible)
                 self.chat_history.append(
                     (
                         "agent",
-                        f"[System] context expanded with: {', '.join(read_files)}",
+                        f"[System] context expanded with content of: {', '.join(read_files)}",
                     )
                 )
                 if on_update:
@@ -377,10 +394,7 @@ class ProjectAnalysisAgent:
         # 4. CALL AI (With Tool Loop)
         max_tool_iterations = 5
         for _ in range(max_tool_iterations):
-            effective = self.pm.resolve_effective_protocol(self.project_id)
-            excl = effective.get("exclude")
-            print(f"[DEBUG] Effective excludes for AI: {excl}")
-            context = self.generate_ai_prompt()
+            context = self.generate_ai_prompt(mode=mode)
 
             # Use only a window of history for context
             history_str = "\n".join(
@@ -406,28 +420,32 @@ class ProjectAnalysisAgent:
                 project_dir_to_use = Path(self.current_fingerprint.root_path)
 
                 tool_output = []
+                visible_files = []
                 for rf in requested_files:
                     p = project_dir_to_use / rf
                     if p.exists() and p.is_file():
                         content = FullTextReader.read_full_text(p)
                         tool_output.append(f"--- FILE CONTENT: {rf} ---\n{content}")
+                        visible_files.append(f"`{rf}`")
                     else:
                         tool_output.append(f"--- FILE NOT FOUND: {rf} ---")
+                        visible_files.append(f"`{rf}` (not found)")
 
-                # Append the AI's "thought" and the "system response"
-                self.chat_history.append(("agent", ai_response))
+                # Invisible full response for context, visible placeholder for history
                 self.chat_history.append(
                     (
-                        "user",
-                        "[System] READ_FILE Tool Results:\n\n"
-                        + "\n\n".join(tool_output),
+                        "agent",
+                        f"[System] AI requested content of: {', '.join(visible_files)}",
                     )
                 )
 
-                # Update UI and continue the loop
+                # Enhanced input for next step contains the actual data
+                enhanced_input = "[System] READ_FILE Tool Results:\n\n" + "\n\n".join(
+                    tool_output
+                )
+
                 if on_update:
                     on_update()
-                enhanced_input = "Please analyze the provided file content and continue with the metadata extraction."
                 continue  # Next iteration of the loop
 
             # If no READ_FILE, finish
@@ -591,7 +609,7 @@ class ProjectAnalysisAgent:
             on_update()
         return msg
 
-    def generate_ai_prompt(self) -> str:
+    def generate_ai_prompt(self, mode: str = "metadata") -> str:
         if not self.current_fingerprint:
             return "No project scanned."
         fingerprint_summary = self.current_fingerprint.model_dump_json(indent=2)
@@ -614,8 +632,12 @@ class ProjectAnalysisAgent:
         else:
             protocols_str = "None active."
 
+        template = (
+            "system_prompt_metadata" if mode == "metadata" else "system_prompt_curator"
+        )
+
         return self.prompt_manager.render(
-            "system_prompt",
+            template,
             {
                 "fingerprint": fingerprint_summary,
                 "metadata": current_data,

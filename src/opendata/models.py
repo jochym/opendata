@@ -158,6 +158,13 @@ class Question(BaseModel):
     value: Optional[Any] = None
 
 
+class FileSuggestion(BaseModel):
+    """A suggestion from AI to include a file in the package."""
+
+    path: str
+    reason: str
+
+
 class AIAnalysis(BaseModel):
     summary: str
     missing_fields: List[str] = Field(
@@ -172,3 +179,8 @@ class AIAnalysis(BaseModel):
         alias="conflicting_data",
     )
     questions: List[Question] = Field(default_factory=list)
+    file_suggestions: List[FileSuggestion] = Field(
+        default_factory=list,
+        validation_alias="filesuggestions",
+        alias="file_suggestions",
+    )

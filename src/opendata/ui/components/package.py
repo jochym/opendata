@@ -48,6 +48,9 @@ def render_package_tab(ctx: AppContext):
     # Use a local variable to satisfy the type checker after the early return above
     project_id: str = ctx.agent.project_id
 
+    if ctx.agent.current_analysis and ctx.agent.current_analysis.file_suggestions:
+        render_suggestions_banner(ctx)
+
     if not UIState.inventory_cache:
         with ui.column().classes("w-full items-center justify-center p-20 gap-4"):
             ui.icon("inventory", size="xl", color="grey-400")
@@ -186,6 +189,102 @@ def render_package_tab(ctx: AppContext):
                 ui.label(
                     _("Error reading directory: {error}").format(error=str(e))
                 ).classes("text-red-500 text-xs")
+
+
+def render_suggestions_banner(ctx: AppContext):
+    suggestions = (
+        ctx.agent.current_analysis.file_suggestions
+        if ctx.agent.current_analysis
+        else []
+    )
+    if not suggestions:
+        return
+
+    with ui.row().classes(
+        "w-full bg-blue-50 border border-blue-200 p-3 rounded-lg items-center justify-between mb-4 shadow-sm"
+    ):
+        with ui.row().classes("items-center gap-2"):
+            ui.icon("auto_awesome", color="primary")
+            ui.label(
+                _("AI has found {count} relevant files for your package.").format(
+                    count=len(suggestions)
+                )
+            ).classes("font-bold text-blue-800")
+
+        with ui.row().classes("gap-2"):
+            ui.button(
+                _("Review Suggestions"), on_click=lambda: open_suggestions_dialog(ctx)
+            ).props("elevated color=primary")
+            ui.button(_("Dismiss"), on_click=lambda: clear_suggestions(ctx)).props(
+                "flat color=grey"
+            )
+
+
+async def open_suggestions_dialog(ctx: AppContext):
+    suggestions = (
+        ctx.agent.current_analysis.file_suggestions
+        if ctx.agent.current_analysis
+        else []
+    )
+
+    with ui.dialog() as dialog, ui.card().classes("w-[600px]"):
+        ui.label(_("Review AI File Suggestions")).classes("text-h6 mb-4")
+        ui.markdown(
+            _(
+                "The AI curator suggests including these files based on project analysis:"
+            )
+        )
+
+        selected_paths = {s.path for s in suggestions}
+
+        with ui.scroll_area().classes("h-80 w-full border rounded-md p-2 mb-4"):
+            for s in suggestions:
+                with ui.row().classes(
+                    "w-full items-start no-wrap gap-2 py-2 border-b last:border-0"
+                ):
+                    cb = ui.checkbox(
+                        value=True,
+                        on_change=lambda e, p=s.path: (
+                            selected_paths.add(p)
+                            if e.value
+                            else selected_paths.discard(p)
+                        ),
+                    )
+                    with ui.column().classes("flex-grow"):
+                        ui.label(s.path).classes("text-sm font-mono font-bold")
+                        ui.label(s.reason).classes("text-xs text-slate-500 italic")
+
+        with ui.row().classes("w-full justify-end gap-2"):
+            ui.button(_("Cancel"), on_click=dialog.close).props("flat")
+
+            async def apply():
+                pid = ctx.agent.project_id
+                manifest = ctx.pkg_mgr.get_manifest(pid)
+                for p in selected_paths:
+                    if p not in manifest.force_include:
+                        manifest.force_include.append(p)
+                ctx.pkg_mgr.save_manifest(manifest)
+                ui.notify(
+                    _("Included {count} suggested files.").format(
+                        count=len(selected_paths)
+                    ),
+                    type="positive",
+                )
+                clear_suggestions(ctx)
+                dialog.close()
+                await load_inventory_background(ctx)
+
+            ui.button(_("Include Selected"), on_click=apply).props(
+                "elevated color=primary"
+            )
+
+    dialog.open()
+
+
+def clear_suggestions(ctx: AppContext):
+    if ctx.agent.current_analysis:
+        ctx.agent.current_analysis.file_suggestions = []
+    ctx.refresh("package")
 
 
 async def handle_refresh_inventory(ctx: AppContext):

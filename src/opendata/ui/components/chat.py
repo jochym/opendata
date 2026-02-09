@@ -8,9 +8,6 @@ from opendata.i18n.translator import _
 from opendata.ui.state import ScanState, UIState
 from opendata.ui.context import AppContext
 from opendata.ui.components.metadata import metadata_preview_ui, handle_clear_metadata
-
-
-from typing import Any
 from opendata.ui.components.file_picker import LocalFilePicker
 
 
@@ -21,6 +18,15 @@ def chat_messages_ui(ctx: AppContext):
         display_history = ctx.agent.chat_history[-30:]
 
         for i, (role, msg) in enumerate(display_history):
+            # Skip technical messages from display
+            if msg.startswith(
+                "[System] context expanded with content of:"
+            ) or msg.startswith("READ_FILE:"):
+                continue
+            if "[System] READ_FILE Tool Results:" in msg:
+                # Show only a placeholder for read files
+                msg = _("[System] Content of requested files loaded into context.")
+
             if role == "user":
                 with ui.row().classes("w-full justify-start"):
                     with ui.card().classes(
@@ -34,7 +40,14 @@ def chat_messages_ui(ctx: AppContext):
                     with ui.card().classes(
                         "bg-gray-100 border border-gray-200 rounded-lg py-0.5 px-3 w-full shadow-none"
                     ):
-                        ui.markdown(msg).classes(
+                        # Filter out internal JSON blocks from the visible message
+                        display_msg = re.sub(
+                            r"METADATA:.*", "", msg, flags=re.DOTALL
+                        ).strip()
+                        if not display_msg and "METADATA:" in msg:
+                            display_msg = _("[Metadata updated]")
+
+                        ui.markdown(display_msg).classes(
                             "text-sm text-gray-800 m-0 p-0 break-words"
                         )
 
@@ -68,6 +81,10 @@ def chat_messages_ui(ctx: AppContext):
 
 
 def render_analysis_form(ctx: AppContext, analysis: Any):
+    # Only show if there are actual questions or conflicts
+    if not analysis.questions and not analysis.conflicting_data:
+        return
+
     with ui.card().classes(
         "w-full mt-4 p-4 bg-white border border-slate-200 shadow-sm"
     ):
@@ -260,11 +277,14 @@ async def handle_user_msg(ctx: AppContext, input_element):
     ctx.agent.chat_history.append(("user", text))
 
     # 2. Add System Report if @files are detected
-    at_matches = re.findall(r"@([^\s,]+)", text)
+    at_matches = re.findall(r"@([^\\s,]+)", text)
     if at_matches:
         file_list = ", ".join([f"`{m}`" for m in at_matches])
         ctx.agent.chat_history.append(
-            ("agent", f"[System] sending context from: {file_list}")
+            (
+                "agent",
+                f"[System] context expanded with list of matching files: {file_list}",
+            )
         )
 
     ScanState.is_processing_ai = True
