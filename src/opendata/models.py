@@ -19,6 +19,8 @@ class ExtractionProtocol(BaseModel):
     include_patterns: List[str] = Field(default_factory=list)
     exclude_patterns: List[str] = Field(default_factory=list)
     extraction_prompts: List[str] = Field(default_factory=list)
+    metadata_prompts: List[str] = Field(default_factory=list)
+    curator_prompts: List[str] = Field(default_factory=list)
 
 
 class PackageManifest(BaseModel):

@@ -147,17 +147,22 @@ def extract_metadata_from_ai_response(
         updated_metadata = Metadata.model_validate(current_dict)
 
         if current_analysis:
-            msg = f"**{current_analysis.summary}**\n\n"
-            if current_analysis.missing_fields:
-                msg += f"⚠️ **Missing:** {', '.join(current_analysis.missing_fields)}\n"
-            if current_analysis.non_compliant:
-                msg += f"❗ **Non-compliant:** {', '.join(current_analysis.non_compliant)}\n"
-            if current_analysis.conflicting_data:
-                msg += "⚠️ **Conflicts detected!** Check the form below.\n"
             if current_analysis.file_suggestions:
-                msg += f"💡 **AI found {len(current_analysis.file_suggestions)} file suggestions!** Review them in the **Package** tab.\n"
+                summary_prefix = f"💡 **AI Curator found {len(current_analysis.file_suggestions)} file suggestions!** Review them in the **Package** tab.\n\n"
+            else:
+                summary_prefix = ""
+
+            msg = f"{summary_prefix}**{current_analysis.summary}**\n\n"
+            if current_analysis.missing_fields:
+                msg += f"⚠️ **Missing RODBUK fields:** {', '.join(current_analysis.missing_fields)}\n"
+            if current_analysis.non_compliant:
+                msg += f"❗ **Non-compliant data:** {', '.join(current_analysis.non_compliant)}\n"
+            if current_analysis.conflicting_data:
+                msg += (
+                    "⚠️ **Conflicts detected!** Check the form below to resolve them.\n"
+                )
             if current_analysis.questions:
-                msg += "\nI've prepared a form to help you fill in the missing details."
+                msg += "\nI've prepared a form below with specific questions to help clarify the metadata or project structure."
             return msg.strip(), current_analysis, updated_metadata
 
     except Exception as e:

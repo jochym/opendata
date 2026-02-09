@@ -92,11 +92,17 @@ class ProtocolManager:
                 "**/Thumbs.db",
                 "**/.DS_Store",
             ],
-            extraction_prompts=[
+            metadata_prompts=[
                 "Identify the primary research paper (LaTeX, PDF, or Docx).",
                 "Extract authors, affiliations, and ORCIDs where available.",
                 "Summarize the project based on README or main publication abstract.",
                 "Identify scientific software and versions used.",
+            ],
+            curator_prompts=[
+                "Identify core data files, scripts, and documentation required to reproduce the research results.",
+                "Search for dependency patterns (e.g. scripts reading specific data folders).",
+                "Suggest inclusion of README and LICENSE files if they exist.",
+                "Group similar data files and suggest representative samples if appropriate.",
             ],
         )
 
@@ -196,17 +202,29 @@ class ProtocolManager:
         if project_id:
             layers.append(self.get_project_protocol(project_id))
 
-        effective = {"include": [], "exclude": [], "prompts": []}
+        effective = {
+            "include": [],
+            "exclude": [],
+            "prompts": [],
+            "metadata_prompts": [],
+            "curator_prompts": [],
+        }
 
         for p in layers:
             effective["include"].extend(p.include_patterns)
             effective["exclude"].extend(p.exclude_patterns)
             effective["prompts"].extend(p.extraction_prompts)
+            effective["metadata_prompts"].extend(p.metadata_prompts)
+            effective["curator_prompts"].extend(p.curator_prompts)
 
         # Deduplicate while preserving order
         effective["include"] = list(dict.fromkeys(effective["include"]))
         effective["exclude"] = list(dict.fromkeys(effective["exclude"]))
         effective["prompts"] = list(dict.fromkeys(effective["prompts"]))
+        effective["metadata_prompts"] = list(
+            dict.fromkeys(effective["metadata_prompts"])
+        )
+        effective["curator_prompts"] = list(dict.fromkeys(effective["curator_prompts"]))
 
         import logging
 

@@ -12,7 +12,9 @@ from opendata.models import (
     AIAnalysis,
     PersonOrOrg,
     Contact,
+    FileSuggestion,
 )
+
 from opendata.extractors.base import ExtractorRegistry
 from opendata.workspace import WorkspaceManager
 from opendata.utils import scan_project_lazy, PromptManager, FullTextReader
@@ -416,6 +418,8 @@ class ProjectAnalysisAgent:
                 json_match = re.search(r"({.*})", ai_response, re.DOTALL)
                 if json_match:
                     ai_response = f"METADATA:\n{ai_response}"
+
+            # Check for READ_FILE command
             read_match = re.search(r"READ_FILE:\s*(.+)", ai_response)
             if read_match and self.current_fingerprint:
                 file_paths_str = read_match.group(1).strip()
@@ -461,6 +465,37 @@ class ProjectAnalysisAgent:
             clean_msg, analysis, metadata = extract_metadata_from_ai_response(
                 wrapped_response, self.current_metadata
             )
+
+            # --- GLOB EXPANSION FOR FILE SUGGESTIONS ---
+            if analysis and analysis.file_suggestions and self.current_fingerprint:
+                project_dir = Path(self.current_fingerprint.root_path)
+                expanded_suggestions = []
+                seen_paths = set()
+
+                for sug in analysis.file_suggestions:
+                    # Check if sug.path is a glob pattern
+                    if any(x in sug.path for x in ["*", "?", "["]):
+                        found = list(project_dir.glob(sug.path))
+                        if not found and not sug.path.startswith("**/"):
+                            found = list(project_dir.glob(f"**/{sug.path}"))
+
+                        for p in found:
+                            if p.is_file():
+                                rel_p = str(p.relative_to(project_dir))
+                                if rel_p not in seen_paths:
+                                    expanded_suggestions.append(
+                                        FileSuggestion(
+                                            path=rel_p,
+                                            reason=f"[Pattern match: {sug.path}] {sug.reason}",
+                                        )
+                                    )
+                                    seen_paths.add(rel_p)
+                    else:
+                        if sug.path not in seen_paths:
+                            expanded_suggestions.append(sug)
+                            seen_paths.add(sug.path)
+
+                analysis.file_suggestions = expanded_suggestions
 
             # BLOCK METADATA UPDATE IN CURATOR MODE
             if mode == "curator":
@@ -640,12 +675,22 @@ class ProjectAnalysisAgent:
         effective = self.pm.resolve_effective_protocol(self.project_id, field_name)
 
         protocols_str = ""
+        # Legacy prompts
         if effective.get("prompts"):
-            protocols_str = "ACTIVE PROTOCOLS & USER RULES:\n" + "\n".join(
+            protocols_str += "ACTIVE PROTOCOLS & USER RULES:\n" + "\n".join(
                 [f"{i}. {p}" for i, p in enumerate(effective["prompts"], 1)]
             )
-        else:
-            protocols_str = "None active."
+
+        # Mode-specific prompts
+        mode_prompts = effective.get(
+            "metadata_prompts" if mode == "metadata" else "curator_prompts", []
+        )
+        if mode_prompts:
+            if protocols_str:
+                protocols_str += "\n\n"
+            protocols_str += f"SPECIFIC {mode.upper()} INSTRUCTIONS:\n" + "\n".join(
+                [f"{i}. {p}" for i, p in enumerate(mode_prompts, 1)]
+            )
 
         template = (
             "system_prompt_metadata" if mode == "metadata" else "system_prompt_curator"
