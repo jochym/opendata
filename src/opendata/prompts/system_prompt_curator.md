@@ -23,8 +23,9 @@ ANALYSIS:
 - questions: list of {{"field": "...", "label": "...", "question": "...", "type": "text|choice", "options": [...]}} if you need clarification from the user.
 
 METADATA:
-- You may suggest updates to metadata fields DESCRIBING THE DATA (kind_of_data, software, notes, description).
-- Do NOT suggest changes to title, authors, or license in this mode.
+- You may suggest updates to metadata fields DESCRIBING THE DATA (kind_of_data, software, notes).
+- Do NOT suggest changes to title, authors, description or license in this mode.
+- If you have a description of the project based on files, put it in the `METADATA.notes` field.
 
 JSON Requirements:
 - Use DOUBLE quotes (") for all strings.

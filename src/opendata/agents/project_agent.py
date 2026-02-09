@@ -506,7 +506,6 @@ class ProjectAnalysisAgent:
                     "kind_of_data",
                     "software",
                     "notes",
-                    "description",
                 }
 
                 # Create a hybrid metadata: current base + allowed updates from AI
@@ -515,9 +514,38 @@ class ProjectAnalysisAgent:
 
                 for field in allowed_curator_fields:
                     if field in new_dict and new_dict[field]:
-                        current_dict[field] = new_dict[field]
+                        if field == "notes" and current_dict.get("notes"):
+                            # Append curator's description to existing notes if it's different
+                            if new_dict.get("description"):
+                                desc_str = (
+                                    "\n".join(new_dict["description"])
+                                    if isinstance(new_dict["description"], list)
+                                    else str(new_dict["description"])
+                                )
+                                if desc_str not in current_dict["notes"]:
+                                    current_dict["notes"] += (
+                                        f"\n\n[Curator Analysis]\n{desc_str}"
+                                    )
+                        else:
+                            current_dict[field] = new_dict[field]
+
+                # If curator provided a description, but it's blocked, we move it to notes
+                if "description" in new_dict and new_dict["description"]:
+                    desc_str = (
+                        "\n".join(new_dict["description"])
+                        if isinstance(new_dict["description"], list)
+                        else str(new_dict["description"])
+                    )
+                    current_notes = current_dict.get("notes") or ""
+                    if desc_str not in current_notes:
+                        header = "[Curator Description]"
+                        if header not in current_notes:
+                            current_dict["notes"] = (
+                                current_notes + f"\n\n{header}\n{desc_str}"
+                            ).strip()
 
                 metadata = Metadata.model_validate(current_dict)
+
             else:
                 # In metadata mode, all fields are updatable (respecting locked_fields inside extract_metadata)
                 pass

@@ -99,10 +99,11 @@ class ProtocolManager:
                 "Identify scientific software and versions used.",
             ],
             curator_prompts=[
-                "Identify core data files, scripts, and documentation required to reproduce the research results.",
-                "Search for dependency patterns (e.g. scripts reading specific data folders).",
+                "Analyze the main publication file (LaTeX/Docx) to identify all datasets, figures, and processing steps mentioned.",
+                "Ensure the package includes all raw data, processing scripts, and configuration files required to reproduce the core findings.",
+                "Verify script-data linkages (e.g., Python scripts reading specific CSVs) and suggest including both.",
                 "Suggest inclusion of README and LICENSE files if they exist.",
-                "Group similar data files and suggest representative samples if appropriate.",
+                "Group similar data files and suggest representative samples if the dataset is too large.",
             ],
         )
 

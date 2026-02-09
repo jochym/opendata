@@ -281,7 +281,10 @@ async def handle_user_msg(ctx: AppContext, input_element):
     if not text:
         return
     input_element.value = ""
+    await handle_user_msg_from_code(ctx, text, mode=ScanState.agent_mode)
 
+
+async def handle_user_msg_from_code(ctx: AppContext, text: str, mode: str = "metadata"):
     # 1. Immediate echo of user message
     ctx.agent.chat_history.append(("user", text))
 
@@ -305,7 +308,7 @@ async def handle_user_msg(ctx: AppContext, input_element):
         ctx.ai,
         skip_user_append=True,
         on_update=ctx.refresh_all,
-        mode=ScanState.agent_mode,
+        mode=mode,
     )
     ScanState.is_processing_ai = False
     ctx.refresh_all()

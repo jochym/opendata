@@ -1,8 +1,12 @@
 import json
 import re
 import yaml
+import logging
 from typing import Tuple, Optional, Any
 from opendata.models import Metadata, AIAnalysis
+from opendata.i18n.translator import _
+
+logger = logging.getLogger("opendata.agents.parsing")
 
 
 def extract_metadata_from_ai_response(
@@ -153,6 +157,18 @@ def extract_metadata_from_ai_response(
                 summary_prefix = ""
 
             msg = f"{summary_prefix}**{current_analysis.summary}**\n\n"
+
+            # Check if all mandatory RODBUK fields are present
+            mandatory = ["title", "authors", "description", "license", "keywords"]
+            missing_mandatory = [
+                f for f in mandatory if not getattr(updated_metadata, f, None)
+            ]
+
+            if not missing_mandatory and not current_analysis.missing_fields:
+                msg += _(
+                    "✅ **Metadata seems complete!** Now, please go to the **Package** tab to select which files to include. You will find AI-assisted selection tools there to help ensure reproducibility.\n\n"
+                )
+
             if current_analysis.missing_fields:
                 msg += f"⚠️ **Missing RODBUK fields:** {', '.join(current_analysis.missing_fields)}\n"
             if current_analysis.non_compliant:

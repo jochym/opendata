@@ -85,6 +85,13 @@ def render_package_tab(ctx: AppContext):
 
             with ui.row().classes("gap-2"):
                 ui.button(
+                    _("AI Suggest Selection"),
+                    icon="auto_awesome",
+                    on_click=lambda: handle_ai_suggestion_request(ctx),
+                ).props("outline color=primary shadow-sm").bind_visibility_from(
+                    ScanState, "is_scanning", backward=lambda x: not x
+                )
+                ui.button(
                     _("Refresh File List"),
                     icon="refresh",
                     on_click=lambda: handle_refresh_inventory(ctx),
@@ -259,17 +266,18 @@ async def open_suggestions_dialog(ctx: AppContext):
 
             async def apply():
                 pid = ctx.agent.project_id
-                manifest = ctx.pkg_mgr.get_manifest(pid)
-                for p in selected_paths:
-                    if p not in manifest.force_include:
-                        manifest.force_include.append(p)
-                ctx.pkg_mgr.save_manifest(manifest)
-                ui.notify(
-                    _("Included {count} suggested files.").format(
-                        count=len(selected_paths)
-                    ),
-                    type="positive",
-                )
+                if pid:
+                    manifest = ctx.pkg_mgr.get_manifest(pid)
+                    for p in selected_paths:
+                        if p not in manifest.force_include:
+                            manifest.force_include.append(p)
+                    ctx.pkg_mgr.save_manifest(manifest)
+                    ui.notify(
+                        _("Included {count} suggested files.").format(
+                            count=len(selected_paths)
+                        ),
+                        type="positive",
+                    )
                 clear_suggestions(ctx)
                 dialog.close()
                 await load_inventory_background(ctx)
@@ -285,6 +293,29 @@ def clear_suggestions(ctx: AppContext):
     if ctx.agent.current_analysis:
         ctx.agent.current_analysis.file_suggestions = []
     ctx.refresh("package")
+
+
+async def handle_ai_suggestion_request(ctx: AppContext):
+    """
+    Triggers a standard AI Curator request focusing on reproducibility.
+    Switches mode to curator and sends a predefined prompt.
+    """
+    if not ctx.agent.project_id:
+        ui.notify(_("Please open a project first."), type="warning")
+        return
+
+    # Switch to Analysis tab to show progress
+    UIState.main_tabs.set_value(UIState.analysis_tab)
+    ScanState.agent_mode = "curator"
+
+    prompt = _(
+        "Analyze the project structure and primary publication to suggest all files required for results reproduction. Focus on data-script linkages."
+    )
+
+    # We trigger the chat message handler as if the user typed it
+    from opendata.ui.components.chat import handle_user_msg_from_code
+
+    await handle_user_msg_from_code(ctx, prompt, mode="curator")
 
 
 async def handle_refresh_inventory(ctx: AppContext):
