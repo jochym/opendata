@@ -253,7 +253,12 @@ class ProjectAnalysisAgent:
             main_file = sorted(
                 candidate_main_files, key=lambda x: x.stat().st_size, reverse=True
             )[0]
-            rel_main_file = main_file.relative_to(project_dir)
+            rel_main_file = str(main_file.relative_to(project_dir))
+
+            # Update fingerprint with primary file
+            if self.current_fingerprint:
+                self.current_fingerprint.primary_file = rel_main_file
+
             aux_files = []
             root_aux_extensions = {".md", ".yaml", ".yml"}
             for p in project_dir.iterdir():
@@ -734,6 +739,12 @@ class ProjectAnalysisAgent:
                 [f"{i}. {p}" for i, p in enumerate(mode_prompts, 1)]
             )
 
+        primary_file_info = ""
+        if self.current_fingerprint and self.current_fingerprint.primary_file:
+            primary_file_info = (
+                f"PRIMARY PUBLICATION FILE: {self.current_fingerprint.primary_file}\n"
+            )
+
         template = (
             "system_prompt_metadata" if mode == "metadata" else "system_prompt_curator"
         )
@@ -744,6 +755,7 @@ class ProjectAnalysisAgent:
                 "fingerprint": fingerprint_summary,
                 "metadata": current_data,
                 "protocols": protocols_str,
+                "primary_file": primary_file_info,
             },
         )
 

@@ -457,8 +457,8 @@ def metadata_preview_ui(ctx: AppContext):
                             ):
                                 ui.tooltip(_("Lock field from AI updates"))
 
-                            content = ui.markdown(f"### {value}").classes(
-                                "text-slate-900 cursor-pointer m-0 p-0"
+                            content = ui.label(value).classes(
+                                "text-lg font-bold text-slate-900 cursor-pointer m-0 p-0"
                             )
                             content.on("click", lambda: open_edit_dialog(ctx, key))
                     continue

@@ -4,6 +4,7 @@ You should focus on reproducibility and completeness.
 PROJECT FINGERPRINT:
 {fingerprint}
 
+{primary_file}
 FIELD PROTOCOLS:
 {protocols}
 

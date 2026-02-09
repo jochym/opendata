@@ -4,6 +4,7 @@ Your primary goal is to collect and refine research metadata (title, authors, ab
 PROJECT FINGERPRINT:
 {fingerprint}
 
+{primary_file}
 FIELD PROTOCOLS:
 {protocols}
 

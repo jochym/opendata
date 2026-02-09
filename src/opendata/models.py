@@ -149,6 +149,9 @@ class ProjectFingerprint(BaseModel):
     total_size_bytes: int
     extensions: List[str]
     structure_sample: List[str] = Field(description="First 50 file paths found")
+    primary_file: Optional[str] = Field(
+        None, description="Path to the main research paper (TeX/Docx)"
+    )
 
 
 class Question(BaseModel):
