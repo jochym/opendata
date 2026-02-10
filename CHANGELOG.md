@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.12.9] - 2026-02-10
+### Fixed
+- **CI/CD:** Fixed cross-platform build errors by properly isolating Linux-specific system commands in the workflow.
+
 ## [0.12.8] - 2026-02-10
 ### Fixed
 - **CI/CD (Linux):** Switched from compiling `PyGObject` via `pip` to using the system-provided `python3-gi` package. Linked the system module to the CI virtual environment to ensure successful builds and tests without complex compilation steps.
