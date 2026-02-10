@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.12.7] - 2026-02-10
+### Fixed
+- **CI/CD (Linux):** Added `gobject-introspection` and `libglib2.0-dev` to ensure `PyGObject` can be compiled by `pip` during the build process.
+
 ## [0.12.6] - 2026-02-10
 ### Fixed
 - **CI/CD (Ubuntu 24.04):** Updated WebKit dependency to `libwebkit2gtk-4.1-dev` to match Ubuntu Noble repositories.
