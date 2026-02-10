@@ -107,10 +107,14 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         run: |
           HIDDEN_IMPORTS=""
+          DATA_SEP=":"
+          if [ "${{ runner.os }}" = "Windows" ]; then DATA_SEP=";"; fi
           if [ "${{ runner.os }}" = "Linux" ]; then
             HIDDEN_IMPORTS="--hidden-import gi --hidden-import gi.repository.Gtk --hidden-import gi.repository.WebKit2"
           fi
-          pyinstaller --noconsole --onefile --name "${{ matrix.artifact_name }}" $HIDDEN_IMPORTS src/opendata/main.py
+          pyinstaller --noconsole --onefile --name "${{ matrix.artifact_name }}" \
+            --add-data "src/opendata/ui${DATA_SEP}opendata/ui" \
+            $HIDDEN_IMPORTS src/opendata/main.py
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:

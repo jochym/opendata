@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.13.2] - 2026-02-10
+### Fixed
+- **PyInstaller Cleanup:** Removed absolute-path-dependent `.spec` files that caused CI conflicts.
+- **Binary Assets:** Added missing UI resources to all binaries using `--add-data`.
+- **Build Robustness:** Improved cross-platform data separator handling (`:` vs `;`) in the build script.
+
 ## [0.13.1] - 2026-02-10
 ### Fixed
 - **PyInstaller Conflict:** Resolved a conflict in the `--name` argument that caused build failures.
