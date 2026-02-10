@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.12.8] - 2026-02-10
+### Fixed
+- **CI/CD (Linux):** Switched from compiling `PyGObject` via `pip` to using the system-provided `python3-gi` package. Linked the system module to the CI virtual environment to ensure successful builds and tests without complex compilation steps.
+
 ## [0.12.7] - 2026-02-10
 ### Fixed
 - **CI/CD (Linux):** Added `gobject-introspection` and `libglib2.0-dev` to ensure `PyGObject` can be compiled by `pip` during the build process.
