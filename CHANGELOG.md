@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.12.0] - 2026-02-10
+## [0.12.0] - 2026-02-10 (Alpha Release)
 ### Added
 - **File Explorer (Package Tab):**
   - Replaced the file tree with a high-performance **File Explorer** (Breadcrumbs + Virtualized List).

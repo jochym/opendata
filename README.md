@@ -1,4 +1,4 @@
-# OpenData Tool (Prototype)
+# OpenData Tool (Alpha)
 
 A browser-centric, AI-assisted tool for preparing scientific metadata and packaging research projects for the **RODBUK** repository.
 
@@ -32,3 +32,4 @@ The tool uses a modular **Agentic Backend** and a component-based **NiceGUI Fron
 
 ## Contributing
 See `AGENTS.md` for detailed coding standards and the agentic workflow.
+See `docs/` for comprehensive manuals.
