@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.13.5] - 2026-02-10
+### Fixed
+- **Release Downloads:** Marked GitHub Releases as stable (non-prerelease) to ensure `/releases/latest/download/` links work correctly on the website.
+- **Linux GUI Fix (Phase 2):** Applied more aggressive exclusions for system GLib libraries in the PyInstaller bundle to force usage of native OS libraries, resolving WebKitGTK symbol conflicts.
+
 ## [0.13.4] - 2026-02-10
 ### Fixed
 - **Linux GUI Stability:** Excluded system libraries (GLib, GObject, Gio, libz) from the PyInstaller bundle to prevent symbol conflicts with system WebKitGTK drivers. This resolves the `undefined symbol` errors when launching the GUI.

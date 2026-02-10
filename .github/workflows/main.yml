@@ -104,8 +104,9 @@ jobs:
           if [ "${{ runner.os }}" = "Windows" ]; then DATA_SEP=";"; fi
           if [ "${{ runner.os }}" = "Linux" ]; then
             HIDDEN_IMPORTS="--hidden-import gi --hidden-import gi.repository.Gtk --hidden-import gi.repository.WebKit2"
-            # Wykluczamy biblioteki systemowe, aby uniknąć konfliktów symboli z WebKitem
-            EXCLUDES="--exclude-module libz.so.1 --exclude-module libglib-2.0.so.0 --exclude-module libgobject-2.0.so.0 --exclude-module libgio-2.0.so.0"
+            # Drastyczne wykluczenie bibliotek systemowych, aby wymusić wersje z OS
+            # Używamy wielu flag --exclude-module oraz --collect-all dla pewności
+            EXCLUDES="--exclude-module libz --exclude-module libglib-2.0 --exclude-module libgobject-2.0 --exclude-module libgio-2.0 --exclude-module libgmodule-2.0"
           fi
           python3 -m PyInstaller --noconsole --onefile --name "${{ matrix.artifact_name }}" \
             --add-data "src/opendata/ui${DATA_SEP}opendata/ui" \
@@ -138,4 +139,4 @@ jobs:
             artifacts/opendata-macos/opendata-macos
           generate_release_notes: true
           draft: false
-          prerelease: true
+          prerelease: false
