@@ -1,6 +1,6 @@
 [project]
 name = "opendata-tool"
-version = "0.12.2"
+version = "0.12.3"
 description = "Scientific metadata preparation and packaging tool"
 authors = [
     {name = "Antigravity", email = "antigravity@example.com"}
@@ -30,6 +30,7 @@ dev = [
     "pytest-cov>=4.0.0",
     "ruff>=0.1.0",
     "mypy>=1.0.0",
+    "PyGObject>=3.42.0",
 ]
 
 [project.scripts]

@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.12.3] - 2026-02-10
+### Fixed
+- **Linux Binaries:** Resolved `ModuleNotFoundError: No module named 'gi'` by including GTK and GObject Introspection dependencies in the build process.
+- **CD Workflow:** Website deployment is now restricted to version tags only, preventing the production site from reflecting unreleased changes in `main`.
+
 ## [0.12.2] - 2026-02-10
 ### Added
 - **Automated Releases:** Enhanced GitHub Actions to generate release notes and sync the website version automatically.
