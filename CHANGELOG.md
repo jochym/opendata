@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.0] - 2026-02-10
+### Added
+- **GUI Smoke Test:** Integrated automated GUI verification in the Linux CI pipeline using `Xvfb`. Binaries are now launched in a virtual framebuffer to ensure stability before release.
+### Fixed
+- **CI/CD Modernization:** Upgraded the build environment to Python 3.12 across all platforms.
+- **Binary Stability:** Restored the `unittest` module to the binary bundle, resolving import failures in third-party libraries (e.g., `pyparsing`).
+- **Resource Loading:** Further refined absolute path resolution for assets during cross-platform builds.
+
 ## [0.15.1] - 2026-02-10
 ### Fixed
 - **Cross-Platform Assets:** Fixed missing prompts and resources on Windows and macOS by using absolute paths during `.spec` file generation.

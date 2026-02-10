@@ -34,7 +34,6 @@ def generate_spec(artifact_name, runner_os):
     secrets_file = root / "client_secrets.json"
 
     # Construction of datas list for PyInstaller
-    # (Source, Destination inside bundle)
     added_files = [
         (str(ui_path), "opendata/ui"),
         (str(prompts_path), "opendata/prompts"),
@@ -43,15 +42,13 @@ def generate_spec(artifact_name, runner_os):
     if secrets_file.exists():
         added_files.append((str(secrets_file), "."))
 
+    # General excludes to reduce size - REMOVED unittest as it's needed by pyparsing
+    general_excludes = ["tkinter", "tcl", "tk", "test", "distutils", "pydoc"]
+
     spec_template = f"""# -*- mode: python ; coding: utf-8 -*-
 import os
 
 added_files = {added_files}
-
-# General excludes to reduce size
-general_excludes = [
-    'tkinter', 'tcl', 'tk', 'unittest', 'test', 'distutils', 'pydoc'
-]
 
 a = Analysis(
     ['src/opendata/main.py'],
@@ -62,7 +59,7 @@ a = Analysis(
     hookspath=['pyinstaller_hooks'],
     hooksconfig={{}},
     runtime_hooks=[],
-    excludes=general_excludes,
+    excludes={general_excludes},
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=None,
