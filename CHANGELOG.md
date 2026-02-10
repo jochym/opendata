@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.12.6] - 2026-02-10
+### Fixed
+- **CI/CD (Ubuntu 24.04):** Updated WebKit dependency to `libwebkit2gtk-4.1-dev` to match Ubuntu Noble repositories.
+
 ## [0.12.5] - 2026-02-10
 ### Fixed
 - **CI/CD:** Moved system dependencies installation to the `test` job to ensure environment consistency across all stages.
