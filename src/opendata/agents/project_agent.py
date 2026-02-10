@@ -281,6 +281,7 @@ class ProjectAnalysisAgent:
         skip_user_append: bool = False,
         on_update: Optional[Callable[[], None]] = None,
         mode: str = "metadata",
+        stop_event: Optional[Any] = None,
     ) -> str:
         """Main iterative loop with Context Persistence and Tool recognition."""
         if not skip_user_append:
@@ -391,7 +392,15 @@ class ProjectAnalysisAgent:
 
         # 4. CALL AI (With Tool Loop)
         max_tool_iterations = 5
-        for _ in range(max_tool_iterations):
+        for iteration in range(max_tool_iterations):
+            if stop_event and stop_event.is_set():
+                abort_msg = "🛑 **Analysis cancelled by user.**"
+                self.chat_history.append(("agent", abort_msg))
+                self.save_state()
+                if on_update:
+                    on_update()
+                return abort_msg
+
             context = self.generate_ai_prompt(mode=mode)
 
             # Use only a window of history for context
@@ -408,7 +417,39 @@ class ProjectAnalysisAgent:
                 },
             )
 
-            ai_response = ai_service.ask_agent(full_prompt)
+            # --- STATUS UPDATE: THINKING ---
+            # We assume the UI shows a spinner, but we can also log or notify if needed
+            # For now, relying on the spinner is standard, but we must catch errors.
+
+            def status_callback(msg: str):
+                # Add a temporary system message to history to inform user about backoff
+                self.chat_history.append(("agent", f"[System] {msg}"))
+                self.save_state()
+                if on_update:
+                    on_update()
+
+            try:
+                ai_response = ai_service.ask_agent(
+                    full_prompt, on_status=status_callback
+                )
+            except Exception as e:
+                error_msg = f"❌ **AI Communication Error:** {str(e)}"
+                logger.error(f"AI Error: {e}", exc_info=True)
+                self.chat_history.append(("agent", error_msg))
+                self.save_state()
+                if on_update:
+                    on_update()
+                return error_msg
+
+            # Check for AI errors returned as text
+            if ai_response.startswith("AI Error:") or ai_response.startswith(
+                "AI not authenticated"
+            ):
+                self.chat_history.append(("agent", f"❌ **{ai_response}**"))
+                self.save_state()
+                if on_update:
+                    on_update()
+                return ai_response
 
             # Ensure ai_response starts with JSON context if it looks like JSON
             if (
@@ -555,7 +596,10 @@ class ProjectAnalysisAgent:
                 # In metadata mode, all fields are updatable (respecting locked_fields inside extract_metadata)
                 pass
 
-            self.current_analysis = analysis
+            # Only overwrite analysis if a new one was actually produced
+            if analysis:
+                self.current_analysis = analysis
+
             self.current_metadata = metadata
 
             self.chat_history.append(("agent", clean_msg))

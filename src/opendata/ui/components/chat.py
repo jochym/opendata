@@ -19,13 +19,23 @@ def chat_messages_ui(ctx: AppContext):
 
         for i, (role, msg) in enumerate(display_history):
             # Skip technical messages from display
-            if msg.startswith(
-                "[System] context expanded with content of:"
-            ) or msg.startswith("READ_FILE:"):
+            if msg.startswith("READ_FILE:"):
                 continue
-            if "[System] READ_FILE Tool Results:" in msg:
+
+            # Format System/Context messages nicely
+            if msg.startswith("[System] context expanded with content of:"):
+                files = msg.replace(
+                    "[System] context expanded with content of:", ""
+                ).strip()
+                msg = f"📂 **Context Loaded:** Read content of {files}"
+
+            elif msg.startswith("[System] AI requested content of:"):
+                files = msg.replace("[System] AI requested content of:", "").strip()
+                msg = f"🔍 **Analysis:** I need to read {files} to understand the data structure."
+
+            elif "[System] READ_FILE Tool Results:" in msg:
                 # Show only a placeholder for read files
-                msg = _("[System] Content of requested files loaded into context.")
+                msg = _("✅ **File Content Loaded.** Continuing analysis...")
 
             if role == "user":
                 with ui.row().classes("w-full justify-start"):
@@ -41,11 +51,16 @@ def chat_messages_ui(ctx: AppContext):
                         "bg-gray-100 border border-gray-200 rounded-lg py-0.5 px-3 w-full shadow-none"
                     ):
                         # Filter out internal JSON blocks from the visible message
-                        display_msg = re.sub(
-                            r"METADATA:.*", "", msg, flags=re.DOTALL
-                        ).strip()
+                        # UNLESS it is an error report which needs to show the raw data
+                        if "❌" in msg or "**Error" in msg:
+                            display_msg = msg
+                        else:
+                            display_msg = re.sub(
+                                r"METADATA:.*", "", msg, flags=re.DOTALL
+                            ).strip()
+
                         if not display_msg and "METADATA:" in msg:
-                            display_msg = _("[Metadata updated]")
+                            display_msg = _("✅ Metadata processed (see Preview tab)")
 
                         ui.markdown(display_msg).classes(
                             "text-sm text-gray-800 m-0 p-0 break-words"
@@ -77,7 +92,14 @@ def chat_messages_ui(ctx: AppContext):
                             ).props("icon=close flat color=gray size=xs").classes(
                                 "min-h-6 min-w-6 p-0.5"
                             )
-    ui.run_javascript("window.scrollTo(0, document.body.scrollHeight)")
+                        elif ScanState.is_processing_ai:
+                            ui.button("", on_click=lambda: handle_cancel_ai(ctx)).props(
+                                "icon=stop_circle flat color=red size=xs"
+                            ).classes("min-h-6 min-w-6 p-0.5")
+    try:
+        ui.run_javascript("window.scrollTo(0, document.body.scrollHeight)")
+    except RuntimeError:
+        pass
 
 
 def render_analysis_form(ctx: AppContext, analysis: Any):
@@ -300,19 +322,29 @@ async def handle_user_msg_from_code(ctx: AppContext, text: str, mode: str = "met
         )
 
     ScanState.is_processing_ai = True
+    UIState.ai_stop_event = threading.Event()
     ctx.refresh("chat")
 
-    await asyncio.to_thread(
-        ctx.agent.process_user_input,
-        text,
-        ctx.ai,
-        skip_user_append=True,
-        on_update=ctx.refresh_all,
-        mode=mode,
-    )
-    ScanState.is_processing_ai = False
-    ctx.refresh_all()
-    ui.run_javascript("window.scrollTo(0, document.body.scrollHeight)")
+    try:
+        await asyncio.to_thread(
+            ctx.agent.process_user_input,
+            text,
+            ctx.ai,
+            skip_user_append=True,
+            on_update=ctx.refresh_all,
+            mode=mode,
+            stop_event=UIState.ai_stop_event,
+        )
+    except Exception as e:
+        ui.notify(f"Error processing AI request: {e}", type="negative")
+    finally:
+        ScanState.is_processing_ai = False
+        UIState.ai_stop_event = None
+        ctx.refresh_all()
+        try:
+            ui.run_javascript("window.scrollTo(0, document.body.scrollHeight)")
+        except RuntimeError:
+            pass
 
 
 async def handle_clear_chat(ctx: AppContext):
@@ -325,6 +357,12 @@ async def handle_cancel_scan(ctx: AppContext):
     if ScanState.stop_event:
         ScanState.stop_event.set()
         ui.notify(_("Cancelling scan..."))
+
+
+async def handle_cancel_ai(ctx: AppContext):
+    if UIState.ai_stop_event:
+        UIState.ai_stop_event.set()
+        ui.notify(_("Stopping AI..."))
 
 
 async def handle_scan(ctx: AppContext, path: str, force: bool = False):

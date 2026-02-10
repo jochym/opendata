@@ -119,115 +119,131 @@ def render_protocols_tab(ctx: AppContext):
                         ).classes("text-sm text-slate-500")
 
 
+def _make_textarea(value: str, is_readonly: bool, mono: bool = False):
+    """Create a textarea that fills its parent absolutely."""
+    extra_cls = " font-mono" if mono else ""
+    ta = ui.textarea(value=value).props(
+        f"outlined {'readonly' if is_readonly else ''} autogrow=false"
+    )
+    # Force the Quasar component + inner textarea to fill container
+    # The 'h-full' class triggers the global CSS override for q-textarea
+    ta.style("position:absolute; inset:0; width:100%; height:100%;").classes(
+        f"h-full text-xs{extra_cls}"
+    )
+    ta.props('input-style="height:100%"')
+    ta.props('input-class="h-full"')
+    return ta
+
+
 def render_protocol_editor(ctx: AppContext, protocol: ExtractionProtocol, on_save=None):
     is_readonly = protocol.is_read_only
 
-    with ui.column().classes("w-full h-full p-4 gap-4 overflow-hidden no-wrap"):
+    # Calculate available height: subtract header bar (if readonly banner shown, ~40px extra)
+    banner_h = 40 if is_readonly else 0
+    save_h = 48 if (not is_readonly and on_save) else 0
+
+    with ui.element("div").style(
+        "width:100%; height:100%; display:flex; flex-direction:column; overflow:hidden; padding:8px; gap:8px;"
+    ):
         if is_readonly:
-            with ui.row().classes(
-                "w-full bg-orange-50 p-2 rounded border border-orange-100 items-center gap-2 shrink-0"
+            with ui.element("div").style(
+                "width:100%; flex-shrink:0; display:flex; align-items:center; gap:8px;"
+                " background:#fff7ed; padding:8px; border-radius:4px; border:1px solid #fed7aa;"
             ):
                 ui.icon("lock", color="orange")
                 ui.label(_("This protocol is Read-Only.")).classes(
                     "text-xs text-orange-800 font-medium"
                 )
 
-        # Main layout row - distributed equally (50/50)
-        # Using specific flex classes to ensure filling
-        with ui.row().classes("w-full flex-grow gap-4 no-wrap items-stretch h-0"):
-            # LEFT: Patterns
-            with (
-                ui.column()
-                .style("width: 50%")
-                .classes("h-full gap-4 no-wrap items-stretch")
+        # CSS Grid 2x2 - this is the core layout
+        with ui.element("div").style(
+            "flex:1; min-height:0; display:grid;"
+            " grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr;"
+            " gap:8px;"
+        ):
+            # Cell 1: Exclusion Patterns (top-left)
+            with ui.element("div").style(
+                "display:flex; flex-direction:column; overflow:hidden;"
+                " border:1px solid #e2e8f0; border-radius:8px; padding:12px;"
             ):
-                # We use flex-col on the card and then allow the textarea container to grow
-                with ui.card().classes(
-                    "w-full flex-grow p-4 shadow-none border flex flex-col no-wrap items-stretch overflow-hidden"
+                ui.label(_("Exclusion Patterns (Glob)")).classes(
+                    "text-sm font-bold text-slate-700"
+                ).style("flex-shrink:0")
+                with ui.element("div").style(
+                    "flex:1; min-height:0; position:relative; margin-top:4px;"
                 ):
-                    ui.label(_("Exclusion Patterns (Glob)")).classes(
-                        "text-sm font-bold text-slate-700 shrink-0"
+                    exclude_area = _make_textarea(
+                        "\n".join(protocol.exclude_patterns), is_readonly, mono=True
                     )
-                    # Container for textarea to force full height
-                    with ui.column().classes("w-full flex-grow relative"):
-                        exclude_area = (
-                            ui.textarea(value="\n".join(protocol.exclude_patterns))
-                            .classes("w-full h-full absolute inset-0 font-mono text-xs")
-                            .props(
-                                f'outlined {"readonly" if is_readonly else ""} autogrow=false input-style="height:100%" class="h-full"'
-                            )
-                        )
-                    ui.markdown(_("One per line. e.g. `**/temp/*`")).classes(
-                        "text-[10px] text-slate-500 shrink-0 mt-1"
-                    )
+                ui.label(_("One per line. e.g. **/temp/*")).classes(
+                    "text-slate-500"
+                ).style("flex-shrink:0; font-size:10px; margin-top:2px;")
 
-                with ui.card().classes(
-                    "w-full flex-grow p-4 shadow-none border flex flex-col no-wrap items-stretch overflow-hidden"
-                ):
-                    ui.label(_("Inclusion Patterns (Glob)")).classes(
-                        "text-sm font-bold text-slate-700 shrink-0"
-                    )
-                    with ui.column().classes("w-full flex-grow relative"):
-                        include_area = (
-                            ui.textarea(value="\n".join(protocol.include_patterns))
-                            .classes("w-full h-full absolute inset-0 font-mono text-xs")
-                            .props(
-                                f'outlined {"readonly" if is_readonly else ""} autogrow=false input-style="height:100%" class="h-full"'
-                            )
-                        )
-                    ui.markdown(_("Force include specific files.")).classes(
-                        "text-[10px] text-slate-500 shrink-0 mt-1"
-                    )
-
-            # RIGHT: Agent Prompts - distributed equally (50/50)
-            with (
-                ui.column()
-                .style("width: 50%")
-                .classes("h-full gap-4 no-wrap items-stretch")
+            # Cell 2: Metadata Agent Prompts (top-right)
+            with ui.element("div").style(
+                "display:flex; flex-direction:column; overflow:hidden;"
+                " border:1px solid #dbeafe; border-radius:8px; padding:12px;"
+                " background:rgba(239,246,255,0.3);"
             ):
-                with ui.card().classes(
-                    "w-full flex-grow p-4 shadow-none border border-blue-100 bg-blue-50/30 flex flex-col no-wrap items-stretch overflow-hidden"
+                ui.label(_("Metadata Agent Prompts")).classes(
+                    "text-sm font-bold text-blue-800"
+                ).style("flex-shrink:0")
+                with ui.element("div").style(
+                    "flex:1; min-height:0; position:relative; margin-top:4px;"
                 ):
-                    ui.label(_("Metadata Agent Prompts")).classes(
-                        "text-sm font-bold text-blue-800 shrink-0"
+                    meta_prompts_area = _make_textarea(
+                        "\n".join(
+                            protocol.metadata_prompts or protocol.extraction_prompts
+                        ),
+                        is_readonly,
                     )
-                    with ui.column().classes("w-full flex-grow relative"):
-                        meta_prompts_area = (
-                            ui.textarea(
-                                value="\n".join(
-                                    protocol.metadata_prompts
-                                    or protocol.extraction_prompts
-                                )
-                            )
-                            .classes("w-full h-full absolute inset-0 text-xs")
-                            .props(
-                                f'outlined {"readonly" if is_readonly else ""} autogrow=false input-style="height:100%" class="h-full"'
-                            )
-                        )
-                    ui.markdown(
-                        _("Instructions for RODBUK metadata collection.")
-                    ).classes("text-[10px] text-blue-500 shrink-0 mt-1")
+                ui.label(_("Instructions for RODBUK metadata collection.")).classes(
+                    "text-blue-500"
+                ).style("flex-shrink:0; font-size:10px; margin-top:2px;")
 
-                with ui.card().classes(
-                    "w-full flex-grow p-4 shadow-none border border-purple-100 bg-purple-50/30 flex flex-col no-wrap items-stretch overflow-hidden"
+            # Cell 3: Inclusion Patterns (bottom-left)
+            with ui.element("div").style(
+                "display:flex; flex-direction:column; overflow:hidden;"
+                " border:1px solid #e2e8f0; border-radius:8px; padding:12px;"
+            ):
+                ui.label(_("Inclusion Patterns (Glob)")).classes(
+                    "text-sm font-bold text-slate-700"
+                ).style("flex-shrink:0")
+                with ui.element("div").style(
+                    "flex:1; min-height:0; position:relative; margin-top:4px;"
                 ):
-                    ui.label(_("Curator Agent Prompts")).classes(
-                        "text-sm font-bold text-purple-800 shrink-0"
+                    include_area = _make_textarea(
+                        "\n".join(protocol.include_patterns), is_readonly, mono=True
                     )
-                    with ui.column().classes("w-full flex-grow relative"):
-                        curator_prompts_area = (
-                            ui.textarea(value="\n".join(protocol.curator_prompts))
-                            .classes("w-full h-full absolute inset-0 text-xs")
-                            .props(
-                                f'outlined {"readonly" if is_readonly else ""} autogrow=false input-style="height:100%" class="h-full"'
-                            )
-                        )
-                    ui.markdown(
-                        _("Instructions for file selection and reproducibility.")
-                    ).classes("text-[10px] text-purple-500 shrink-0 mt-1")
+                ui.label(_("Force include specific files.")).classes(
+                    "text-slate-500"
+                ).style("flex-shrink:0; font-size:10px; margin-top:2px;")
+
+            # Cell 4: Curator Agent Prompts (bottom-right)
+            with ui.element("div").style(
+                "display:flex; flex-direction:column; overflow:hidden;"
+                " border:1px solid #e9d5ff; border-radius:8px; padding:12px;"
+                " background:rgba(250,245,255,0.3);"
+            ):
+                ui.label(_("Curator Agent Prompts")).classes(
+                    "text-sm font-bold text-purple-800"
+                ).style("flex-shrink:0")
+                with ui.element("div").style(
+                    "flex:1; min-height:0; position:relative; margin-top:4px;"
+                ):
+                    curator_prompts_area = _make_textarea(
+                        "\n".join(protocol.curator_prompts), is_readonly
+                    )
+                ui.label(
+                    _("Instructions for file selection and reproducibility.")
+                ).classes("text-purple-500").style(
+                    "flex-shrink:0; font-size:10px; margin-top:2px;"
+                )
 
         if not is_readonly and on_save:
-            with ui.row().classes("w-full mt-2 justify-end shrink-0"):
+            with ui.element("div").style(
+                "flex-shrink:0; display:flex; justify-content:flex-end; padding-top:4px;"
+            ):
 
                 def handle_save():
                     protocol.exclude_patterns = [

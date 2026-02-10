@@ -94,6 +94,16 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
         ui.add_head_html("""
             <style>
                 .nicegui-content { padding: 4px !important; }
+                /* Force Quasar textarea to fill its container */
+                .q-textarea.h-full,
+                .q-textarea.h-full .q-field__control,
+                .q-textarea.h-full .q-field__control-container,
+                .q-textarea.h-full .q-field__native {
+                    height: 100% !important;
+                }
+                .q-textarea.h-full .q-field__native {
+                    resize: none !important;
+                }
             </style>
         """)
         ui.query("body").style("background-color: #f8f9fa; margin: 0; padding: 0;")
@@ -130,6 +140,12 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                 ctx.package_tab = package_tab
                 ctx.preview_tab = preview_tab
 
+                # Sync to UIState for global access in callbacks
+                UIState.main_tabs = main_tabs
+                UIState.analysis_tab = analysis_tab
+                UIState.package_tab = package_tab
+                UIState.preview_tab = preview_tab
+
         container = ui.column().classes("w-full p-0 max-w-none mx-0 h-full")
         with container:
             if not settings.ai_consent_granted:
@@ -144,15 +160,15 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                         ctx.register_refreshable("metadata", metadata_preview_ui)
                         render_analysis_dashboard(ctx)
 
-                    with ui.tab_panel(protocols_tab):
+                    with ui.tab_panel(protocols_tab).classes("p-0 h-full"):
                         ctx.register_refreshable("protocols", render_protocols_tab)
                         render_protocols_tab(ctx)
 
-                    with ui.tab_panel(package_tab):
+                    with ui.tab_panel(package_tab).classes("p-0 h-full"):
                         ctx.register_refreshable("package", render_package_tab)
                         render_package_tab(ctx)
 
-                    with ui.tab_panel(preview_tab):
+                    with ui.tab_panel(preview_tab).classes("p-0 h-full"):
                         ctx.register_refreshable("preview", render_preview_and_build)
                         render_preview_and_build(ctx)
 

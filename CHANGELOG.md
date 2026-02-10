@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.12.0] - 2026-02-10
+### Added
+- **File Explorer (Package Tab):**
+  - Replaced the file tree with a high-performance **File Explorer** (Breadcrumbs + Virtualized List).
+  - Handles projects with infinite file counts without browser freezing.
+  - Added **Tri-State Checkboxes** for folders with efficient recursive selection.
+  - Unified UI design with consistent icon sizes and alignment.
+- **Transparent AI Interaction:**
+  - **Live Status Reporting:** The chat now displays real-time system events (`[System] Reading file...`, `[System] Rate limit hit...`).
+  - **Rate Limit Feedback:** Explicitly reports Google Gemini "429 Rate Limit" backoff delays (e.g., "Waiting 2s...") instead of silently freezing the UI.
+  - **Stop Button:** Added a dedicated "Stop" button to abort AI analysis or scanning operations gracefully.
+  - **Raw Error View:** If AI returns invalid JSON, the raw text response is now displayed in the chat for debugging instead of being hidden.
+- **Stability:**
+  - **Persistent Suggestions:** AI file suggestions in the Package tab now stick around until explicitly dismissed, preventing them from being wiped by subsequent chat messages.
+  - **Robust Parsing:** Fixed issues where empty or malformed AI responses caused "silent failures" or generic "[Metadata updated]" messages.
+
 ## [0.11.0] - 2026-02-09
 ### Added
 - **High-Performance Scanner Engine:**

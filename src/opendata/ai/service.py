@@ -1,8 +1,10 @@
 from pathlib import Path
+from typing import Optional, Callable
 from opendata.models import UserSettings
 from .base import BaseAIService
 from .google_provider import GoogleProvider
 from .openai_provider import OpenAIProvider
+
 
 class AIService:
     """
@@ -17,7 +19,7 @@ class AIService:
         if settings is None:
             # Create default settings (which defaults to Google)
             settings = UserSettings()
-            
+
         self.settings = settings
         self.provider: BaseAIService = self._create_provider()
 
@@ -37,7 +39,7 @@ class AIService:
     @property
     def model_name(self) -> str:
         return self.provider.model_name
-    
+
     @model_name.setter
     def model_name(self, value: str):
         # Allow setting model name directly (used in UI)
@@ -58,8 +60,10 @@ class AIService:
     def switch_model(self, name: str):
         self.provider.switch_model(name)
 
-    def ask_agent(self, prompt: str) -> str:
-        return self.provider.ask_agent(prompt)
+    def ask_agent(
+        self, prompt: str, on_status: Optional[Callable[[str], None]] = None
+    ) -> str:
+        return self.provider.ask_agent(prompt, on_status=on_status)
 
     # --- Tool Wrappers (Delegated to Base/Provider) ---
 

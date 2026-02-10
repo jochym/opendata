@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import List, Optional, Callable
 import requests
 from pathlib import Path
+
 
 class BaseAIService(ABC):
     """Abstract base class for AI providers."""
@@ -21,8 +22,16 @@ class BaseAIService(ABC):
         pass
 
     @abstractmethod
-    def ask_agent(self, prompt: str) -> str:
-        """Sends a prompt to the AI and returns the text response."""
+    def ask_agent(
+        self, prompt: str, on_status: Optional[Callable[[str], None]] = None
+    ) -> str:
+        """
+        Sends a prompt to the AI and returns the text response.
+
+        Args:
+            prompt: The input prompt.
+            on_status: Optional callback to report status updates (e.g. rate limit retries).
+        """
         pass
 
     @abstractmethod
@@ -34,7 +43,7 @@ class BaseAIService(ABC):
     def switch_model(self, name: str):
         """Switches the active model."""
         pass
-        
+
     @abstractmethod
     def logout(self):
         """Logs out/clears credentials."""
@@ -47,7 +56,8 @@ class BaseAIService(ABC):
             url = f"http://export.arxiv.org/api/query?id_list={arxiv_id}"
             response = requests.get(url, timeout=10)
             return response.text
-        except Exception as e: return f"Error fetching arXiv: {e}"
+        except Exception as e:
+            return f"Error fetching arXiv: {e}"
 
     def fetch_doi_metadata(self, doi: str) -> dict:
         try:
@@ -55,7 +65,8 @@ class BaseAIService(ABC):
             headers = {"Accept": "application/vnd.citationstyles.csl+json"}
             response = requests.get(url, headers=headers, timeout=10)
             return response.json() if response.status_code == 200 else {}
-        except Exception: return {}
+        except Exception:
+            return {}
 
     def fetch_orcid_metadata(self, orcid: str) -> dict:
         try:
@@ -63,7 +74,8 @@ class BaseAIService(ABC):
             headers = {"Accept": "application/json"}
             response = requests.get(url, headers=headers, timeout=10)
             return response.json() if response.status_code == 200 else {}
-        except Exception: return {}
+        except Exception:
+            return {}
 
     def search_orcid_by_name(self, name: str) -> list:
         try:
@@ -71,5 +83,10 @@ class BaseAIService(ABC):
             params = {"q": name}
             headers = {"Accept": "application/json"}
             response = requests.get(url, params=params, headers=headers, timeout=10)
-            return response.json().get("expanded-result", [])[:5] if response.status_code == 200 else []
-        except Exception: return []
+            return (
+                response.json().get("expanded-result", [])[:5]
+                if response.status_code == 200
+                else []
+            )
+        except Exception:
+            return []

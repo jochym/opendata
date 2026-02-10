@@ -22,6 +22,16 @@ def extract_metadata_from_ai_response(
     updated_metadata = current_metadata
 
     if "METADATA:" not in response_text:
+        # Check if the response is an error message
+        if response_text.startswith("AI Error:") or response_text.startswith("❌"):
+            return response_text, None, updated_metadata
+        if not response_text.strip():
+            return (
+                "❌ **Error:** Received empty response from AI.",
+                None,
+                updated_metadata,
+            )
+
         return clean_text, None, updated_metadata
 
     try:
@@ -182,11 +192,26 @@ def extract_metadata_from_ai_response(
             return msg.strip(), current_analysis, updated_metadata
 
     except Exception as e:
-        print(f"[ERROR] Failed to extract metadata from AI response: {e}")
-        return response_text, None, updated_metadata
+        logger.error(f"Failed to extract metadata from AI response: {e}")
+        error_msg = (
+            f"❌ **Error parsing AI response:** {str(e)}\n\n"
+            f"The metadata could not be updated automatically.\n\n"
+            f"**Raw AI Response:**\n\n{response_text}"
+        )
+        return error_msg, None, updated_metadata
+
+    # Fallback if no specific analysis object was returned
+    if not clean_text or clean_text == "Thank you, I've updated the metadata.":
+        changed_fields = list(updates.keys())
+        if changed_fields:
+            clean_text = "✅ **Metadata updated.**\n\nModified fields:\n" + "\n".join(
+                [f"- {f.replace('_', ' ').title()}" for f in changed_fields]
+            )
+        else:
+            clean_text = "ℹ️ No metadata changes detected in the response."
 
     return (
-        clean_text if clean_text else "Thank you, I've updated the metadata.",
+        clean_text,
         current_analysis,
         updated_metadata,
     )
