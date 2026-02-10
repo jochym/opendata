@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0] - 2026-02-10
+### Fixed
+- **OAuth2 (Built-in Secrets):** Refined the build-time secret injection process. Secrets are now generated and bundled via a dedicated Python script, ensuring they are always present in the final binary.
+- **Linux GUI (Library Conflict Fix):** Resolved the `MOUNT_2_40` version mismatch by aggressively excluding `libmount`, `libblkid`, `libuuid`, and `libselinux` from the binary bundle. This forces the application to use the host's system libraries, fixing GUI launch failures on modern Linux distributions (e.g., Ubuntu 24.04).
+
 ## [0.14.9] - 2026-02-10
 ### Fixed
 - **CI/CD Optimization (Linux):** Completely avoided `PyGObject` compilation by manually injecting package metadata (`.dist-info`) into the CI virtual environment. This satisfies PyInstaller's hooks while using the reliable system-provided `python3-gi` package.

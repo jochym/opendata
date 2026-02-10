@@ -1,8 +1,29 @@
 import os
 import sys
+import json
 
 
 def generate_spec(artifact_name, runner_os):
+    # 1. Bake in secrets if present in environment
+    client_id = os.environ.get("GOOGLE_CLIENT_ID")
+    client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
+
+    if client_id and client_secret:
+        secrets_config = {
+            "installed": {
+                "client_id": client_id,
+                "project_id": "opendata-tool",
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                "client_secret": client_secret,
+                "redirect_uris": ["http://localhost"],
+            }
+        }
+        with open("client_secrets.json", "w") as f:
+            json.dump(secrets_config, f)
+        print("[INFO] client_secrets.json created for bundling.")
+
     spec_template = """# -*- mode: python ; coding: utf-8 -*-
 import os
 
@@ -24,7 +45,7 @@ a = Analysis(
     binaries=[],
     datas=added_files,
     hiddenimports=['gi', 'gi.repository.Gtk', 'gi.repository.WebKit2'],
-    hookspath=[], 
+    hookspath=['pyinstaller_hooks'],
     hooksconfig={},
     runtime_hooks=[],
     excludes=general_excludes,
@@ -41,7 +62,8 @@ if os.name == 'posix' and '{RUNNER_OS}' == 'Linux':
         'libgmodule-2.0.so.0', 'libz.so.1', 'libsecret-1.so.0',
         'libwebkit2gtk-4.1.so.0', 'libjavascriptcoregtk-4.1.so.0',
         'libgtk-3.so.0', 'libgdk-3.so.0', 'libatk-1.0.so.0',
-        'libpangocairo-1.0.so.0', 'libpango-1.0.so.0', 'libcairo.so.2'
+        'libpangocairo-1.0.so.0', 'libpango-1.0.so.0', 'libcairo.so.2',
+        'libmount.so.1', 'libblkid.so.1', 'libuuid.so.1', 'libselinux.so.1'
     }
     a.binaries = [x for x in a.binaries if x[0] not in excluded_libs]
 
