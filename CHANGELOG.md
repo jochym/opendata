@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.14.2] - 2026-02-10
+### Fixed
+- **CI/CD Build (Linux):** Switched from global `PYTHONPATH` to precision symlinking of the system `gi` module. Manually injected package metadata into the virtual environment to satisfy PyInstaller's `gi` hook without breaking `pydantic` dependencies (resolved `typing_extensions` conflict).
+
 ## [0.14.1] - 2026-02-10
 ### Fixed
 - **CI/CD Build (Linux):** Resolved `PyGObject` compilation issues by switching to the system-provided package (`python3-gi`) and explicitly setting `PYTHONPATH`. This bypasses Meson/PkgConfig failures in the CI environment while maintaining full metadata support for PyInstaller.

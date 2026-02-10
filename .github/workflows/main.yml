@@ -26,11 +26,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
+          # Precision link only 'gi' from system to avoid conflicts with typing_extensions
+          SITE_PACKAGES=$(python -c 'import site; print(site.getsitepackages()[0])')
+          ln -s /usr/lib/python3/dist-packages/gi $SITE_PACKAGES/gi || true
       - name: Run tests
-        run: |
-          # Use system-wide PyGObject for tests
-          export PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages
-          pytest
+        run: pytest
 
   website:
     name: Deploy Website
@@ -84,9 +84,20 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libgirepository1.0-dev libcairo2-dev pkg-config gobject-introspection libglib2.0-dev python3-gi python3-gi-cairo
       - name: Install dependencies
+        shell: bash
         run: |
           python -m pip install --upgrade pip
           pip install . pyinstaller
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            SITE_PACKAGES=$(python -c 'import site; print(site.getsitepackages()[0])')
+            ln -s /usr/lib/python3/dist-packages/gi $SITE_PACKAGES/gi || true
+            # Fake the metadata so PyInstaller hook is happy
+            PYG_VERSION=$(python3 -c "import gi; print('3.48.2')") # Current Ubuntu 24.04 version
+            mkdir -p $SITE_PACKAGES/PyGObject-$PYG_VERSION.dist-info
+            echo "Metadata-Version: 2.1" > $SITE_PACKAGES/PyGObject-$PYG_VERSION.dist-info/METADATA
+            echo "Name: PyGObject" >> $SITE_PACKAGES/PyGObject-$PYG_VERSION.dist-info/METADATA
+            echo "Version: $PYG_VERSION" >> $SITE_PACKAGES/PyGObject-$PYG_VERSION.dist-info/METADATA
+          fi
       - name: Prepare client_secrets.json
         shell: bash
         env:
@@ -99,10 +110,6 @@ jobs:
       - name: Build with PyInstaller
         shell: bash
         run: |
-          # Use system-wide PyGObject for the build
-          if [ "${{ runner.os }}" = "Linux" ]; then
-            export PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages
-          fi
           python3 scripts/generate_spec.py "${{ matrix.artifact_name }}" "${{ runner.os }}"
           python3 -m PyInstaller --clean opendata.spec
       - name: Upload Artifact
