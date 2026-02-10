@@ -66,18 +66,6 @@ a = Analysis(
     noarchive=False,
 )
 
-# Linux GUI stability fix: exclude problematic system libraries
-if os.name == 'posix' and '{runner_os}' == 'Linux':
-    excluded_libs = {{
-        'libglib-2.0.so.0', 'libgobject-2.0.so.0', 'libgio-2.0.so.0', 
-        'libgmodule-2.0.so.0', 'libz.so.1', 'libsecret-1.so.0',
-        'libwebkit2gtk-4.1.so.0', 'libjavascriptcoregtk-4.1.so.0',
-        'libgtk-3.so.0', 'libgdk-3.so.0', 'libatk-1.0.so.0',
-        'libpangocairo-1.0.so.0', 'libpango-1.0.so.0', 'libcairo.so.2',
-        'libmount.so.1', 'libblkid.so.1', 'libuuid.so.1', 'libselinux.so.1'
-    }}
-    a.binaries = [x for x in a.binaries if x[0] not in excluded_libs]
-
 pyz = PYZ(a.pure, a.zipped_data, cipher=None)
 
 exe = EXE(

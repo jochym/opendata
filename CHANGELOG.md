@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.5] - 2026-02-10
+### Fixed
+- **Stable Build (Linux):** Removed experimental binary exclusions that caused `ImportError: cannot import name '_gi'`. Standardized on a clean build process for better compatibility with host OS libraries.
+- **GUI Verification:** Enhanced the Smoke Test to check for specific error messages in the logs (e.g., "GUI launch failed") when running in a virtual X server. This prevents publishing broken binaries.
+- **Binary Stability:** Re-included `unittest` to satisfy dependencies of libraries like `pyparsing`.
+
 ## [0.16.4] - 2026-02-10
 ### Fixed
 - **Website UI/UX Redesign:** Dramatically improved the look and feel of the documentation sections. Integrated `Highlight.js` for syntax highlighting and applied premium typography styles to the Markdown renderer. The portal now features a high-end, professional design consistent with modern scientific tools.

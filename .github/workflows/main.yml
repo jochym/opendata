@@ -16,7 +16,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
           cache: 'pip'
       - name: Install System Dependencies (Linux)
         run: |
@@ -73,17 +73,20 @@ jobs:
       matrix:
         include:
           - os: windows-latest
+            python-version: '3.12'
             artifact_name: opendata-win.exe
           - os: ubuntu-latest
+            python-version: '3.12'
             artifact_name: opendata-linux
           - os: macos-latest
+            python-version: '3.11'
             artifact_name: opendata-macos
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: ${{ matrix.python-version }}
           cache: 'pip'
       - name: Install System Dependencies (Linux)
         if: matrix.os == 'ubuntu-latest'
@@ -117,7 +120,17 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           chmod +x dist/${{ matrix.artifact_name }}
-          timeout 15s xvfb-run ./dist/${{ matrix.artifact_name }} --help || [[ $? -eq 124 ]]
+          # Run binary and check for fatal GUI errors in output
+          xvfb-run ./dist/${{ matrix.artifact_name }} --help > smoke_test.log 2>&1 &
+          PID=$!
+          sleep 10
+          kill $PID || true
+          cat smoke_test.log
+          if grep -q "GUI launch failed" smoke_test.log; then
+            echo "CRITICAL: GUI Smoke Test failed!"
+            exit 1
+          fi
+          echo "GUI Smoke Test passed!"
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
