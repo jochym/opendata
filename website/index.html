@@ -6,245 +6,247 @@
     <title>OpenData Tool | Beta Testing Portal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Syntax Highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=Fira+Code:wght@400;500&display=swap');
+        
+        body { font-family: 'Inter', sans-serif; }
         .gradient-bg { background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); }
         .feature-card:hover { transform: translateY(-5px); transition: all 0.3s ease; }
-        #doc-content h1 { @apply text-3xl font-bold mb-6 text-blue-900 border-b pb-2; }
-        #doc-content h2 { @apply text-2xl font-bold mt-8 mb-4 text-blue-800; }
-        #doc-content h3 { @apply text-xl font-bold mt-6 mb-3 text-gray-800; }
-        #doc-content p { @apply mb-4 leading-relaxed text-gray-700; }
-        #doc-content ul { @apply list-disc ml-6 mb-4 space-y-2 text-gray-700; }
-        #doc-content ol { @apply list-decimal ml-6 mb-4 space-y-2 text-gray-700; }
-        #doc-content code { @apply bg-gray-100 px-1 rounded font-mono text-sm text-blue-700; }
-        #doc-content pre { @apply bg-gray-900 text-gray-100 p-4 rounded-lg mb-6 overflow-x-auto font-mono text-sm shadow-inner; }
-        #doc-content blockquote { @apply border-l-4 border-blue-500 pl-4 italic text-gray-600 mb-4; }
+        
+        /* Premium Markdown Styling */
+        #doc-content { font-size: 1.05rem; line-height: 1.75; color: #374151; }
+        #doc-content h1 { font-weight: 800; font-size: 2.25rem; margin-top: 2rem; margin-bottom: 1.5rem; color: #1e3a8a; border-bottom: 2px solid #e5e7eb; padding-bottom: 0.5rem; }
+        #doc-content h2 { font-weight: 700; font-size: 1.75rem; margin-top: 2.5rem; margin-bottom: 1.25rem; color: #1e40af; display: flex; items-center: center; }
+        #doc-content h2::before { content: '§'; color: #3b82f6; margin-right: 0.75rem; opacity: 0.5; }
+        #doc-content h3 { font-weight: 600; font-size: 1.4rem; margin-top: 2rem; margin-bottom: 1rem; color: #1f2937; }
+        #doc-content p { margin-bottom: 1.25rem; }
+        #doc-content ul { list-style-type: none; margin-bottom: 1.5rem; padding-left: 0.5rem; }
+        #doc-content ul li { position: relative; padding-left: 1.75rem; margin-bottom: 0.75rem; }
+        #doc-content ul li::before { content: '\f00c'; font-family: 'Font Awesome 6 Free'; font-weight: 900; position: absolute; left: 0; color: #10b981; font-size: 0.8rem; top: 0.3rem; }
+        #doc-content ol { list-style-type: decimal; margin-bottom: 1.5rem; padding-left: 1.5rem; }
+        #doc-content ol li { margin-bottom: 0.75rem; padding-left: 0.5rem; }
+        #doc-content code { font-family: 'Fira Code', monospace; background: #f3f4f6; color: #ef4444; padding: 0.2rem 0.4rem; rounded: 0.25rem; font-size: 0.9em; font-weight: 500; }
+        #doc-content pre { margin-bottom: 2rem; border-radius: 0.75rem; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        #doc-content pre code { display: block; padding: 1.25rem; background: #1f2937; color: #f9fafb; overflow-x: auto; border: none; font-size: 0.9rem; line-height: 1.5; }
+        #doc-content blockquote { border-left: 4px solid #3b82f6; background: #eff6ff; padding: 1rem 1.5rem; italic: italic; color: #1e40af; border-radius: 0 0.5rem 0.5rem 0; margin-bottom: 1.5rem; }
+        #doc-content strong { font-weight: 700; color: #111827; }
+        #doc-content hr { margin: 3rem 0; border-top: 1px solid #e5e7eb; }
+        #doc-content a { color: #2563eb; text-decoration: underline; text-underline-offset: 2px; }
+        #doc-content a:hover { color: #1d4ed8; }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-800 font-sans">
+<body class="bg-slate-50 text-gray-800 font-sans antialiased">
 
     <!-- Hero Section -->
-    <header class="gradient-bg text-white py-12 px-6 shadow-lg">
-        <div class="max-w-5xl mx-auto text-center">
-            <div class="inline-block bg-yellow-400 text-yellow-900 px-4 py-1 rounded-full text-sm font-bold uppercase tracking-widest mb-6 animate-pulse">
-                <i class="fas fa-flask mr-2"></i> Working Prototype / Phase: Proof of Concept
+    <header class="gradient-bg text-white py-16 px-6 shadow-2xl relative overflow-hidden">
+        <div class="absolute top-0 right-0 -mt-20 -mr-20 opacity-10">
+            <i class="fas fa-microscope text-[20rem]"></i>
+        </div>
+        <div class="max-w-5xl mx-auto text-center relative z-10">
+            <div class="inline-flex items-center bg-white/20 backdrop-blur-md text-white px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-8 border border-white/30">
+                <span class="flex h-2 w-2 rounded-full bg-yellow-400 mr-3 animate-pulse"></span>
+                Phase: Proof of Concept / Beta Testing
             </div>
-            <h1 class="text-4xl md:text-5xl font-extrabold mb-4">OpenData Tool</h1>
-            <p class="text-xl opacity-90 mb-8 max-w-2xl mx-auto">
-                A research-stage AI assistant for scientific metadata preparation. 
-                <strong>Expect bugs, incomplete extractions, and limitations.</strong>
+            <h1 class="text-5xl md:text-6xl font-black mb-6 tracking-tight">OpenData Tool</h1>
+            <p class="text-xl md:text-2xl opacity-90 mb-10 max-w-3xl mx-auto leading-relaxed">
+                Advanced AI Assistant for automated scientific metadata preparation and <span class="font-bold border-b-2 border-yellow-400">RODBUK</span> packaging.
             </p>
-            <div class="flex flex-wrap justify-center gap-4">
-                <a href="#download" class="bg-white text-blue-700 px-8 py-3 rounded-full font-bold hover:bg-gray-100 transition shadow-md">Get Started</a>
-                <a href="#docs" onclick="loadDoc('tester')" class="bg-blue-600 border border-blue-400 px-8 py-3 rounded-full font-bold hover:bg-blue-500 transition shadow-md">Tester Manual</a>
-                <a href="#docs" onclick="loadDoc('developer')" class="bg-gray-800 border border-gray-600 px-8 py-3 rounded-full font-bold hover:bg-gray-700 transition shadow-md">Developer Manual</a>
+            <div class="flex flex-wrap justify-center gap-5">
+                <a href="#download" class="bg-yellow-400 text-blue-900 px-10 py-4 rounded-xl font-black hover:bg-yellow-300 transition-all shadow-xl hover:shadow-yellow-400/20 transform hover:-translate-y-1">
+                    <i class="fas fa-download mr-2"></i> GET STARTED
+                </a>
+                <button onclick="loadDoc('tester')" class="bg-white/10 backdrop-blur-md border border-white/30 px-8 py-4 rounded-xl font-bold hover:bg-white/20 transition-all shadow-lg flex items-center">
+                    <i class="fas fa-vial mr-3 text-yellow-400"></i> TESTER MANUAL
+                </button>
+                <button onclick="loadDoc('developer')" class="bg-slate-900 border border-slate-700 px-8 py-4 rounded-xl font-bold hover:bg-slate-800 transition-all shadow-lg flex items-center">
+                    <i class="fas fa-code mr-3 text-blue-400"></i> DEVELOPER GUIDE
+                </button>
             </div>
         </div>
     </header>
 
     <!-- Disclaimer Banner -->
-    <div class="bg-orange-100 border-b border-orange-200 text-orange-900 px-6 py-4">
+    <div class="bg-amber-50 border-b border-amber-200 text-amber-900 px-6 py-5">
         <div class="max-w-5xl mx-auto flex items-center">
-            <i class="fas fa-exclamation-triangle text-2xl mr-4 text-orange-500"></i>
-            <p class="text-sm">
-                <strong>WARNING:</strong> This is NOT a finished product. It is a concept-testing demo. 
-                The AI logic is currently optimized for specific Physics and Medical formats. It <strong>will likely fail</strong> 
-                or produce inaccurate results for unfamiliar data structures. 
-                We are actively seeking your feedback to break and improve it.
+            <div class="bg-amber-500 text-white p-2 rounded-lg mr-5 hidden md:block">
+                <i class="fas fa-triangle-exclamation text-xl"></i>
+            </div>
+            <p class="text-sm leading-relaxed">
+                <strong>RESEARCH PROTOTYPE:</strong> This tool is currently in active development. AI extraction logic is optimized for <strong>Physics</strong> and <strong>Medical Physics</strong> data structures. Accuracy may vary for other domains.
             </p>
         </div>
     </div>
 
-    <main class="max-w-5xl mx-auto px-6 py-12">
+    <main class="max-w-5xl mx-auto px-6 py-16">
         
         <!-- Documentation Section -->
-        <section id="docs" class="mb-16 hidden">
-            <div class="flex justify-between items-center mb-6">
-                <h2 id="doc-title" class="text-3xl font-bold text-blue-900 uppercase tracking-tight">Documentation</h2>
-                <button onclick="document.getElementById('docs').classList.add('hidden')" class="text-gray-500 hover:text-red-500 transition">
-                    <i class="fas fa-times-circle text-2xl"></i>
+        <section id="docs" class="mb-20 hidden scroll-mt-10">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+                <div>
+                    <h2 id="doc-title" class="text-4xl font-black text-slate-900 tracking-tight">Documentation</h2>
+                    <p class="text-slate-500 mt-1">Source: Repository Markdown Docs</p>
+                </div>
+                <button onclick="document.getElementById('docs').classList.add('hidden')" class="bg-slate-200 hover:bg-red-100 hover:text-red-600 px-5 py-2 rounded-lg font-bold transition-all flex items-center">
+                    <i class="fas fa-times-circle mr-2"></i> CLOSE
                 </button>
             </div>
-            <div class="bg-white p-8 rounded-2xl shadow-xl border border-gray-100 min-h-[400px]">
-                <div id="doc-loading" class="flex items-center justify-center h-64">
-                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700"></div>
+            <div class="bg-white p-8 md:p-12 rounded-[2rem] shadow-2xl border border-slate-100 relative">
+                <div class="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
+                    <i class="fas fa-file-alt text-9xl"></i>
                 </div>
-                <div id="doc-content" class="prose max-w-none"></div>
+                <div id="doc-loading" class="flex flex-col items-center justify-center py-20">
+                    <div class="animate-spin rounded-full h-16 w-12 border-b-4 border-blue-700 mb-4"></div>
+                    <span class="font-bold text-slate-400 uppercase tracking-widest text-sm">Loading Documentation...</span>
+                </div>
+                <article id="doc-content" class="relative z-10"></article>
             </div>
         </section>
 
         <!-- Goal & Overview -->
-        <section class="mb-16">
-            <h2 class="text-3xl font-bold mb-6 text-blue-900 border-b-2 border-blue-100 pb-2">Concept & Mission</h2>
-            <div class="bg-white p-6 rounded-xl border-l-4 border-yellow-400 shadow-sm text-gray-700">
-                <p class="text-lg leading-relaxed mb-4">
-                    The <strong>OpenData Tool</strong> is a <strong>Proof of Concept (PoC)</strong> exploring the use of Generative AI for automated scientific metadata extraction. 
-                </p>
-                <p class="text-md mb-4">
-                    Our goal is to determine if AI can reliably "read" a researcher's working directory and draft a high-quality metadata record for the <span class="font-semibold">RODBUK repository</span> with minimal human intervention.
-                </p>
-                <ul class="list-disc ml-6 space-y-2">
-                    <li><strong>Status:</strong> Early Alpha / Technology Demonstrator.</li>
-                    <li><strong>Scope:</strong> Metadata drafting and documentation packaging only. Research data handling is NOT yet implemented.</li>
-                    <li><strong>Target Audience:</strong> Domain experts willing to test the boundaries of AI interpretation in Physics and Medical Physics.</li>
-                </ul>
+        <section class="mb-20">
+            <div class="flex items-center mb-10">
+                <div class="h-1 w-12 bg-blue-600 rounded-full mr-4"></div>
+                <h2 class="text-3xl font-black text-slate-900 uppercase tracking-tighter">Concept & Mission</h2>
             </div>
-
-            <div class="grid md:grid-cols-3 gap-8 mt-8">
-                <div class="bg-white p-6 rounded-xl shadow-md border-t-4 border-blue-500 feature-card">
-                    <i class="fas fa-shield-alt text-3xl text-blue-500 mb-4"></i>
-                    <h3 class="font-bold text-xl mb-2">Read-Only Safety</h3>
-                    <p class="text-gray-600 mb-2">The tool never modifies your original research files. Your data remains untouched and secure.</p>
-                    <p class="text-xs text-gray-500 border-t pt-2 mt-2">
-                        <i class="fas fa-user-secret mr-1"></i> <strong>No Telemetry:</strong> We do not track your activity. The code is open source and free to inspect.
-                    </p>
-                </div>
-                <div class="bg-white p-6 rounded-xl shadow-md border-t-4 border-green-500 feature-card">
-                    <i class="fas fa-robot text-3xl text-green-500 mb-4"></i>
-                    <h3 class="font-bold text-xl mb-2">AI-Powered</h3>
-                    <p class="text-gray-600">Extracts metadata from LaTeX, Word, PDFs, and scientific formats like VASP, DICOM, and HDF5.</p>
-                </div>
-                <div class="bg-white p-6 rounded-xl shadow-md border-t-4 border-purple-500 feature-card">
-                    <i class="fas fa-comments text-3xl text-purple-500 mb-4"></i>
-                    <h3 class="font-bold text-xl mb-2">Interactive Chat</h3>
-                    <p class="text-gray-600">Refine your metadata through a simple conversation. Tell the tool what's important, and it learns.</p>
-                </div>
-            </div>
-        </section>
-
-        <!-- Usage Section -->
-        <section class="mb-16 bg-blue-50 p-8 rounded-2xl">
-            <h2 class="text-3xl font-bold mb-8 text-blue-900">How to Use It</h2>
             
-            <div class="bg-yellow-100 border-l-4 border-yellow-500 p-4 mb-8 text-sm text-yellow-800">
-                <p class="font-bold mb-2"><i class="fas fa-key mr-2"></i> Access Requirement</p>
-                <p>
-                    To use the AI features (Google Gemini), you must be added to our <strong>internal testing team</strong>. 
-                    Please contact <a href="mailto:jochym@ifj.edu.pl" class="underline">Pawel T. Jochym</a> to request access.
-                    You will need a valid Google Account.
+            <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 text-slate-700 mb-12">
+                <p class="text-xl leading-relaxed mb-6 font-medium text-slate-800">
+                    Determining if AI can reliably "read" a researcher's working directory and draft high-quality metadata records with minimal intervention.
                 </p>
-                <p class="mt-2 text-xs opacity-80">
-                    <strong>Privacy Note:</strong> Your file snippets are sent directly to <em>your</em> authenticated Google Gemini instance. 
-                    The authors of this tool have <strong>no access</strong> to your data, metadata, or chat history in any form.
-                </p>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="flex items-start">
+                        <i class="fas fa-check-circle text-green-500 mt-1.5 mr-3"></i>
+                        <span><strong>Status:</strong> Early Alpha / Technology PoC.</span>
+                    </div>
+                    <div class="flex items-start">
+                        <i class="fas fa-check-circle text-green-500 mt-1.5 mr-3"></i>
+                        <span><strong>Metadata:</strong> Strictly follows RODBUK schema.</span>
+                    </div>
+                    <div class="flex items-start">
+                        <i class="fas fa-check-circle text-green-500 mt-1.5 mr-3"></i>
+                        <span><strong>Scope:</strong> Automated extraction & refinement loop.</span>
+                    </div>
+                    <div class="flex items-start">
+                        <i class="fas fa-check-circle text-green-500 mt-1.5 mr-3"></i>
+                        <span><strong>Platform:</strong> Native builds for Win/Mac/Linux.</span>
+                    </div>
+                </div>
             </div>
 
-            <div class="space-y-6">
-                <div class="flex items-start">
-                    <span class="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold mr-4 shrink-0">1</span>
-                    <div>
-                        <h4 class="font-bold text-lg">Launch & Setup</h4>
-                        <p class="text-gray-700">Open the app. It will launch a small control window and your web browser. Sign in with Google to enable AI features.</p>
+            <div class="grid md:grid-cols-3 gap-8">
+                <div class="bg-white p-8 rounded-3xl shadow-lg border-b-4 border-blue-500 feature-card">
+                    <div class="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mb-6">
+                        <i class="fas fa-shield-halved text-2xl text-blue-600"></i>
                     </div>
+                    <h3 class="font-bold text-xl mb-3 text-slate-900">Read-Only Safety</h3>
+                    <p class="text-slate-600 leading-relaxed">The tool never modifies original research files. Your data remains untouched and 100% secure.</p>
                 </div>
-                <div class="flex items-start">
-                    <span class="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold mr-4 shrink-0">2</span>
-                    <div>
-                        <h4 class="font-bold text-lg">Scan Directory</h4>
-                        <p class="text-gray-700">Point the tool to your research project folder. It will perform a lightning-fast scan to identify relevant files.</p>
+                <div class="bg-white p-8 rounded-3xl shadow-lg border-b-4 border-emerald-500 feature-card">
+                    <div class="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center mb-6">
+                        <i class="fas fa-brain text-2xl text-emerald-600"></i>
                     </div>
+                    <h3 class="font-bold text-xl mb-3 text-slate-900">AI Reasoning</h3>
+                    <p class="text-slate-600 leading-relaxed">Deep analysis of LaTeX, VASP, DICOM and HDF5 to identify authors, abstracts, and methodologies.</p>
                 </div>
-                <div class="flex items-start">
-                    <span class="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold mr-4 shrink-0">3</span>
-                    <div>
-                        <h4 class="font-bold text-lg">Review & Chat</h4>
-                        <p class="text-gray-700">The AI will propose metadata. You can edit it manually or use the Chat window to say: "Add Prof. Smith as a co-author" or "Summarize the abstract from the LaTeX file."</p>
+                <div class="bg-white p-8 rounded-3xl shadow-lg border-b-4 border-indigo-500 feature-card">
+                    <div class="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center mb-6">
+                        <i class="fas fa-wand-magic-sparkles text-2xl text-indigo-600"></i>
                     </div>
-                </div>
-                <div class="flex items-start">
-                    <span class="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold mr-4 shrink-0">4</span>
-                    <div>
-                        <h4 class="font-bold text-lg">Package</h4>
-                        <p class="text-gray-700">Once satisfied, click 'Generate Package'. A ZIP file ready for RODBUK will be created in your workspace.</p>
-                    </div>
+                    <h3 class="font-bold text-xl mb-3 text-slate-900">Refinement Loop</h3>
+                    <p class="text-slate-600 leading-relaxed">Refine metadata through a simple conversation. Tell the tool what's missing, and it learns from context.</p>
                 </div>
             </div>
         </section>
 
-        <!-- Project Status / Roadmap -->
-        <section class="mb-16">
-            <h2 class="text-3xl font-bold mb-6 text-blue-900 border-b-2 border-blue-100 pb-2">Development Status</h2>
-            <div class="grid gap-4">
-                <div class="flex items-start p-4 bg-gray-50 border-l-4 border-gray-400 rounded-r-xl">
-                    <div class="mr-4 text-gray-600 mt-1"><i class="fas fa-check-square"></i></div>
-                    <div>
-                        <h4 class="font-bold text-gray-800">Completed (PoC Baseline)</h4>
-                        <ul class="list-disc ml-4 text-sm text-gray-600 mt-1">
-                            <li>Core heuristic extraction (LaTeX, Docx, VASP, DICOM).</li>
-                            <li>Conversational AI loop for metadata refinement.</li>
-                            <li>Frictionless Google OAuth2 authentication.</li>
-                            <li>Metadata-only packaging (ZIP with YAML/JSON + READMEs).</li>
-                            <li>Cross-platform builds (Linux, Windows, macOS).</li>
-                        </ul>
-                    </div>
+        <!-- Usage Steps -->
+        <section class="mb-20 bg-slate-900 text-white p-10 md:p-16 rounded-[3rem] shadow-2xl relative overflow-hidden">
+            <div class="absolute bottom-0 left-0 opacity-10 pointer-events-none">
+                <i class="fas fa-terminal text-[15rem] -mb-20 -ml-10"></i>
+            </div>
+            <h2 class="text-4xl font-black mb-12 text-center tracking-tight">The Workflow</h2>
+            
+            <div class="grid md:grid-cols-4 gap-8 relative z-10">
+                <div class="text-center">
+                    <div class="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center font-black text-xl mx-auto mb-6 shadow-xl shadow-blue-600/40">1</div>
+                    <h4 class="font-bold mb-2">Connect</h4>
+                    <p class="text-slate-400 text-sm">Sign in with Google to enable Gemini AI features.</p>
                 </div>
-                
-                <div class="flex items-start p-4 bg-green-50 border-l-4 border-green-500 rounded-r-xl">
-                    <div class="mr-4 text-green-600 mt-1"><i class="fas fa-check-square text-lg"></i></div>
-                    <div>
-                        <h4 class="font-bold text-green-900">Current Release: 0.16.2</h4>
-                        <ul class="list-disc ml-4 text-sm text-green-800 mt-1">
-                            <li><strong>New:</strong> Standardized on <strong>Python 3.11</strong> for maximum PyInstaller stability.</li>
-                            <li><strong>New:</strong> Automated <strong>GUI Smoke Test</strong> using Xvfb - no more broken Linux releases!</li>
-                            <li><strong>New:</strong> Comprehensive <strong>Tester & Developer Manuals</strong> integrated into the website.</li>
-                            <li><strong>New:</strong> <strong>Baked-in AI Secrets</strong> - authentication works out-of-the-box.</li>
-                        </ul>
-                    </div>
+                <div class="text-center">
+                    <div class="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center font-black text-xl mx-auto mb-6 shadow-xl shadow-blue-600/40">2</div>
+                    <h4 class="font-bold mb-2">Scan</h4>
+                    <p class="text-slate-400 text-sm">Analyze your project directory in seconds.</p>
                 </div>
-
-                <div class="flex items-start p-4 bg-blue-50 border-l-4 border-blue-500 rounded-r-xl">
-                    <div class="mr-4 text-blue-600 mt-1"><i class="fas fa-vial text-lg"></i></div>
-                    <div>
-                        <h4 class="font-bold text-blue-900">User Acceptance Testing (UAT)</h4>
-                        <p class="text-sm text-blue-800 mt-1">
-                            We are gathering feedback from domain professionals to refine the AI's scientific reasoning. 
-                            Please test the <code>/bug</code> command if you encounter any anomalies.
-                        </p>
-                    </div>
+                <div class="text-center">
+                    <div class="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center font-black text-xl mx-auto mb-6 shadow-xl shadow-blue-600/40">3</div>
+                    <h4 class="font-bold mb-2">Refine</h4>
+                    <p class="text-slate-400 text-sm">Review AI suggestions and use Chat to polish.</p>
+                </div>
+                <div class="text-center">
+                    <div class="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center font-black text-xl mx-auto mb-6 shadow-xl shadow-blue-600/40">4</div>
+                    <h4 class="font-bold mb-2">Package</h4>
+                    <p class="text-slate-400 text-sm">Generate a RODBUK-ready ZIP package instantly.</p>
                 </div>
             </div>
         </section>
 
         <!-- Downloads -->
-        <section id="download" class="py-12 border-t-2 border-gray-200">
-            <h2 class="text-3xl font-bold mb-8 text-center text-blue-900">Download Latest Release</h2>
-            <div class="flex flex-wrap justify-center gap-6">
+        <section id="download" class="py-16">
+            <div class="text-center mb-12">
+                <h2 class="text-4xl font-black text-slate-900 mb-4 tracking-tight uppercase">Download Stable Release</h2>
+                <p class="text-slate-500">Version 0.16.2 | Released: Feb 10, 2026</p>
+            </div>
+            <div class="flex flex-wrap justify-center gap-8">
                 <!-- Windows -->
-                <a href="https://github.com/jochym/opendata/releases/latest/download/opendata-win.exe" class="flex flex-col items-center p-8 bg-white border-2 border-gray-200 rounded-2xl hover:border-blue-500 hover:shadow-xl transition group w-64 shadow-sm">
-                    <i class="fab fa-windows text-5xl mb-4 text-gray-400 group-hover:text-blue-600 transition"></i>
-                    <span class="font-bold text-lg">Windows</span>
-                    <span class="text-xs text-gray-500 mt-2 italic">v0.16.2 (.exe)</span>
+                <a href="https://github.com/jochym/opendata/releases/latest/download/opendata-win.exe" class="flex flex-col items-center p-10 bg-white border border-slate-100 rounded-[2.5rem] hover:border-blue-500 hover:shadow-2xl transition-all group w-72 shadow-lg">
+                    <div class="w-20 h-20 bg-blue-50 rounded-3xl flex items-center justify-center mb-6 group-hover:bg-blue-600 transition-colors">
+                        <i class="fab fa-windows text-4xl text-blue-600 group-hover:text-white transition-colors"></i>
+                    </div>
+                    <span class="font-black text-xl text-slate-900 uppercase tracking-tighter">Windows</span>
+                    <span class="text-sm text-slate-400 mt-2 font-mono">.exe installer</span>
                 </a>
                 <!-- Linux -->
-                <a href="https://github.com/jochym/opendata/releases/latest/download/opendata-linux" class="flex flex-col items-center p-8 bg-white border-2 border-gray-200 rounded-2xl hover:border-orange-500 hover:shadow-xl transition group w-64 shadow-sm">
-                    <i class="fab fa-linux text-5xl mb-4 text-gray-400 group-hover:text-orange-600 transition"></i>
-                    <span class="font-bold text-lg">Linux</span>
-                    <span class="text-xs text-gray-500 mt-2 italic">v0.16.2 (Binary)</span>
+                <a href="https://github.com/jochym/opendata/releases/latest/download/opendata-linux" class="flex flex-col items-center p-10 bg-white border border-slate-100 rounded-[2.5rem] hover:border-orange-500 hover:shadow-2xl transition-all group w-72 shadow-lg">
+                    <div class="w-20 h-20 bg-orange-50 rounded-3xl flex items-center justify-center mb-6 group-hover:bg-orange-600 transition-colors">
+                        <i class="fab fa-linux text-4xl text-orange-600 group-hover:text-white transition-colors"></i>
+                    </div>
+                    <span class="font-black text-xl text-slate-900 uppercase tracking-tighter">Linux</span>
+                    <span class="text-sm text-slate-400 mt-2 font-mono">AppImage / Binary</span>
                 </a>
                 <!-- macOS -->
-                <a href="https://github.com/jochym/opendata/releases/latest/download/opendata-macos" class="flex flex-col items-center p-8 bg-white border-2 border-gray-200 rounded-2xl hover:border-gray-800 hover:shadow-xl transition group w-64 shadow-sm">
-                    <i class="fab fa-apple text-5xl mb-4 text-gray-400 group-hover:text-black transition"></i>
-                    <span class="font-bold text-lg">macOS</span>
-                    <span class="text-xs text-gray-500 mt-2 italic">v0.16.2 (Universal)</span>
+                <a href="https://github.com/jochym/opendata/releases/latest/download/opendata-macos" class="flex flex-col items-center p-10 bg-white border border-slate-100 rounded-[2.5rem] hover:border-slate-900 hover:shadow-2xl transition-all group w-72 shadow-lg">
+                    <div class="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mb-6 group-hover:bg-slate-900 transition-colors">
+                        <i class="fab fa-apple text-4xl text-slate-900 group-hover:text-white transition-colors"></i>
+                    </div>
+                    <span class="font-black text-xl text-slate-900 uppercase tracking-tighter">macOS</span>
+                    <span class="text-sm text-slate-400 mt-2 font-mono">Universal Silicon/Intel</span>
                 </a>
             </div>
-            <p class="text-center text-gray-500 mt-8 italic text-sm">Downloads are hosted on GitHub for public testing.</p>
         </section>
 
     </main>
 
-    <footer class="bg-gray-800 text-white py-12 mt-12">
+    <footer class="bg-slate-900 text-white py-20 mt-20 relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 via-yellow-400 to-emerald-500"></div>
         <div class="max-w-5xl mx-auto px-6 text-center">
-            <div class="mb-8">
-                <h4 class="font-bold text-lg mb-4">Contact & Feedback</h4>
-                <p class="text-sm opacity-80 mb-2">We are eager to hear your thoughts, criticisms, and success stories.</p>
-                <p class="text-sm font-mono">
-                    <i class="fas fa-envelope mr-2"></i> 
-                    <a href="mailto:jochym@ifj.edu.pl" class="underline hover:text-blue-300 transition">jochym@ifj.edu.pl</a>
-                </p>
+            <div class="mb-12">
+                <h4 class="text-2xl font-black mb-6 uppercase tracking-tighter">Contact & Feedback</h4>
+                <p class="text-slate-400 mb-8 max-w-lg mx-auto">Help us refine the tool by sharing your experience, bug reports, and data interpretation suggestions.</p>
+                <a href="mailto:jochym@ifj.edu.pl" class="inline-flex items-center px-8 py-3 bg-white/10 hover:bg-white/20 rounded-xl transition-all border border-white/10 font-bold">
+                    <i class="fas fa-envelope mr-3 text-yellow-400"></i> jochym@ifj.edu.pl
+                </a>
             </div>
-            <p class="opacity-50 text-xs">&copy; 2026 OpenData Tool Project. Part of the RODBUK Ecosystem.</p>
-            <p class="opacity-40 text-[10px] mt-2">Released under the GNU General Public License v3 (GPLv3).</p>
+            <div class="pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6">
+                <p class="text-xs text-slate-500">&copy; 2026 OpenData Tool Project. Built for RODBUK Ecosystem.</p>
+                <div class="flex gap-6 text-slate-400 text-lg">
+                    <a href="https://github.com/jochym/opendata" class="hover:text-white transition-colors"><i class="fab fa-github"></i></a>
+                    <i class="fas fa-microscope text-slate-700"></i>
+                </div>
+                <p class="text-[10px] text-slate-600 uppercase tracking-widest font-black">GPLv3 LICENSE</p>
+            </div>
         </div>
     </footer>
 
@@ -263,17 +265,39 @@
             
             try {
                 const response = await fetch(`docs/${type}.md`);
-                if (!response.ok) throw new Error('Failed to load documentation');
+                if (!response.ok) throw new Error('Failed to load documentation source');
                 const md = await response.text();
+                
+                // Configure Marked
+                marked.setOptions({
+                    highlight: function(code, lang) {
+                        return hljs.highlightAuto(code).value;
+                    },
+                    breaks: true,
+                    gfm: true
+                });
+
                 docContent.innerHTML = marked.parse(md);
                 docContent.classList.remove('hidden');
                 loading.classList.add('hidden');
                 
-                // Scroll to documentation
-                docSection.scrollIntoView({ behavior: 'smooth' });
+                // Trigger Highlight.js for all code blocks
+                docContent.querySelectorAll('pre code').forEach((el) => {
+                    hljs.highlightElement(el);
+                });
+                
+                // Scroll to documentation smoothly
+                window.scrollTo({
+                    top: docSection.offsetTop - 40,
+                    behavior: 'smooth'
+                });
             } catch (error) {
-                docContent.innerHTML = `<div class="text-red-500 p-4 bg-red-50 rounded-lg">
-                    <i class="fas fa-exclamation-circle mr-2"></i> Error: ${error.message}
+                docContent.innerHTML = `<div class="bg-red-50 border-l-4 border-red-500 p-6 text-red-700 rounded-xl">
+                    <div class="flex items-center">
+                        <i class="fas fa-exclamation-circle text-2xl mr-4"></i>
+                        <h4 class="font-black uppercase tracking-tight">Loading Error</h4>
+                    </div>
+                    <p class="mt-2 text-sm opacity-80">${error.message}</p>
                 </div>`;
                 loading.classList.add('hidden');
                 docContent.classList.remove('hidden');
