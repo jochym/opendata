@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.13.1] - 2026-02-10
+### Fixed
+- **PyInstaller Conflict:** Resolved a conflict in the `--name` argument that caused build failures.
+- **Windows Build:** Explicitly set the shell to `bash` for the build step to ensure cross-platform consistency of internal scripts.
+
 ## [0.13.0] - 2026-02-10
 ### Fixed
 - **CI/CD Architecture:** Complete restructuring of the GitHub Actions workflow to use native YAML conditional steps (`if: runner.os == 'Linux'`). This resolves shell syntax errors on Windows runners and ensures stable cross-platform builds.
