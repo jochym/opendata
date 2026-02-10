@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **PyInstaller Metadata Patch:** Implemented monkey-patching of `importlib.metadata` within the `.spec` file to bypass persistent failures in PyInstaller's `gi` hook. This ensures successful Linux builds even when package metadata is not fully present in the CI environment.
 - **Resource Loading:** Finalized robust asset path resolution for both dev and bundled modes.
 
+## [0.14.8] - 2026-02-10
+### Fixed
+- **CI/CD Build (Linux):** Fixed `PyGObject` compilation in CI by correctly setting `PKG_CONFIG_PATH` via `GITHUB_ENV`. This ensures that `pip install` can build the package with full metadata, satisfying PyInstaller's requirements without hacks.
+- **Resource Loading:** Finalized robust asset path resolution.
+
 ## [0.14.7] - 2026-02-10
 ### Fixed
 - **PyInstaller Config:** Resolved `NameError` in the generated `.spec` file by cleaning up unused variables and ensuring internal consistency. This fixes build failures on all platforms.
