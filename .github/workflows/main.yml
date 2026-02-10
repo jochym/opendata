@@ -103,26 +103,69 @@ jobs:
           fi
       - name: Build with PyInstaller
         shell: bash
-        env:
-          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         run: |
-          HIDDEN_IMPORTS=""
           DATA_SEP=":"
-          EXCLUDES=""
-          SECRETS_DATA=""
           if [ "${{ runner.os }}" = "Windows" ]; then DATA_SEP=";"; fi
-          if [ -f "client_secrets.json" ]; then
-            SECRETS_DATA="--add-data client_secrets.json${DATA_SEP}."
-          fi
-          if [ "${{ runner.os }}" = "Linux" ]; then
-            HIDDEN_IMPORTS="--hidden-import gi --hidden-import gi.repository.Gtk --hidden-import gi.repository.WebKit2"
-            # Całkowite wykluczenie bibliotek systemowych z pakietu
-            EXCLUDES="--exclude-binary libglib-2.0.so.0 --exclude-binary libgobject-2.0.so.0 --exclude-binary libgio-2.0.so.0 --exclude-binary libgmodule-2.0.so.0 --exclude-binary libz.so.1"
-          fi
-          python3 -m PyInstaller --noconsole --onefile --name "${{ matrix.artifact_name }}" \
-            --add-data "src/opendata/ui${DATA_SEP}opendata/ui" \
-            $SECRETS_DATA $HIDDEN_IMPORTS $EXCLUDES src/opendata/main.py
+          
+          # Generate a clean, portable .spec file
+          cat <<EOF > opendata.spec
+# -*- mode: python ; coding: utf-8 -*-
+import os
+
+block_cipher = None
+added_files = [('src/opendata/ui', 'opendata/ui')]
+if os.path.exists('client_secrets.json'):
+    added_files.append(('client_secrets.json', '.'))
+
+a = Analysis(
+    ['src/opendata/main.py'],
+    pathex=[],
+    binaries=[],
+    datas=added_files,
+    hiddenimports=['gi', 'gi.repository.Gtk', 'gi.repository.WebKit2'],
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=[],
+    win_no_prefer_redirects=False,
+    win_private_assemblies=False,
+    cipher=block_cipher,
+    noarchive=False,
+)
+
+# Linux GUI stability fix: exclude problematic system libraries
+if os.name == 'posix' and '${{ runner.os }}' == 'Linux':
+    excluded_libs = {
+        'libglib-2.0.so.0', 'libgobject-2.0.so.0', 'libgio-2.0.so.0', 
+        'libgmodule-2.0.so.0', 'libz.so.1', 'libsecret-1.so.0'
+    }
+    a.binaries = [x for n, x, y in a.binaries if n not in excluded_libs]
+
+pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+
+exe = EXE(
+    pyz,
+    a.scripts,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    [],
+    name='${{ matrix.artifact_name }}',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    runtime_tmpdir=None,
+    console=False,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+)
+EOF
+          python3 -m PyInstaller --clean opendata.spec
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
