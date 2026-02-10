@@ -26,11 +26,12 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
-          if [ "${{ runner.os }}" = "Linux" ]; then
-            SITE_PACKAGES=$(python -c 'import site; print(site.getsitepackages()[0])')
-            sudo ln -s /usr/lib/python3/dist-packages/gi $SITE_PACKAGES/gi || true
-            sudo ln -s /usr/lib/python3/dist-packages/gi_composites $SITE_PACKAGES/gi_composites || true
-          fi
+      - name: Link System PyGObject (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          SITE_PACKAGES=$(python -c 'import site; print(site.getsitepackages()[0])')
+          sudo ln -s /usr/lib/python3/dist-packages/gi $SITE_PACKAGES/gi || true
+          sudo ln -s /usr/lib/python3/dist-packages/gi_composites $SITE_PACKAGES/gi_composites || true
       - name: Run tests
         run: pytest
 
@@ -93,17 +94,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
           pip install pyinstaller
-          if [ "${{ runner.os }}" = "Linux" ]; then
-            SITE_PACKAGES=$(python -c 'import site; print(site.getsitepackages()[0])')
-            sudo ln -s /usr/lib/python3/dist-packages/gi $SITE_PACKAGES/gi || true
-          fi
+      - name: Link System PyGObject (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          SITE_PACKAGES=$(python -c 'import site; print(site.getsitepackages()[0])')
+          sudo ln -s /usr/lib/python3/dist-packages/gi $SITE_PACKAGES/gi || true
       - name: Build with PyInstaller
         env:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         run: |
           HIDDEN_IMPORTS=""
-          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+          if [ "${{ runner.os }}" = "Linux" ]; then
             HIDDEN_IMPORTS="--hidden-import gi --hidden-import gi.repository.Gtk --hidden-import gi.repository.WebKit2"
           fi
           pyinstaller --noconsole --onefile --name ${{ matrix.artifact_name }} $HIDDEN_IMPORTS src/opendata/main.py

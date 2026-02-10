@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.13.0] - 2026-02-10
+### Fixed
+- **CI/CD Architecture:** Complete restructuring of the GitHub Actions workflow to use native YAML conditional steps (`if: runner.os == 'Linux'`). This resolves shell syntax errors on Windows runners and ensures stable cross-platform builds.
+- **Linux GUI:** Finalized the integration of system-wide `PyGObject` for both testing and distribution.
+
 ## [0.12.9] - 2026-02-10
 ### Fixed
 - **CI/CD:** Fixed cross-platform build errors by properly isolating Linux-specific system commands in the workflow.
