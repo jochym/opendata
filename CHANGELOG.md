@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.12.4] - 2026-02-10
+### Fixed
+- **CI/CD (Linux):** Added missing system headers (`libgirepository1.0-dev`, `libcairo2-dev`) and `pkg-config` to the build runner to allow `PyGObject` compilation.
+
 ## [0.12.3] - 2026-02-10
 ### Fixed
 - **Linux Binaries:** Resolved `ModuleNotFoundError: No module named 'gi'` by including GTK and GObject Introspection dependencies in the build process.
