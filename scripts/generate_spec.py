@@ -13,6 +13,11 @@ added_files = [('src/opendata/ui', 'opendata/ui')]
 if os.path.exists('client_secrets.json'):
     added_files.append(('client_secrets.json', '.'))
 
+# General excludes to reduce size
+general_excludes = [
+    'tkinter', 'tcl', 'tk', 'unittest', 'test', 'distutils', 'pydoc'
+]
+
 a = Analysis(
     ['src/opendata/main.py'],
     pathex=[],
@@ -22,7 +27,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={{}},
     runtime_hooks=[],
-    excludes=[],
+    excludes=general_excludes,
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
@@ -30,10 +35,14 @@ a = Analysis(
 )
 
 # Linux GUI stability fix: exclude problematic system libraries
+# We must ensure that the app uses system GLib/GObject/WebKit
 if os.name == 'posix' and '{runner_os}' == 'Linux':
     excluded_libs = {{
         'libglib-2.0.so.0', 'libgobject-2.0.so.0', 'libgio-2.0.so.0', 
-        'libgmodule-2.0.so.0', 'libz.so.1', 'libsecret-1.so.0'
+        'libgmodule-2.0.so.0', 'libz.so.1', 'libsecret-1.so.0',
+        'libwebkit2gtk-4.1.so.0', 'libjavascriptcoregtk-4.1.so.0',
+        'libgtk-3.so.0', 'libgdk-3.so.0', 'libatk-1.0.so.0',
+        'libpangocairo-1.0.so.0', 'libpango-1.0.so.0', 'libcairo.so.2'
     }}
     a.binaries = [x for x in a.binaries if x[0] not in excluded_libs]
 
@@ -49,7 +58,7 @@ exe = EXE(
     name='{artifact_name}',
     debug=False,
     bootloader_ignore_signals=False,
-    strip=False,
+    strip=True, # Strip symbols to reduce size
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,

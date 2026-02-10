@@ -5,8 +5,23 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from pathlib import Path
 import threading
 import time
+import sys
+import os
 from typing import Optional, Callable
 from .base import BaseAIService
+
+
+def get_resource_path(relative_path: str) -> Path:
+    """Get absolute path to resource, works for dev and for PyInstaller"""
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        if hasattr(sys, "_MEIPASS"):
+            base_path = Path(sys._MEIPASS)
+        else:
+            base_path = Path(".").absolute()
+    except Exception:
+        base_path = Path(".").absolute()
+    return base_path / relative_path
 
 
 class GoogleProvider(BaseAIService):
@@ -74,12 +89,11 @@ class GoogleProvider(BaseAIService):
                     self.creds = None
 
             if (not self.creds or not self.creds.valid) and not silent:
-                import os
-
                 client_id = os.environ.get("GOOGLE_CLIENT_ID")
                 client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
 
                 if client_id and client_secret:
+                    # Construct client config from environment variables
                     client_config = {
                         "installed": {
                             "client_id": client_id,
@@ -98,16 +112,22 @@ class GoogleProvider(BaseAIService):
                     except Exception:
                         return False
                 else:
-                    home_secrets = (
-                        Path.home() / ".opendata_tool" / "client_secrets.json"
-                    )
-                    secrets_path = (
-                        home_secrets
-                        if home_secrets.exists()
-                        else Path("client_secrets.json")
-                    )
-                    if not secrets_path.exists():
+                    # Try to find client_secrets.json in bundled resources or home dir
+                    secrets_locations = [
+                        get_resource_path("client_secrets.json"),
+                        Path.home() / ".opendata_tool" / "client_secrets.json",
+                        Path("client_secrets.json").absolute(),
+                    ]
+
+                    secrets_path = None
+                    for loc in secrets_locations:
+                        if loc.exists():
+                            secrets_path = loc
+                            break
+
+                    if not secrets_path:
                         return False
+
                     try:
                         flow = InstalledAppFlow.from_client_secrets_file(
                             str(secrets_path), self.SCOPES

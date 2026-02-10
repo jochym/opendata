@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.13.9] - 2026-02-10
+### Fixed
+- **OAuth2 (Baked-in Secrets):** Implemented `get_resource_path` to correctly locate bundled `client_secrets.json` within the PyInstaller environment (`sys._MEIPASS`). This enables friction-free authentication without external files.
+- **Linux GUI (Final Stability):** Applied absolute exclusion of all GTK/WebKit/GLib binaries from the bundle. This guarantees zero symbol conflicts with the host OS.
+- **Binary Optimization:** Reduced binary size by stripping symbols and excluding unused modules (tkinter, tcl, unittest).
+
 ## [0.13.8] - 2026-02-10
 ### Fixed
 - **CI/CD Infrastructure:** Moved spec file generation to a dedicated Python script (`scripts/generate_spec.py`) to avoid YAML/Bash escaping issues. This ensures stable and predictable builds across all platforms.
