@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.12.2] - 2026-02-10
+### Added
+- **Automated Releases:** Enhanced GitHub Actions to generate release notes and sync the website version automatically.
+- **Stable Downloads:** Download links now point to the "latest" release assets.
+
 ## [0.12.1] - 2026-02-10
 ### Added
 - **CI/CD Infrastructure:** Full automation for testing, cross-platform binary builds (Win/Mac/Linux), and GitHub Pages deployment.
