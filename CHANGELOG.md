@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.14.3] - 2026-02-10
+### Fixed
+- **Linux Distribution Infrastructure:** Switched to system-provided Python and packages for Linux builds. This ensures `PyGObject` is correctly recognized by PyInstaller with full metadata, bypassing all previous compilation and dependency conflict issues in the CI environment.
+- **Binary Stability:** Unified the build commands to handle system-specific Python aliases correctly.
+
 ## [0.14.2] - 2026-02-10
 ### Fixed
 - **CI/CD Build (Linux):** Switched from global `PYTHONPATH` to precision symlinking of the system `gi` module. Manually injected package metadata into the virtual environment to satisfy PyInstaller's `gi` hook without breaking `pydantic` dependencies (resolved `typing_extensions` conflict).
