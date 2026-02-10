@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.14.0] - 2026-02-10
+### Fixed
+- **OAuth2 (Baked-in Secrets):** Secrets are now correctly located within the bundled resources using `sys._MEIPASS`. Authentication works out-of-the-box in the distributed binaries.
+- **Linux GUI Final Fix:** Restored standard Python 3.10 environment for Linux builds with full development headers. This allows `PyGObject` to compile correctly with full metadata, satisfying PyInstaller's requirements. Continued use of aggressive binary exclusion to ensure host OS library usage.
+- **Binary Size:** Optimized binaries by stripping symbols and excluding redundant Python modules.
+
 ## [0.13.9] - 2026-02-10
 ### Fixed
 - **OAuth2 (Baked-in Secrets):** Implemented `get_resource_path` to correctly locate bundled `client_secrets.json` within the PyInstaller environment (`sys._MEIPASS`). This enables friction-free authentication without external files.

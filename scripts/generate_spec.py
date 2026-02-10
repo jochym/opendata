@@ -3,9 +3,8 @@ import sys
 
 
 def generate_spec(artifact_name, runner_os):
-    data_sep = ";" if runner_os == "Windows" else ":"
-
-    spec_content = f"""# -*- mode: python ; coding: utf-8 -*-
+    # Use triple quotes and no f-string for the bulk to avoid escaping hell
+    spec_template = """# -*- mode: python ; coding: utf-8 -*-
 import os
 
 block_cipher = None
@@ -25,7 +24,7 @@ a = Analysis(
     datas=added_files,
     hiddenimports=['gi', 'gi.repository.Gtk', 'gi.repository.WebKit2'],
     hookspath=[],
-    hooksconfig={{}},
+    hooksconfig={},
     runtime_hooks=[],
     excludes=general_excludes,
     win_no_prefer_redirects=False,
@@ -35,8 +34,7 @@ a = Analysis(
 )
 
 # Linux GUI stability fix: exclude problematic system libraries
-# We must ensure that the app uses system GLib/GObject/WebKit
-if os.name == 'posix' and '{runner_os}' == 'Linux':
+if os.name == 'posix' and '{RUNNER_OS}' == 'Linux':
     excluded_libs = {{
         'libglib-2.0.so.0', 'libgobject-2.0.so.0', 'libgio-2.0.so.0', 
         'libgmodule-2.0.so.0', 'libz.so.1', 'libsecret-1.so.0',
@@ -44,6 +42,7 @@ if os.name == 'posix' and '{runner_os}' == 'Linux':
         'libgtk-3.so.0', 'libgdk-3.so.0', 'libatk-1.0.so.0',
         'libpangocairo-1.0.so.0', 'libpango-1.0.so.0', 'libcairo.so.2'
     }}
+    # Filter binaries - keeping only non-excluded ones
     a.binaries = [x for x in a.binaries if x[0] not in excluded_libs]
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
@@ -55,10 +54,10 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='{artifact_name}',
+    name='{ARTIFACT_NAME}',
     debug=False,
     bootloader_ignore_signals=False,
-    strip=True, # Strip symbols to reduce size
+    strip=True,
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
@@ -70,8 +69,12 @@ exe = EXE(
     entitlements_file=None,
 )
 """
+    content = spec_template.replace("{RUNNER_OS}", runner_os).replace(
+        "{ARTIFACT_NAME}", artifact_name
+    )
+
     with open("opendata.spec", "w") as f:
-        f.write(spec_content)
+        f.write(content)
 
 
 if __name__ == "__main__":
