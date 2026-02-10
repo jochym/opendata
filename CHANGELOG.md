@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.12.5] - 2026-02-10
+### Fixed
+- **CI/CD:** Moved system dependencies installation to the `test` job to ensure environment consistency across all stages.
+
 ## [0.12.4] - 2026-02-10
 ### Fixed
 - **CI/CD (Linux):** Added missing system headers (`libgirepository1.0-dev`, `libcairo2-dev`) and `pkg-config` to the build runner to allow `PyGObject` compilation.
