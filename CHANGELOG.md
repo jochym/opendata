@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.7] - 2026-02-10
+### Fixed
+- **PyInstaller Config:** Resolved `NameError` in the generated `.spec` file by cleaning up unused variables and ensuring internal consistency. This fixes build failures on all platforms.
+
 ## [0.14.6] - 2026-02-10
 ### Fixed
 - **PyInstaller Hooks:** Introduced custom hooks (`pyinstaller_hooks/hook-gi.py`) to bypass `importlib.metadata` failures in CI. This definitively solves the "Package metadata not found for pygobject" error during Linux builds.

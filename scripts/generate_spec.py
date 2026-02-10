@@ -6,7 +6,6 @@ def generate_spec(artifact_name, runner_os):
     spec_template = """# -*- mode: python ; coding: utf-8 -*-
 import os
 
-block_cipher = None
 added_files = [
     ('src/opendata/ui', 'opendata/ui'),
     ('src/opendata/prompts', 'opendata/prompts')
@@ -25,13 +24,13 @@ a = Analysis(
     binaries=[],
     datas=added_files,
     hiddenimports=['gi', 'gi.repository.Gtk', 'gi.repository.WebKit2'],
-    hookspath=['pyinstaller_hooks'], # Use our custom hook to bypass metadata issues
+    hookspath=['pyinstaller_hooks'],
     hooksconfig={},
     runtime_hooks=[],
     excludes=general_excludes,
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
-    cipher=block_cipher,
+    cipher=None,
     noarchive=False,
 )
 
@@ -46,7 +45,7 @@ if os.name == 'posix' and '{RUNNER_OS}' == 'Linux':
     }
     a.binaries = [x for x in a.binaries if x[0] not in excluded_libs]
 
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+pyz = PYZ(a.pure, a.zipped_data, cipher=None)
 
 exe = EXE(
     pyz,
