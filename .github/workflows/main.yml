@@ -21,15 +21,16 @@ jobs:
       - name: Install System Dependencies (Linux)
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libgirepository1.0-dev libcairo2-dev pkg-config gobject-introspection libglib2.0-dev
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libgirepository1.0-dev libcairo2-dev pkg-config gobject-introspection libglib2.0-dev python3-gi python3-gi-cairo
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          export PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig
-          pip install PyGObject
           pip install -e ".[dev]"
       - name: Run tests
-        run: pytest
+        run: |
+          # Use system-wide PyGObject for tests
+          export PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages
+          pytest
 
   website:
     name: Deploy Website
@@ -81,15 +82,10 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libgirepository1.0-dev libcairo2-dev pkg-config gobject-introspection libglib2.0-dev
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libgirepository1.0-dev libcairo2-dev pkg-config gobject-introspection libglib2.0-dev python3-gi python3-gi-cairo
       - name: Install dependencies
-        shell: bash
         run: |
           python -m pip install --upgrade pip
-          if [ "${{ runner.os }}" = "Linux" ]; then
-            export PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig
-            pip install PyGObject
-          fi
           pip install . pyinstaller
       - name: Prepare client_secrets.json
         shell: bash
@@ -103,6 +99,10 @@ jobs:
       - name: Build with PyInstaller
         shell: bash
         run: |
+          # Use system-wide PyGObject for the build
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            export PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages
+          fi
           python3 scripts/generate_spec.py "${{ matrix.artifact_name }}" "${{ runner.os }}"
           python3 -m PyInstaller --clean opendata.spec
       - name: Upload Artifact
