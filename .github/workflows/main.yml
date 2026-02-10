@@ -16,7 +16,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.11'
           cache: 'pip'
       - name: Install System Dependencies (Linux)
         run: |
@@ -73,20 +73,17 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            python-version: '3.12'
             artifact_name: opendata-win.exe
           - os: ubuntu-latest
-            python-version: '3.12'
             artifact_name: opendata-linux
           - os: macos-latest
-            python-version: '3.11'
             artifact_name: opendata-macos
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: '3.11'
           cache: 'pip'
       - name: Install System Dependencies (Linux)
         if: matrix.os == 'ubuntu-latest'
@@ -114,8 +111,8 @@ jobs:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         run: |
-          python scripts/generate_spec.py "${{ matrix.artifact_name }}" "${{ runner.os }}"
-          python -m PyInstaller --clean opendata.spec
+          python3 scripts/generate_spec.py "${{ matrix.artifact_name }}" "${{ runner.os }}"
+          python3 -m PyInstaller --clean opendata.spec
       - name: GUI Smoke Test (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |

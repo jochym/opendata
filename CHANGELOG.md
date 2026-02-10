@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.2] - 2026-02-10
+### Fixed
+- **Stable Build Environment:** Standardized on Python 3.11 across all platforms. This version provides the best compatibility between modern Google AI libraries and PyInstaller's dependency analysis, resolving the infinite recursion errors observed with Python 3.12.
+
 ## [0.16.1] - 2026-02-10
 ### Fixed
 - **Build Environments:** Tailored Python versions per platform (3.12 for Linux/Windows, 3.11 for macOS) to resolve PyInstaller recursion errors on macOS and modern system warnings elsewhere.
