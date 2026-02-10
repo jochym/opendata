@@ -1,6 +1,6 @@
 [project]
 name = "opendata-tool"
-version = "0.14.4"
+version = "0.14.5"
 description = "Scientific metadata preparation and packaging tool"
 authors = [
     {name = "Antigravity", email = "antigravity@example.com"}
@@ -41,6 +41,9 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"opendata" = ["prompts/*.md", "ui/**/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

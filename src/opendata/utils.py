@@ -17,28 +17,31 @@ def get_resource_path(relative_path: str) -> Path:
         return Path(sys._MEIPASS) / relative_path
 
     # 2. Try to find relative to the package root (src/opendata or site-packages/opendata)
-    # Get the directory of the 'opendata' package
     try:
         import opendata
 
-        pkg_path = Path(opendata.__file__).parent
-        # If relative_path starts with 'opendata/', remove it to avoid duplication
-        clean_rel = (
-            relative_path[9:]
-            if relative_path.startswith("opendata/")
-            else relative_path
-        )
+        pkg_path = Path(opendata.__file__).parent.absolute()
+
+        # We search for the relative path inside the package
+        # relative_path might be "opendata/prompts" or just "prompts"
+        clean_rel = relative_path
+        if relative_path.startswith("opendata/"):
+            clean_rel = relative_path[9:]
+
         loc = pkg_path / clean_rel
         if loc.exists():
             return loc
     except Exception:
         pass
 
-    # 3. Fallback to project root search
+    # 3. Fallback to project root search (for development mode)
+    # Get the directory where 'src' is
     base_path = Path(__file__).parent.parent.parent.absolute()
+
     locs = [
         base_path / relative_path,
         base_path / "src" / relative_path,
+        base_path / "opendata" / relative_path,
     ]
     for loc in locs:
         if loc.exists():
