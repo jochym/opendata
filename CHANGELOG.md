@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.13.8] - 2026-02-10
+### Fixed
+- **CI/CD Infrastructure:** Moved spec file generation to a dedicated Python script (`scripts/generate_spec.py`) to avoid YAML/Bash escaping issues. This ensures stable and predictable builds across all platforms.
+- **Linux GUI Fix (Phase 4):** Finalized the surgical exclusion of system libraries in the dynamic spec file, which is now the default build method for Linux.
+
 ## [0.13.7] - 2026-02-10
 ### Fixed
 - **Linux GUI Architecture:** Migrated to dynamic `.spec` file generation in CI. This allows for surgical removal of `libglib`, `libgobject`, and `libgio` from the binary bundle, forcing the application to use system libraries and resolving the `undefined symbol` error in WebKitGTK.

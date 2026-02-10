@@ -1,6 +1,6 @@
 [project]
 name = "opendata-tool"
-version = "0.13.7"
+version = "0.13.8"
 description = "Scientific metadata preparation and packaging tool"
 authors = [
     {name = "Antigravity", email = "antigravity@example.com"}
