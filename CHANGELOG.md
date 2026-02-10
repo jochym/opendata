@@ -5,20 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.14.8] - 2026-02-10
+## [0.14.9] - 2026-02-10
 ### Fixed
-- **PyInstaller Metadata Patch:** Implemented monkey-patching of `importlib.metadata` within the `.spec` file to bypass persistent failures in PyInstaller's `gi` hook. This ensures successful Linux builds even when package metadata is not fully present in the CI environment.
-- **Resource Loading:** Finalized robust asset path resolution for both dev and bundled modes.
+- **CI/CD Optimization (Linux):** Completely avoided `PyGObject` compilation by manually injecting package metadata (`.dist-info`) into the CI virtual environment. This satisfies PyInstaller's hooks while using the reliable system-provided `python3-gi` package.
+- **OAuth2:** Built-in secrets are now correctly resolved using the fixed `get_resource_path`.
 
 ## [0.14.8] - 2026-02-10
 ### Fixed
 - **PyInstaller Metadata Patch:** Implemented monkey-patching of `importlib.metadata` within the `.spec` file to bypass persistent failures in PyInstaller's `gi` hook. This ensures successful Linux builds even when package metadata is not fully present in the CI environment.
 - **Resource Loading:** Finalized robust asset path resolution for both dev and bundled modes.
-
-## [0.14.8] - 2026-02-10
-### Fixed
-- **CI/CD Build (Linux):** Fixed `PyGObject` compilation in CI by correctly setting `PKG_CONFIG_PATH` via `GITHUB_ENV`. This ensures that `pip install` can build the package with full metadata, satisfying PyInstaller's requirements without hacks.
-- **Resource Loading:** Finalized robust asset path resolution.
 
 ## [0.14.7] - 2026-02-10
 ### Fixed

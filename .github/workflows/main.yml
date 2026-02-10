@@ -22,17 +22,23 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libgirepository1.0-dev libcairo2-dev pkg-config gobject-introspection libglib2.0-dev python3-gi python3-gi-cairo
+      - name: Inject PyGObject Metadata
+        run: |
+          SITE_PACKAGES=$(python -c 'import site; print(site.getsitepackages()[0])')
+          ln -s /usr/lib/python3/dist-packages/gi $SITE_PACKAGES/gi || true
+          # Create fake metadata for PyGObject 3.48.2 (Ubuntu 24.04 version)
+          VERSION="3.48.2"
+          METADATA_DIR="$SITE_PACKAGES/PyGObject-$VERSION.dist-info"
+          mkdir -p "$METADATA_DIR"
+          echo "Metadata-Version: 2.1" > "$METADATA_DIR/METADATA"
+          echo "Name: PyGObject" >> "$METADATA_DIR/METADATA"
+          echo "Version: $VERSION" >> "$METADATA_DIR/METADATA"
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          echo "PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig" >> $GITHUB_ENV
-          pip install PyGObject
           pip install -e ".[dev]"
       - name: Run tests
-        run: |
-          # Use system-wide PyGObject for tests
-          export PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages
-          pytest
+        run: pytest
 
   website:
     name: Deploy Website
@@ -85,14 +91,21 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libgirepository1.0-dev libcairo2-dev pkg-config gobject-introspection libglib2.0-dev python3-gi python3-gi-cairo
+      - name: Inject PyGObject Metadata (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          SITE_PACKAGES=$(python -c 'import site; print(site.getsitepackages()[0])')
+          ln -s /usr/lib/python3/dist-packages/gi $SITE_PACKAGES/gi || true
+          VERSION="3.48.2"
+          METADATA_DIR="$SITE_PACKAGES/PyGObject-$VERSION.dist-info"
+          mkdir -p "$METADATA_DIR"
+          echo "Metadata-Version: 2.1" > "$METADATA_DIR/METADATA"
+          echo "Name: PyGObject" >> "$METADATA_DIR/METADATA"
+          echo "Version: $VERSION" >> "$METADATA_DIR/METADATA"
       - name: Install dependencies
         shell: bash
         run: |
           python -m pip install --upgrade pip
-          if [ "${{ runner.os }}" = "Linux" ]; then
-            echo "PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig" >> $GITHUB_ENV
-            pip install PyGObject
-          fi
           pip install . pyinstaller
       - name: Prepare client_secrets.json
         shell: bash
