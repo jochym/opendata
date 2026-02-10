@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.13.4] - 2026-02-10
+### Fixed
+- **Linux GUI Stability:** Excluded system libraries (GLib, GObject, Gio, libz) from the PyInstaller bundle to prevent symbol conflicts with system WebKitGTK drivers. This resolves the `undefined symbol` errors when launching the GUI.
+- **CD Workflow:** Removed environment restrictions for website deployment, enabling automated updates for version tags.
+
 ## [0.13.3] - 2026-02-10
 ### Fixed
 - **Linux Distribution:** Switched to system Python and `python3-gi` package for Linux builds to resolve PyInstaller hook failures related to missing package metadata.
