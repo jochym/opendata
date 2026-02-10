@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.8] - 2026-02-10
+### Fixed
+- **PyInstaller Metadata Patch:** Implemented monkey-patching of `importlib.metadata` within the `.spec` file to bypass persistent failures in PyInstaller's `gi` hook. This ensures successful Linux builds even when package metadata is not fully present in the CI environment.
+- **Resource Loading:** Finalized robust asset path resolution for both dev and bundled modes.
+
+## [0.14.8] - 2026-02-10
+### Fixed
+- **PyInstaller Metadata Patch:** Implemented monkey-patching of `importlib.metadata` within the `.spec` file to bypass persistent failures in PyInstaller's `gi` hook. This ensures successful Linux builds even when package metadata is not fully present in the CI environment.
+- **Resource Loading:** Finalized robust asset path resolution for both dev and bundled modes.
+
 ## [0.14.7] - 2026-02-10
 ### Fixed
 - **PyInstaller Config:** Resolved `NameError` in the generated `.spec` file by cleaning up unused variables and ensuring internal consistency. This fixes build failures on all platforms.

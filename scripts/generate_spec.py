@@ -5,6 +5,16 @@ import sys
 def generate_spec(artifact_name, runner_os):
     spec_template = """# -*- mode: python ; coding: utf-8 -*-
 import os
+import sys
+import importlib.metadata
+
+# Monkey-patch importlib.metadata.version to bypass PyInstaller hook issues with PyGObject
+original_version = importlib.metadata.version
+def patched_version(distribution_name):
+    if distribution_name.lower() == 'pygobject':
+        return '3.48.2'
+    return original_version(distribution_name)
+importlib.metadata.version = patched_version
 
 added_files = [
     ('src/opendata/ui', 'opendata/ui'),
@@ -24,7 +34,7 @@ a = Analysis(
     binaries=[],
     datas=added_files,
     hiddenimports=['gi', 'gi.repository.Gtk', 'gi.repository.WebKit2'],
-    hookspath=['pyinstaller_hooks'],
+    hookspath=[], 
     hooksconfig={},
     runtime_hooks=[],
     excludes=general_excludes,
