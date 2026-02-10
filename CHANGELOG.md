@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **GUI Verification:** Enhanced the Smoke Test to check for specific error messages in the logs (e.g., "GUI launch failed") when running in a virtual X server. This prevents publishing broken binaries.
 - **Binary Stability:** Re-included `unittest` to satisfy dependencies of libraries like `pyparsing`.
 
+## [0.17.0] - 2026-02-10
+### Fixed
+- **Infrastructure Stabilization:** Rolled back build environment to Python 3.10 and Ubuntu 22.04 for binary distribution. This configuration is highly stable for PyInstaller and resolves infinite recursion errors and GI import failures observed in newer environments.
+- **Binary Distribution:** Reverted to simplified CLI-based PyInstaller calls for robust asset bundling.
+- **GUI Verification:** Continued use of GUI Smoke Tests to guarantee binary health.
+
 ## [0.16.4] - 2026-02-10
 ### Fixed
 - **Website UI/UX Redesign:** Dramatically improved the look and feel of the documentation sections. Integrated `Highlight.js` for syntax highlighting and applied premium typography styles to the Markdown renderer. The portal now features a high-end, professional design consistent with modern scientific tools.
