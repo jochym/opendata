@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.12.1] - 2026-02-10
+### Added
+- **CI/CD Infrastructure:** Full automation for testing, cross-platform binary builds (Win/Mac/Linux), and GitHub Pages deployment.
+- **Documentation Hub:** Centralized manuals and roadmap in `docs/`.
+
 ## [0.12.0] - 2026-02-10 (Alpha Release)
 ### Added
 - **File Explorer (Package Tab):**
