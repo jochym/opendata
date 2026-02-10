@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.14.4] - 2026-02-10
+### Fixed
+- **Resource Loading:** Integrated `get_resource_path` across all modules to correctly resolve bundled assets (prompts, templates, and `client_secrets.json`) within the PyInstaller one-file bundle.
+- **OAuth2:** Finalized build-time secret injection. Authentication now works without external files by using internal resources.
+- **Linux GUI:** Improved `.spec` generation to include `src/opendata/prompts` and maintain aggressive exclusion of host-conflicting binaries.
+
 ## [0.14.3] - 2026-02-10
 ### Fixed
 - **Linux Distribution Infrastructure:** Switched to system-provided Python and packages for Linux builds. This ensures `PyGObject` is correctly recognized by PyInstaller with full metadata, bypassing all previous compilation and dependency conflict issues in the CI environment.

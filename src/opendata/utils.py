@@ -1,8 +1,35 @@
 import re
 from pathlib import Path
 import socket
+import sys
 from typing import List, Set, Generator, Callable, Optional, Any, Tuple
 from opendata.models import ProjectFingerprint
+
+
+def get_resource_path(relative_path: str) -> Path:
+    """Get absolute path to resource, works for dev and for PyInstaller"""
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        if hasattr(sys, "_MEIPASS"):
+            base_path = Path(sys._MEIPASS)
+        else:
+            # Assume we are in src/opendata/ and resources are here or one level up
+            # This is a bit more robust than Path(".").absolute()
+            base_path = Path(__file__).parent.parent.parent.absolute()
+    except Exception:
+        base_path = Path(".").absolute()
+
+    # Try multiple common relative locations
+    locs = [
+        base_path / relative_path,
+        base_path / "src" / relative_path,
+        base_path / "opendata" / relative_path,
+    ]
+    for loc in locs:
+        if loc.exists():
+            return loc
+
+    return base_path / relative_path
 
 
 def get_local_ip() -> str:
@@ -266,8 +293,8 @@ class PromptManager:
 
     def __init__(self, prompts_dir: Path | None = None):
         if not prompts_dir:
-            # Assume src/opendata/prompts relative to this file
-            prompts_dir = Path(__file__).parent / "prompts"
+            # Use the robust resource path helper
+            prompts_dir = get_resource_path("opendata/prompts")
         self.prompts_dir = prompts_dir
 
     def render(self, template_name: str, context: dict) -> str:

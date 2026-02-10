@@ -9,19 +9,7 @@ import sys
 import os
 from typing import Optional, Callable
 from .base import BaseAIService
-
-
-def get_resource_path(relative_path: str) -> Path:
-    """Get absolute path to resource, works for dev and for PyInstaller"""
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        if hasattr(sys, "_MEIPASS"):
-            base_path = Path(sys._MEIPASS)
-        else:
-            base_path = Path(".").absolute()
-    except Exception:
-        base_path = Path(".").absolute()
-    return base_path / relative_path
+from opendata.utils import get_resource_path
 
 
 class GoogleProvider(BaseAIService):
