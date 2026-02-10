@@ -8,6 +8,12 @@ All notable changes to this project will be documented in this file.
 - **OAuth2:** Finalized build-time secret injection. Authentication now works without external files by using internal resources.
 - **Linux GUI:** Improved `.spec` generation to include `src/opendata/prompts` and maintain aggressive exclusion of host-conflicting binaries.
 
+## [0.14.4] - 2026-02-10
+### Fixed
+- **Resource Loading:** Improved `get_resource_path` to handle multiple environments: PyInstaller bundles, pip-installed packages (CI/tests), and local development. This resolves "Template not found" errors during tests and in distributed binaries.
+- **OAuth2:** Secrets are now correctly loaded from bundled resources within the one-file binary.
+- **Linux GUI:** Continued use of aggressive binary exclusion to ensure host OS compatibility.
+
 ## [0.14.3] - 2026-02-10
 ### Fixed
 - **Linux Distribution Infrastructure:** Switched to system-provided Python and packages for Linux builds. This ensures `PyGObject` is correctly recognized by PyInstaller with full metadata, bypassing all previous compilation and dependency conflict issues in the CI environment.

@@ -2,28 +2,43 @@ import re
 from pathlib import Path
 import socket
 import sys
+import os
 from typing import List, Set, Generator, Callable, Optional, Any, Tuple
 from opendata.models import ProjectFingerprint
 
 
 def get_resource_path(relative_path: str) -> Path:
-    """Get absolute path to resource, works for dev and for PyInstaller"""
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        if hasattr(sys, "_MEIPASS"):
-            base_path = Path(sys._MEIPASS)
-        else:
-            # Assume we are in src/opendata/ and resources are here or one level up
-            # This is a bit more robust than Path(".").absolute()
-            base_path = Path(__file__).parent.parent.parent.absolute()
-    except Exception:
-        base_path = Path(".").absolute()
+    """
+    Get absolute path to resource, works for dev, tests and for PyInstaller.
+    Searches in bundled _MEIPASS, then in package dir, then relative to current file.
+    """
+    # 1. Check if running in a PyInstaller bundle
+    if hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS) / relative_path
 
-    # Try multiple common relative locations
+    # 2. Try to find relative to the package root (src/opendata or site-packages/opendata)
+    # Get the directory of the 'opendata' package
+    try:
+        import opendata
+
+        pkg_path = Path(opendata.__file__).parent
+        # If relative_path starts with 'opendata/', remove it to avoid duplication
+        clean_rel = (
+            relative_path[9:]
+            if relative_path.startswith("opendata/")
+            else relative_path
+        )
+        loc = pkg_path / clean_rel
+        if loc.exists():
+            return loc
+    except Exception:
+        pass
+
+    # 3. Fallback to project root search
+    base_path = Path(__file__).parent.parent.parent.absolute()
     locs = [
         base_path / relative_path,
         base_path / "src" / relative_path,
-        base_path / "opendata" / relative_path,
     ]
     for loc in locs:
         if loc.exists():
@@ -301,7 +316,7 @@ class PromptManager:
         """Loads a .md template and renders it with the provided context."""
         template_path = self.prompts_dir / f"{template_name}.md"
         if not template_path.exists():
-            return f"Error: Template {template_name} not found."
+            return f"Error: Template {template_name} not found. (Searched in {self.prompts_dir})"
 
         with open(template_path, "r", encoding="utf-8") as f:
             template = f.read()
