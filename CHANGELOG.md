@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.13.3] - 2026-02-10
+### Fixed
+- **Linux Distribution:** Switched to system Python and `python3-gi` package for Linux builds to resolve PyInstaller hook failures related to missing package metadata.
+
 ## [0.13.2] - 2026-02-10
 ### Fixed
 - **PyInstaller Cleanup:** Removed absolute-path-dependent `.spec` files that caused CI conflicts.
