@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.13.6] - 2026-02-10
+### Fixed
+- **OAuth2 Authentication:** Added support for Google API credentials via environment variables (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`). The build process now "bakes in" a fallback `client_secrets.json` into the binaries.
+- **Linux GUI Stability (Phase 3):** Switched to aggressive binary exclusion (`--exclude-binary`) for GLib/GObject libraries. This ensures the application uses the host's system libraries, finally resolving WebKitGTK symbol conflicts and enabling the GUI on Linux.
+
 ## [0.13.5] - 2026-02-10
 ### Fixed
 - **Release Downloads:** Marked GitHub Releases as stable (non-prerelease) to ensure `/releases/latest/download/` links work correctly on the website.

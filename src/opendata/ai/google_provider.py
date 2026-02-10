@@ -74,21 +74,47 @@ class GoogleProvider(BaseAIService):
                     self.creds = None
 
             if (not self.creds or not self.creds.valid) and not silent:
-                home_secrets = Path.home() / ".opendata_tool" / "client_secrets.json"
-                secrets_path = (
-                    home_secrets
-                    if home_secrets.exists()
-                    else Path("client_secrets.json")
-                )
-                if not secrets_path.exists():
-                    return False
-                try:
-                    flow = InstalledAppFlow.from_client_secrets_file(
-                        str(secrets_path), self.SCOPES
+                import os
+
+                client_id = os.environ.get("GOOGLE_CLIENT_ID")
+                client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
+
+                if client_id and client_secret:
+                    client_config = {
+                        "installed": {
+                            "client_id": client_id,
+                            "client_secret": client_secret,
+                            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                            "token_uri": "https://oauth2.googleapis.com/token",
+                            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                            "redirect_uris": ["http://localhost"],
+                        }
+                    }
+                    try:
+                        flow = InstalledAppFlow.from_client_config(
+                            client_config, self.SCOPES
+                        )
+                        self.creds = flow.run_local_server(port=0, open_browser=True)
+                    except Exception:
+                        return False
+                else:
+                    home_secrets = (
+                        Path.home() / ".opendata_tool" / "client_secrets.json"
                     )
-                    self.creds = flow.run_local_server(port=0, open_browser=True)
-                except Exception:
-                    return False
+                    secrets_path = (
+                        home_secrets
+                        if home_secrets.exists()
+                        else Path("client_secrets.json")
+                    )
+                    if not secrets_path.exists():
+                        return False
+                    try:
+                        flow = InstalledAppFlow.from_client_secrets_file(
+                            str(secrets_path), self.SCOPES
+                        )
+                        self.creds = flow.run_local_server(port=0, open_browser=True)
+                    except Exception:
+                        return False
 
             if self.creds and self.creds.valid:
                 with open(self.token_path, "w") as token:

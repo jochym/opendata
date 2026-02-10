@@ -92,6 +92,15 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip
           python3 -m pip install . pyinstaller
+      - name: Prepare client_secrets.json
+        shell: bash
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+        run: |
+          if [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ]; then
+            echo "{\"installed\":{\"client_id\":\"$GOOGLE_CLIENT_ID\",\"project_id\":\"opendata-tool\",\"auth_uri\":\"https://accounts.google.com/o/oauth2/auth\",\"token_uri\":\"https://oauth2.googleapis.com/token\",\"auth_provider_x509_cert_url\":\"https://www.googleapis.com/oauth2/v1/certs\",\"client_secret\":\"$GOOGLE_CLIENT_SECRET\",\"redirect_uris\":[\"http://localhost\"]}}" > client_secrets.json
+          fi
       - name: Build with PyInstaller
         shell: bash
         env:
@@ -101,16 +110,19 @@ jobs:
           HIDDEN_IMPORTS=""
           DATA_SEP=":"
           EXCLUDES=""
+          SECRETS_DATA=""
           if [ "${{ runner.os }}" = "Windows" ]; then DATA_SEP=";"; fi
+          if [ -f "client_secrets.json" ]; then
+            SECRETS_DATA="--add-data client_secrets.json${DATA_SEP}."
+          fi
           if [ "${{ runner.os }}" = "Linux" ]; then
             HIDDEN_IMPORTS="--hidden-import gi --hidden-import gi.repository.Gtk --hidden-import gi.repository.WebKit2"
-            # Drastyczne wykluczenie bibliotek systemowych, aby wymusić wersje z OS
-            # Używamy wielu flag --exclude-module oraz --collect-all dla pewności
-            EXCLUDES="--exclude-module libz --exclude-module libglib-2.0 --exclude-module libgobject-2.0 --exclude-module libgio-2.0 --exclude-module libgmodule-2.0"
+            # Całkowite wykluczenie bibliotek systemowych z pakietu
+            EXCLUDES="--exclude-binary libglib-2.0.so.0 --exclude-binary libgobject-2.0.so.0 --exclude-binary libgio-2.0.so.0 --exclude-binary libgmodule-2.0.so.0 --exclude-binary libz.so.1"
           fi
           python3 -m PyInstaller --noconsole --onefile --name "${{ matrix.artifact_name }}" \
             --add-data "src/opendata/ui${DATA_SEP}opendata/ui" \
-            $HIDDEN_IMPORTS $EXCLUDES src/opendata/main.py
+            $SECRETS_DATA $HIDDEN_IMPORTS $EXCLUDES src/opendata/main.py
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
