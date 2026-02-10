@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **GUI Verification:** Enhanced the Smoke Test to check for specific error messages in the logs (e.g., "GUI launch failed") when running in a virtual X server. This prevents publishing broken binaries.
 - **Binary Stability:** Re-included `unittest` to satisfy dependencies of libraries like `pyparsing`.
 
+## [0.17.2] - 2026-02-10
+### Fixed
+- **Linux GUI Compatibility:** Aggressively excluded core C++ runtime libraries (`libstdc++.so.6` and `libgcc_s.so.1`) from the binary bundle. This prevents `CXXABI` version conflicts with the host OS, enabling successful WebKitGTK initialization on modern distributions like Debian 13 and Ubuntu 24.04.
+
 ## [0.17.1] - 2026-02-10
 ### Fixed
 - **CI/CD Uniformity:** Standardized the entire pipeline on `ubuntu-22.04` to ensure consistent availability of system libraries (like `libwebkit2gtk-4.0-dev`) across test and build stages. This resolves package location errors observed on newer Ubuntu distributions in CI.
