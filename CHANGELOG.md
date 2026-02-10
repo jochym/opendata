@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.1] - 2026-02-10
+### Fixed
+- **Cross-Platform Assets:** Fixed missing prompts and resources on Windows and macOS by using absolute paths during `.spec` file generation.
+- **Unified Secret Injection:** Ensured that `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are passed to the build process on all platforms, guaranteeing built-in OAuth2 credentials in all distributed binaries.
+
 ## [0.15.0] - 2026-02-10
 ### Fixed
 - **OAuth2 (Built-in Secrets):** Refined the build-time secret injection process. Secrets are now generated and bundled via a dedicated Python script, ensuring they are always present in the final binary.

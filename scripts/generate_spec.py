@@ -1,9 +1,13 @@
 import os
 import sys
 import json
+from pathlib import Path
 
 
 def generate_spec(artifact_name, runner_os):
+    # Get the project root directory (current working directory in CI)
+    root = Path.cwd().absolute()
+
     # 1. Bake in secrets if present in environment
     client_id = os.environ.get("GOOGLE_CLIENT_ID")
     client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
@@ -20,19 +24,29 @@ def generate_spec(artifact_name, runner_os):
                 "redirect_uris": ["http://localhost"],
             }
         }
-        with open("client_secrets.json", "w") as f:
+        with open(root / "client_secrets.json", "w") as f:
             json.dump(secrets_config, f)
-        print("[INFO] client_secrets.json created for bundling.")
+        print(f"[INFO] client_secrets.json created at {root}")
 
-    spec_template = """# -*- mode: python ; coding: utf-8 -*-
+    # Define resource paths relative to project root
+    ui_path = root / "src" / "opendata" / "ui"
+    prompts_path = root / "src" / "opendata" / "prompts"
+    secrets_file = root / "client_secrets.json"
+
+    # Construction of datas list for PyInstaller
+    # (Source, Destination inside bundle)
+    added_files = [
+        (str(ui_path), "opendata/ui"),
+        (str(prompts_path), "opendata/prompts"),
+    ]
+
+    if secrets_file.exists():
+        added_files.append((str(secrets_file), "."))
+
+    spec_template = f"""# -*- mode: python ; coding: utf-8 -*-
 import os
 
-added_files = [
-    ('src/opendata/ui', 'opendata/ui'),
-    ('src/opendata/prompts', 'opendata/prompts')
-]
-if os.path.exists('client_secrets.json'):
-    added_files.append(('client_secrets.json', '.'))
+added_files = {added_files}
 
 # General excludes to reduce size
 general_excludes = [
@@ -46,7 +60,7 @@ a = Analysis(
     datas=added_files,
     hiddenimports=['gi', 'gi.repository.Gtk', 'gi.repository.WebKit2'],
     hookspath=['pyinstaller_hooks'],
-    hooksconfig={},
+    hooksconfig={{}},
     runtime_hooks=[],
     excludes=general_excludes,
     win_no_prefer_redirects=False,
@@ -56,15 +70,15 @@ a = Analysis(
 )
 
 # Linux GUI stability fix: exclude problematic system libraries
-if os.name == 'posix' and '{RUNNER_OS}' == 'Linux':
-    excluded_libs = {
+if os.name == 'posix' and '{runner_os}' == 'Linux':
+    excluded_libs = {{
         'libglib-2.0.so.0', 'libgobject-2.0.so.0', 'libgio-2.0.so.0', 
         'libgmodule-2.0.so.0', 'libz.so.1', 'libsecret-1.so.0',
         'libwebkit2gtk-4.1.so.0', 'libjavascriptcoregtk-4.1.so.0',
         'libgtk-3.so.0', 'libgdk-3.so.0', 'libatk-1.0.so.0',
         'libpangocairo-1.0.so.0', 'libpango-1.0.so.0', 'libcairo.so.2',
         'libmount.so.1', 'libblkid.so.1', 'libuuid.so.1', 'libselinux.so.1'
-    }
+    }}
     a.binaries = [x for x in a.binaries if x[0] not in excluded_libs]
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=None)
@@ -76,7 +90,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='{ARTIFACT_NAME}',
+    name='{artifact_name}',
     debug=False,
     bootloader_ignore_signals=False,
     strip=True,
@@ -91,12 +105,8 @@ exe = EXE(
     entitlements_file=None,
 )
 """
-    content = spec_template.replace("{RUNNER_OS}", runner_os).replace(
-        "{ARTIFACT_NAME}", artifact_name
-    )
-
-    with open("opendata.spec", "w") as f:
-        f.write(content)
+    with open(root / "opendata.spec", "w") as f:
+        f.write(spec_template)
 
 
 if __name__ == "__main__":
