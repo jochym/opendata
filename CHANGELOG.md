@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.3] - 2026-02-11
+### Fixed
+- **Linux Build**: Restored `PyGObject` (`gi`) support in the binary build. PyInstaller now correctly bundles the `gi` module by manually injecting package metadata in the build container, resolving the "No module named 'gi'" error and enabling the `gtk` backend for the system tray icon.
+
 ## [0.19.2] - 2026-02-11
 ### Fixed
 - **GNOME Tray Menu**: Delayed menu attachment to the system tray icon until *after* the icon is visible. This resolves issues on GNOME where the menu would fail to render if attached during initialization.
