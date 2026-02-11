@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.2] - 2026-02-11
+### Fixed
+- **GNOME Tray Menu**: Delayed menu attachment to the system tray icon until *after* the icon is visible. This resolves issues on GNOME where the menu would fail to render if attached during initialization.
+
 ## [0.19.1] - 2026-02-11
 ### Fixed
 - **Linux Tray Menu**: Removed the default action from the system tray icon to prevent menu hijacking on certain desktop environments (e.g., GNOME with AppIndicator). The icon now explicitly opens the menu on click, ensuring access to "Open Dashboard" and "Quit" options.

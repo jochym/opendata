@@ -121,16 +121,9 @@ def main():
         print("[INFO] Shutting down...")
         icon.stop()
 
-    # 3. Create and run the Tray Icon
+        # 3. Create and run the Tray Icon
+
     try:
-
-        def setup(icon):
-            icon.visible = True
-            print("[INFO] System tray icon is now visible.")
-            # Give the server a moment to start before opening browser
-            time.sleep(1.5)
-            webbrowser.open(url)
-
         # Simplify menu - remove default=True to prevent click hijacking on Linux
         menu = pystray.Menu(
             pystray.MenuItem("Open Dashboard", on_open_dashboard),
@@ -140,15 +133,31 @@ def main():
         )
 
         version_title = f"OpenData Tool v{version}"
-        icon = pystray.Icon("opendata", create_icon_image(), version_title, menu)
+
+        # Create icon initially WITHOUT menu to ensure object creation succeeds
+        # Attaching menu later can sometimes fix GNOME rendering issues
+        icon = pystray.Icon("opendata", create_icon_image(), version_title)
+
+        def setup(icon):
+            # Ensure menu is attached
+            icon.menu = menu
+            icon.visible = True
+            print("[INFO] System tray icon is now visible.")
+
+            # Give the server a moment to start before opening browser
+            time.sleep(1.5)
+            webbrowser.open(url)
 
         print("[INFO] Starting system tray icon...")
         import os
 
         if sys.platform == "linux":
-            print(
-                f"[DEBUG] Desktop Environment: {os.environ.get('XDG_CURRENT_DESKTOP', 'Unknown')}"
-            )
+            desktop = os.environ.get("XDG_CURRENT_DESKTOP", "Unknown")
+            print(f"[DEBUG] Desktop Environment: {desktop}")
+            if "GNOME" in desktop and "PYSTRAY_BACKEND" not in os.environ:
+                print(
+                    "[DEBUG] GNOME detected. If menu is missing, try running with: PYSTRAY_BACKEND=gtk ./opendata-linux"
+                )
 
         icon.run(setup=setup)
     except Exception as e:
