@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.5] - 2026-02-11
+### Fixed
+- **Version Detection**: Corrected the version detection logic to properly display the version number in the UI tooltip across all execution modes (development, bundled, and installed).
+- **Packaging**: Included the `VERSION` file in the package data and PyInstaller bundle.
+
 ## [0.18.4] - 2026-02-11
 ### Changed
 - **Dependency Cleanup**: Removed `webkit` and `pywebview` related dependencies and build flags as they are no longer required after the `pystray` migration.

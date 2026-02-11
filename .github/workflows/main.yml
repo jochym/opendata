@@ -94,6 +94,7 @@ jobs:
           pyinstaller --noconsole --onefile --name "${{ matrix.artifact_name }}" \
             --add-data "src/opendata/ui${SEP}opendata/ui" \
             --add-data "src/opendata/prompts${SEP}opendata/prompts" \
+            --add-data "VERSION${SEP}." \
             --add-data "client_secrets.json${SEP}." \
             src/opendata/main.py
       - name: Upload Artifact
@@ -132,6 +133,7 @@ jobs:
           pyinstaller --noconsole --onefile --name opendata-linux \
             --add-data "src/opendata/ui:opendata/ui" \
             --add-data "src/opendata/prompts:opendata/prompts" \
+            --add-data "VERSION:." \
             --add-data "client_secrets.json:." \
             --hidden-import gi --hidden-import gi.repository.Gtk \
             src/opendata/main.py

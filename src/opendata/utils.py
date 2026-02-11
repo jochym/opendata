@@ -51,17 +51,31 @@ def get_resource_path(relative_path: str) -> Path:
 
 
 def get_app_version() -> str:
-    """Reads the application version from the VERSION file."""
+    """Reads the application version from the VERSION file or package metadata."""
+    # 1. Try relative to this file (development mode src/opendata/utils.py -> project root)
     try:
-        version_file = get_resource_path("VERSION")
-        if not version_file.exists():
-            # Try searching in project root for dev mode
-            version_file = Path(__file__).parent.parent.parent / "VERSION"
-
+        version_file = Path(__file__).parent.parent.parent / "VERSION"
         if version_file.exists():
             return version_file.read_text(encoding="utf-8").strip()
     except Exception:
         pass
+
+    # 2. Try bundled location (PyInstaller)
+    try:
+        version_file = get_resource_path("VERSION")
+        if version_file.exists():
+            return version_file.read_text(encoding="utf-8").strip()
+    except Exception:
+        pass
+
+    # 3. Try package metadata (installed mode)
+    try:
+        from importlib.metadata import version
+
+        return version("opendata-tool")
+    except Exception:
+        pass
+
     return "0.0.0"
 
 
