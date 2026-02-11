@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.2] - 2026-02-11
+### Added
+- **Version Tooltip**: Added application version number to the logo tooltip in the header.
+### Fixed
+- **Linux Stability**: Added robust error handling and fallback to terminal mode for `pystray` system tray icon, resolving crashes on systems with missing `libayatana-appindicator` libraries.
+
 ## [0.18.1] - 2026-02-11
 ### Fixed
 - **Curator Recommendations**: AI suggestions are now persistent across app restarts and session changes. 

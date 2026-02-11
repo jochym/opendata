@@ -4,32 +4,35 @@ from nicegui import ui
 from opendata.i18n.translator import _
 from opendata.ui.state import ScanState, UIState
 from opendata.ui.context import AppContext
+from opendata.utils import get_app_version
 
 
 @ui.refreshable
 def header_content_ui(ctx: AppContext):
     with ui.row().classes("items-center gap-1"):
         # Custom Logo
-        ui.html(
-            f"""
-            <div style="display: flex; align-items: center; gap: 12px; color: white; line-height: 1; margin-right: 12px;">
-                <div style="position: relative; width: 32px; height: 32px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
-                    <div style="position: absolute; inset: 0; border: 2.5px solid white; border-radius: 50%;"></div>
-                    <div style="position: absolute; left: 38%; top: 20%; width: 45%; height: 60%; border: 2.5px solid white; border-left: none; border-radius: 0 16px 16px 0; display: flex; align-items: center; justify-content: center;">
-                        <span class="material-icons" style="font-size: 12px; color: white;">auto_awesome</span>
+        with ui.element("div").classes("cursor-help"):
+            ui.tooltip(f"OpenData Agent v{get_app_version()}")
+            ui.html(
+                f"""
+                <div style="display: flex; align-items: center; gap: 12px; color: white; line-height: 1; margin-right: 12px;">
+                    <div style="position: relative; width: 32px; height: 32px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+                        <div style="position: absolute; inset: 0; border: 2.5px solid white; border-radius: 50%;"></div>
+                        <div style="position: absolute; left: 38%; top: 20%; width: 45%; height: 60%; border: 2.5px solid white; border-left: none; border-radius: 0 16px 16px 0; display: flex; align-items: center; justify-content: center;">
+                            <span class="material-icons" style="font-size: 12px; color: white;">auto_awesome</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px; font-family: sans-serif; height: 32px;">
+                        <div style="font-size: 38px; font-weight: 300; color: white; height: 100%; display: flex; align-items: center;">/</div>
+                        <div style="display: flex; flex-direction: column; font-size: 12px; letter-spacing: 0.8px; text-transform: uppercase; justify-content: center;">
+                            <span style="font-weight: 300;">{_("Open")}</span>
+                            <span style="font-weight: 900;">{_("Data")}</span>
+                        </div>
                     </div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 8px; font-family: sans-serif; height: 32px;">
-                    <div style="font-size: 38px; font-weight: 300; color: white; height: 100%; display: flex; align-items: center;">/</div>
-                    <div style="display: flex; flex-direction: column; font-size: 12px; letter-spacing: 0.8px; text-transform: uppercase; justify-content: center;">
-                        <span style="font-weight: 300;">{_("Open")}</span>
-                        <span style="font-weight: 900;">{_("Data")}</span>
-                    </div>
-                </div>
-            </div>
-        """,
-            sanitize=False,
-        )
+            """,
+                sanitize=False,
+            )
         ui.label(_("Agent")).classes(
             "text-h5 font-bold tracking-tight hidden sm:block ml-4"
         )

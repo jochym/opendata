@@ -85,23 +85,36 @@ def main():
         icon.stop()
 
     # 3. Create and run the Tray Icon
-    menu = pystray.Menu(
-        pystray.MenuItem("Open Dashboard", on_open_dashboard, default=True),
-        pystray.Menu.SEPARATOR,
-        pystray.MenuItem("Exit", on_exit),
-    )
+    try:
+        menu = pystray.Menu(
+            pystray.MenuItem("Open Dashboard", on_open_dashboard, default=True),
+            pystray.Menu.SEPARATOR,
+            pystray.MenuItem("Exit", on_exit),
+        )
 
-    icon = pystray.Icon("opendata", create_icon_image(), "OpenData Tool", menu)
+        icon = pystray.Icon("opendata", create_icon_image(), "OpenData Tool", menu)
 
-    # Setup function to auto-open browser on start
-    def setup(icon):
-        icon.visible = True
-        # Give the server a moment to start before opening browser
-        time.sleep(1.5)
-        webbrowser.open(url)
+        # Setup function to auto-open browser on start
+        def setup(icon):
+            icon.visible = True
+            # Give the server a moment to start before opening browser
+            time.sleep(1.5)
+            webbrowser.open(url)
 
-    print("[INFO] Starting system tray icon...")
-    icon.run(setup=setup)
+        print("[INFO] Starting system tray icon...")
+        icon.run(setup=setup)
+    except Exception as e:
+        print(f"\n[ERROR] System tray icon failed to start: {e}")
+        print("[INFO] Falling back to Terminal mode (Server is still running).")
+        print(f"[INFO] Access the dashboard at: {url}")
+        print("[INFO] Press Ctrl+C to stop.")
+        # Keep the main thread alive since the server is in a daemon thread
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            print("[INFO] Shutting down...")
+            sys.exit(0)
 
 
 if __name__ == "__main__":

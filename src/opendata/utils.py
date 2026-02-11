@@ -50,6 +50,21 @@ def get_resource_path(relative_path: str) -> Path:
     return base_path / relative_path
 
 
+def get_app_version() -> str:
+    """Reads the application version from the VERSION file."""
+    try:
+        version_file = get_resource_path("VERSION")
+        if not version_file.exists():
+            # Try searching in project root for dev mode
+            version_file = Path(__file__).parent.parent.parent / "VERSION"
+
+        if version_file.exists():
+            return version_file.read_text(encoding="utf-8").strip()
+    except Exception:
+        pass
+    return "0.0.0"
+
+
 def get_local_ip() -> str:
     """Returns the local IP address."""
     try:
