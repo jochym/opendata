@@ -123,23 +123,25 @@ def main():
 
     # 3. Create and run the Tray Icon
     try:
+
+        def setup(icon):
+            icon.visible = True
+            print("[INFO] System tray icon is now visible.")
+            # Give the server a moment to start before opening browser
+            time.sleep(1.5)
+            webbrowser.open(url)
+
+        # Simplify menu - some backends dislike disabled items or complex nesting
         menu = pystray.Menu(
-            pystray.MenuItem(f"OpenData v{version}", on_about, enabled=False),
-            pystray.Menu.SEPARATOR,
             pystray.MenuItem("Start Dashboard", on_open_dashboard, default=True),
             pystray.MenuItem("About", on_about),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Quit OpenData", on_exit),
         )
 
-        icon = pystray.Icon("opendata", create_icon_image(), "OpenData Tool", menu)
-
-        # Setup function to auto-open browser on start
-        def setup(icon):
-            icon.visible = True
-            # Give the server a moment to start before opening browser
-            time.sleep(1.5)
-            webbrowser.open(url)
+        icon = pystray.Icon(
+            "opendata", create_icon_image(), f"OpenData Tool v{version}", menu
+        )
 
         print("[INFO] Starting system tray icon...")
         icon.run(setup=setup)
