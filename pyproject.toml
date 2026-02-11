@@ -1,6 +1,6 @@
 [project]
 name = "opendata-tool"
-version = "0.18.7"
+version = "0.19.0"
 description = "Scientific metadata preparation and packaging tool"
 authors = [
     {name = "Antigravity", email = "antigravity@example.com"}
@@ -23,7 +23,7 @@ dependencies = [
     "google-auth-httplib2>=0.2.0",
     "requests>=2.31.0",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 
 [project.optional-dependencies]
 dev = [

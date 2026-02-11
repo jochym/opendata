@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.0] - 2026-02-11
+### Changed
+- **Python Upgrade**: Upgraded the required Python version to `>=3.11`.
+- **CI/CD Modernization**: Switched GitHub Actions and Linux build container to Python 3.11 and `python:3.11-slim-bookworm` (Debian 12). This provides a modern, stable base for current dependencies.
+
 ## [0.18.7] - 2026-02-11
 ### Fixed
 - **System Tray Menu**: Simplified the tray menu structure to improve compatibility across different Linux desktop environments (resolved missing menu issue).
