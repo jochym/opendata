@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.1] - 2026-02-11
+### Fixed
+- **Curator Recommendations**: AI suggestions are now persistent across app restarts and session changes. 
+- **Recommendation UI**: Added "Dismiss" (hide) and "Forget" (delete) buttons to the recommendations banner to allow better control over precious data.
+- **Data Integrity**: Modified the analysis loop to prevent unrelated metadata questions from clearing file suggestions.
+- **Project State**: Fixed a crash on project load due to project state schema mismatch.
+### Documentation
+- **Manuals**: Updated Tester and Developer manuals to reflect the migration to `pystray` and new curator workflows.
+
 ## [0.18.0] - 2026-02-11
 ### Changed
 - **Architecture Migration:** Replaced `pywebview` with `pystray` + `NiceGUI` (Browser mode). The application now runs as a system tray service, opening the dashboard in the default system browser. This simplifies cross-platform UI dependencies and improves stability.
