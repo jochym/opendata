@@ -69,12 +69,15 @@ class ProjectAnalysisAgent:
     def load_project(self, project_path: Path):
         """Loads an existing project or initializes a new one."""
         self.project_id = self.wm.get_project_id(project_path)
-        metadata, history, fingerprint = self.wm.load_project_state(self.project_id)
+        metadata, history, fingerprint, analysis = self.wm.load_project_state(
+            self.project_id
+        )
 
         if metadata:
             self.current_metadata = metadata
             self.chat_history = history
             self.current_fingerprint = fingerprint
+            self.current_analysis = analysis
             return True
         return False
 
@@ -86,6 +89,7 @@ class ProjectAnalysisAgent:
                 self.current_metadata,
                 self.chat_history,
                 self.current_fingerprint,
+                self.current_analysis,
             )
 
     def clear_chat_history(self):
@@ -727,7 +731,13 @@ class ProjectAnalysisAgent:
         try:
             current_dict.update(processed_answers)
             self.current_metadata = Metadata.model_validate(current_dict)
-            self.current_analysis = None
+            if self.current_analysis:
+                # Surgically clear only questions and conflicts, keep file suggestions
+                self.current_analysis.questions = []
+                self.current_analysis.conflicting_data = []
+                # If no file suggestions remain either, we can clear the whole thing
+                if not self.current_analysis.file_suggestions:
+                    self.current_analysis = None
         except Exception as e:
             # Re-raise with context but protect agent state
             print(f"[ERROR] Metadata validation failed during form submission: {e}")

@@ -2,17 +2,37 @@ import threading
 import sys
 import webbrowser
 import time
-import os
 import argparse
 from opendata.ui.app import start_ui
 
+
+def create_icon_image():
+    """Create a simple procedurally generated icon."""
+    from PIL import Image, ImageDraw
+
+    # Generate a 64x64 image with a blue background and "OD" text
+    width = 64
+    height = 64
+    color1 = (30, 41, 59)  # slate-800
+    color2 = (255, 255, 255)  # white
+
+    image = Image.new("RGB", (width, height), color1)
+    dc = ImageDraw.Draw(image)
+
+    # Draw a simple "OD" logo approximation
+    dc.rectangle([10, 10, 54, 54], outline=color2, width=2)
+    dc.text((18, 18), "OD", fill=color2)
+
+    return image
+
+
 def main():
-    """Main entry point with stable Thread-based server startup."""
+    """Main entry point with pystray tray icon and background NiceGUI server."""
     parser = argparse.ArgumentParser(description="OpenData Tool")
     parser.add_argument(
         "--no-gui",
         action="store_true",
-        help="Start the server without the desktop control window",
+        help="Start the server without the system tray icon (Terminal/Headless mode)",
     )
     parser.add_argument(
         "--host",
@@ -30,66 +50,59 @@ def main():
 
     port = args.port
     host = args.host
+    url = f"http://localhost:{port}" if host == "0.0.0.0" else f"http://{host}:{port}"
 
     if args.no_gui:
-        print(f"[INFO] Starting server in no-GUI mode on http://{host}:{port}")
+        print(f"[INFO] Starting server in Terminal/Headless mode on {url}")
+        print("[INFO] Press Ctrl+C to stop.")
+        # In no-gui mode, we run in the main thread
         start_ui(host=host, port=port)
         return
 
-    # 1. Start the server in a background THREAD
+    # For GUI mode, we need pystray
+    try:
+        import pystray
+    except Exception as e:
+        print(f"[ERROR] Could not initialize GUI backend: {e}")
+        print("[INFO] Falling back to Terminal mode.")
+        start_ui(host=host, port=port)
+        return
+
+    # 1. Start the server in a background DAEMON thread
     server_thread = threading.Thread(
         target=start_ui, kwargs={"host": host, "port": port}, daemon=True
     )
     server_thread.start()
 
-    print(f"[INFO] Server starting on http://{host}:{port}")
+    print(f"[INFO] Server starting in background on {url}")
 
-    # Give the server time to bind
-    time.sleep(2)
+    # 2. Define Tray Icon actions
+    def on_open_dashboard(icon, item):
+        webbrowser.open(url)
 
-    try:
-        import webview
+    def on_exit(icon, item):
+        print("[INFO] Shutting down...")
+        icon.stop()
 
-        status_html = f"""
-            <body style="font-family: sans-serif; text-align: center; padding: 15px; background-color: #f9f9f9;">
-                <h2 style="margin-bottom: 10px;">OpenData Control</h2>
-                <div style="display: flex; justify-content: space-around; margin-bottom: 15px;">
-                    <div><div style="width: 15px; height: 15px; background-color: #4CAF50; border-radius: 50%; margin: 0 auto;"></div><small>Server</small></div>
-                    <div><div style="width: 15px; height: 15px; background-color: #4CAF50; border-radius: 50%; margin: 0 auto;"></div><small>AI</small></div>
-                    <div><div style="width: 15px; height: 15px; background-color: #4CAF50; border-radius: 50%; margin: 0 auto;"></div><small>Space</small></div>
-                </div>
-                <div style="margin-bottom: 15px;">
-                    <button onclick="pywebview.api.open_browser()" style="padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
-                        Open Dashboard
-                    </button>
-                </div>
-                <footer style="font-size: 0.75em; color: #666; line-height: 1.4;">
-                    Dashboard: <code style="background:#eee; padding:2px 4px;">http://{host}:{port}</code><br>
-                    Closing this window shuts down the tool.
-                </footer>
-            </body>
-        """
+    # 3. Create and run the Tray Icon
+    menu = pystray.Menu(
+        pystray.MenuItem("Open Dashboard", on_open_dashboard, default=True),
+        pystray.Menu.SEPARATOR,
+        pystray.MenuItem("Exit", on_exit),
+    )
 
-        class API:
-            def open_browser(self):
-                url = f"http://localhost:{port}" if host == "0.0.0.0" else f"http://{host}:{port}"
-                webbrowser.open(url)
+    icon = pystray.Icon("opendata", create_icon_image(), "OpenData Tool", menu)
 
-        window = webview.create_window(
-            "OpenData Tool",
-            html=status_html,
-            js_api=API(),
-            width=350,
-            height=250,
-            resizable=False,
-            on_top=True,
-        )
-        webview.start()
+    # Setup function to auto-open browser on start
+    def setup(icon):
+        icon.visible = True
+        # Give the server a moment to start before opening browser
+        time.sleep(1.5)
+        webbrowser.open(url)
 
-    except Exception as e:
-        print(f"\n[ERROR] GUI launch failed ({e}). Fallback to terminal mode.")
-        while True:
-            time.sleep(1)
+    print("[INFO] Starting system tray icon...")
+    icon.run(setup=setup)
+
 
 if __name__ == "__main__":
     main()

@@ -5,11 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.16.5] - 2026-02-10
-### Fixed
-- **Stable Build (Linux):** Removed experimental binary exclusions that caused `ImportError: cannot import name '_gi'`. Standardized on a clean build process for better compatibility with host OS libraries.
-- **GUI Verification:** Enhanced the Smoke Test to check for specific error messages in the logs (e.g., "GUI launch failed") when running in a virtual X server. This prevents publishing broken binaries.
-- **Binary Stability:** Re-included `unittest` to satisfy dependencies of libraries like `pyparsing`.
+## [0.18.0] - 2026-02-11
+### Changed
+- **Architecture Migration:** Replaced `pywebview` with `pystray` + `NiceGUI` (Browser mode). The application now runs as a system tray service, opening the dashboard in the default system browser. This simplifies cross-platform UI dependencies and improves stability.
+- **Headless Mode:** Improved `--no-gui` mode to work without X11/GUI dependencies by deferring imports of `pystray` and `Pillow`.
+### Added
+- **Procedural Icon:** Integrated a generated system tray icon to ensure the application remains functional without external asset dependencies.
+### Removed
+- **Dependency:** Removed `pywebview` as a core dependency.
 
 ## [0.17.2] - 2026-02-10
 ### Fixed

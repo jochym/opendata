@@ -10,6 +10,7 @@ from opendata.ui.components.inventory_logic import load_inventory_background
 
 logger = logging.getLogger("opendata.ui.package")
 
+
 @ui.refreshable
 def render_package_tab(ctx: AppContext):
     # Package Content Editor
@@ -37,7 +38,11 @@ def render_package_tab(ctx: AppContext):
 
     project_id: str = ctx.agent.project_id
 
-    if ctx.agent.current_analysis and ctx.agent.current_analysis.file_suggestions:
+    if (
+        ctx.agent.current_analysis
+        and ctx.agent.current_analysis.file_suggestions
+        and UIState.show_suggestions_banner
+    ):
         render_suggestions_banner(ctx)
 
     if not UIState.inventory_cache:
@@ -109,15 +114,17 @@ def render_package_tab(ctx: AppContext):
 
         included_files = [f for f in inventory if f["included"]]
         total_size = sum(f["size"] for f in included_files)
-        
-        with ui.row().classes("w-full gap-8 p-3 bg-slate-50 rounded-lg border items-center"):
+
+        with ui.row().classes(
+            "w-full gap-8 p-3 bg-slate-50 rounded-lg border items-center"
+        ):
             ui.label(
                 _("Included: {count} files").format(count=len(included_files))
             ).classes("font-bold")
             ui.label(_("Total Size: {size}").format(size=format_size(total_size)))
-            
+
             ui.space()
-            
+
             ui.switch(
                 _("Show only included files"),
                 value=UIState.show_only_included,
@@ -131,7 +138,7 @@ def render_package_tab(ctx: AppContext):
         with ui.card().classes("w-full flex-grow p-0 overflow-hidden border"):
             # Breadcrumbs
             render_breadcrumbs(ctx)
-            
+
             # File List
             with ui.scroll_area().classes("w-full flex-grow bg-white"):
                 render_file_list(ctx)
@@ -141,25 +148,29 @@ def render_breadcrumbs(ctx: AppContext):
     """Renders the navigation path."""
     current_path = UIState.explorer_path
     parts = Path(current_path).parts if current_path else []
-    
-    with ui.row().classes("w-full items-center gap-1 p-2 bg-slate-100 border-b text-sm"):
+
+    with ui.row().classes(
+        "w-full items-center gap-1 p-2 bg-slate-100 border-b text-sm"
+    ):
         # Root Home Icon
-        ui.button(icon="home", on_click=lambda: navigate_to(ctx, "")).props("flat dense round size=sm color=primary")
-        
+        ui.button(icon="home", on_click=lambda: navigate_to(ctx, "")).props(
+            "flat dense round size=sm color=primary"
+        )
+
         if not parts:
             ui.label("/").classes("text-slate-400 font-bold")
-        
+
         accumulated_path = ""
         for i, part in enumerate(parts):
             ui.label("/").classes("text-slate-400")
-            
+
             if i > 0:
                 accumulated_path = str(Path(accumulated_path) / part)
             else:
                 accumulated_path = part
-                
-            is_last = (i == len(parts) - 1)
-            
+
+            is_last = i == len(parts) - 1
+
             if is_last:
                 ui.label(part).classes("font-bold text-slate-800")
             else:
@@ -167,22 +178,28 @@ def render_breadcrumbs(ctx: AppContext):
                 # Capture variable `p` for closure
                 def make_handler(p):
                     return lambda: navigate_to(ctx, p)
-                    
-                ui.link(part).classes("text-primary cursor-pointer hover:underline").on("click", make_handler(accumulated_path))
+
+                ui.link(part).classes("text-primary cursor-pointer hover:underline").on(
+                    "click", make_handler(accumulated_path)
+                )
+
 
 def navigate_to(ctx: AppContext, path: str):
     """Updates the explorer path and refreshes the view."""
     UIState.explorer_path = path
     ctx.refresh("package")
 
+
 def render_file_list(ctx: AppContext):
     """Renders the list of files and folders in the current explorer path."""
     current_path = UIState.explorer_path
     # Get children from cache (built in inventory_logic)
     children = UIState.folder_children_map.get(current_path, [])
-    
+
     if not children:
-        with ui.column().classes("w-full items-center justify-center p-10 text-slate-400"):
+        with ui.column().classes(
+            "w-full items-center justify-center p-10 text-slate-400"
+        ):
             ui.icon("folder_off", size="lg")
             ui.label(_("Folder is empty"))
         return
@@ -198,7 +215,9 @@ def render_file_list(ctx: AppContext):
                 if item["type"] == "folder" and item["included_files"] == 0:
                     continue
 
-            with ui.row().classes("w-full items-center gap-0 px-2 py-1 hover:bg-blue-50 border-b border-slate-100 cursor-pointer group"):
+            with ui.row().classes(
+                "w-full items-center gap-0 px-2 py-1 hover:bg-blue-50 border-b border-slate-100 cursor-pointer group"
+            ):
                 # 1. Selection Control (Checkbox or Tri-state icon)
                 # Fixed width container to align everything precisely
                 with ui.row().classes("w-10 items-center justify-center shrink-0"):
@@ -206,7 +225,9 @@ def render_file_list(ctx: AppContext):
                         # File Checkbox
                         ui.checkbox(
                             value=item["included"],
-                            on_change=lambda e, p=item["path"]: toggle_file(ctx, p, e.value)
+                            on_change=lambda e, p=item["path"]: toggle_file(
+                                ctx, p, e.value
+                            ),
                         ).props("dense size=sm").classes("m-0 p-0")
                     else:
                         # Folder Checkbox (Tri-state simulated via icon)
@@ -219,41 +240,50 @@ def render_file_list(ctx: AppContext):
                         elif state == "indeterminate":
                             icon = "indeterminate_check_box"
                             color = "primary"
-                            
+
                         # Manual adjustment to match ui.checkbox visual position
-                        ui.icon(icon, color=color, size="20px").classes("cursor-pointer block").on(
-                            "click", 
-                            lambda e, p=item["path"], s=state: toggle_folder(ctx, p, s)
+                        ui.icon(icon, color=color, size="20px").classes(
+                            "cursor-pointer block"
+                        ).on(
+                            "click",
+                            lambda e, p=item["path"], s=state: toggle_folder(ctx, p, s),
                         )
 
                 # 2. Type Icon
                 icon_name = "folder" if item["type"] == "folder" else "description"
                 icon_color = "amber-400" if item["type"] == "folder" else "slate-400"
-                ui.icon(icon_name, color=icon_color, size="24px").classes("mx-2 shrink-0")
-                
+                ui.icon(icon_name, color=icon_color, size="24px").classes(
+                    "mx-2 shrink-0"
+                )
+
                 # 3. Clickable Name and details
                 if item["type"] == "folder":
-                    ui.label(item["name"]).classes("flex-grow font-medium text-slate-700 text-sm py-1.5").on(
-                        "click", 
-                        lambda e, p=item["path"]: navigate_to(ctx, p)
-                    )
+                    ui.label(item["name"]).classes(
+                        "flex-grow font-medium text-slate-700 text-sm py-1.5"
+                    ).on("click", lambda e, p=item["path"]: navigate_to(ctx, p))
                 else:
                     with ui.column().classes("flex-grow gap-0 py-1"):
-                        ui.label(item["name"]).classes("text-slate-700 text-sm font-medium")
+                        ui.label(item["name"]).classes(
+                            "text-slate-700 text-sm font-medium"
+                        )
                         # Show reason if excluded/forced
                         if item["reason"]:
-                             ui.label(item["reason"]).classes("text-[10px] text-slate-400 leading-none")
-                             
+                            ui.label(item["reason"]).classes(
+                                "text-[10px] text-slate-400 leading-none"
+                            )
+
                 # 4. Size
                 size_str = format_size(item["size"])
-                ui.label(size_str).classes("text-xs text-slate-500 min-w-[75px] text-right pr-2 shrink-0")
+                ui.label(size_str).classes(
+                    "text-xs text-slate-500 min-w-[75px] text-right pr-2 shrink-0"
+                )
 
 
 async def toggle_file(ctx: AppContext, path: str, new_value: bool):
     """Toggles a single file inclusion."""
     pid = ctx.agent.project_id
     manifest = ctx.pkg_mgr.get_manifest(pid)
-    
+
     if new_value:
         if path in manifest.force_exclude:
             manifest.force_exclude.remove(path)
@@ -264,7 +294,7 @@ async def toggle_file(ctx: AppContext, path: str, new_value: bool):
             manifest.force_include.remove(path)
         elif path not in manifest.force_exclude:
             manifest.force_exclude.append(path)
-            
+
     ctx.pkg_mgr.save_manifest(manifest)
     await load_inventory_background(ctx)
 
@@ -277,15 +307,15 @@ async def toggle_folder(ctx: AppContext, folder_path: str, current_state: str):
     pid = ctx.agent.project_id
     manifest = ctx.pkg_mgr.get_manifest(pid)
     inventory = UIState.inventory_cache
-    
+
     folder_prefix = folder_path + "/"
     target_files = []
-    
+
     for item in inventory:
         p = item["path"]
         if p == folder_path or p.startswith(folder_prefix):
             target_files.append(p)
-            
+
     if not target_files:
         return
 
@@ -305,7 +335,7 @@ async def toggle_folder(ctx: AppContext, folder_path: str, current_state: str):
             if path not in manifest.force_exclude:
                 manifest.force_exclude.append(path)
                 changed = True
-                
+
     if changed:
         ctx.pkg_mgr.save_manifest(manifest)
         try:
@@ -313,7 +343,7 @@ async def toggle_folder(ctx: AppContext, folder_path: str, current_state: str):
                 _("{action} {count} files in {folder}").format(
                     action=_("Included") if should_include else _("Excluded"),
                     count=len(target_files),
-                    folder=Path(folder_path).name
+                    folder=Path(folder_path).name,
                 )
             )
         except Exception:
@@ -347,7 +377,10 @@ def render_suggestions_banner(ctx: AppContext):
             ).props("elevated color=primary")
             ui.button(_("Dismiss"), on_click=lambda: clear_suggestions(ctx)).props(
                 "flat color=grey"
-            )
+            ).tooltip(_("Hide this banner until new recommendations arrive"))
+            ui.button(_("Forget"), on_click=lambda: forget_suggestions(ctx)).props(
+                "flat color=negative"
+            ).tooltip(_("Permanently remove these recommendations"))
 
 
 async def open_suggestions_dialog(ctx: AppContext):
@@ -404,7 +437,7 @@ async def open_suggestions_dialog(ctx: AppContext):
                         )
                     except Exception:
                         pass
-                clear_suggestions(ctx)
+                forget_suggestions(ctx)
                 dialog.close()
                 await load_inventory_background(ctx)
 
@@ -416,8 +449,15 @@ async def open_suggestions_dialog(ctx: AppContext):
 
 
 def clear_suggestions(ctx: AppContext):
+    UIState.show_suggestions_banner = False
+    ctx.refresh("package")
+
+
+def forget_suggestions(ctx: AppContext):
     if ctx.agent.current_analysis:
         ctx.agent.current_analysis.file_suggestions = []
+        ctx.agent.save_state()
+    UIState.show_suggestions_banner = True
     ctx.refresh("package")
 
 
@@ -426,15 +466,19 @@ async def handle_ai_suggestion_request(ctx: AppContext):
         ui.notify(_("Please open a project first."), type="warning")
         return
 
+    UIState.show_suggestions_banner = True
     ScanState.agent_mode = "curator"
     prompt = _(
         "Analyze the project structure and primary publication to suggest all files required for results reproduction. Focus on data-script linkages."
     )
 
     from opendata.ui.components.chat import handle_user_msg_from_code
+
     await handle_user_msg_from_code(ctx, prompt, mode="curator")
-    try: ui.notify(_("AI is analyzing file linkages... check Chat tab for results."))
-    except RuntimeError: pass
+    try:
+        ui.notify(_("AI is analyzing file linkages... check Chat tab for results."))
+    except RuntimeError:
+        pass
 
 
 async def handle_refresh_inventory(ctx: AppContext):

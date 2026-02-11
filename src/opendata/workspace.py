@@ -3,7 +3,7 @@ import yaml
 import hashlib
 from typing import Any, Dict, List, Type, TypeVar
 from pydantic import BaseModel
-from opendata.models import UserSettings, Metadata, ProjectFingerprint
+from opendata.models import UserSettings, Metadata, ProjectFingerprint, AIAnalysis
 import json
 
 T = TypeVar("T", bound=BaseModel)
@@ -56,6 +56,7 @@ class WorkspaceManager:
         metadata: Metadata,
         chat_history: List[tuple[str, str]],
         fingerprint: ProjectFingerprint | None,
+        analysis: AIAnalysis | None = None,
     ):
         """Persists the complete state of a project."""
         self._projects_cache = None  # Invalidate cache
@@ -74,13 +75,28 @@ class WorkspaceManager:
             with open(pdir / "fingerprint.json", "w", encoding="utf-8") as f:
                 f.write(fingerprint.model_dump_json(indent=2))
 
+        # Save Analysis (JSON)
+        if analysis:
+            with open(pdir / "analysis.json", "w", encoding="utf-8") as f:
+                f.write(analysis.model_dump_json(indent=2))
+        else:
+            # Clear analysis file if None provided
+            analysis_path = pdir / "analysis.json"
+            if analysis_path.exists():
+                analysis_path.unlink()
+
     def load_project_state(
         self, project_id: str
-    ) -> tuple[Metadata | None, List[tuple[str, str]], ProjectFingerprint | None]:
+    ) -> tuple[
+        Metadata | None,
+        List[tuple[str, str]],
+        ProjectFingerprint | None,
+        AIAnalysis | None,
+    ]:
         """Loads the persisted state of a project."""
         pdir = self.get_project_dir(project_id)
         if not pdir.exists():
-            return None, [], None
+            return None, [], None, None
 
         metadata = self.load_yaml(Metadata, str(pdir / "metadata.yaml"))
 
@@ -102,7 +118,16 @@ class WorkspaceManager:
             except Exception:
                 pass
 
-        return metadata, history, fingerprint
+        analysis = None
+        analysis_path = pdir / "analysis.json"
+        if analysis_path.exists():
+            try:
+                with open(analysis_path, "r", encoding="utf-8") as f:
+                    analysis = AIAnalysis.model_validate_json(f.read())
+            except Exception:
+                pass
+
+        return metadata, history, fingerprint, analysis
 
     async def list_projects_async(self) -> List[Dict[str, str]]:
         """Asynchronously lists all projects."""

@@ -22,6 +22,7 @@ class UIState:
     total_files_size: int = 0
     grid_rows: List[Dict[str, Any]] = []
     show_only_included: bool = False
+    show_suggestions_banner: bool = True
 
     # File Explorer State
     explorer_path: str = ""  # Current path being viewed (relative to project root)

@@ -61,7 +61,7 @@ def test_project_agent_detects_full_text_candidate(latex_full_file, tmp_path):
     # Setup
     wm_mock = MagicMock()
     wm_mock.get_project_id.return_value = "test_project"
-    wm_mock.load_project_state.return_value = (None, [], None)
+    wm_mock.load_project_state.return_value = (None, [], None, None)
     # Mock projects_dir to a real temp path to avoid OSError in ProtocolManager
     wm_mock.projects_dir = tmp_path / "projects"
     wm_mock.projects_dir.mkdir()
@@ -81,7 +81,7 @@ def test_project_agent_triggers_full_text_analysis(latex_full_file, tmp_path):
     # Setup
     wm_mock = MagicMock()
     wm_mock.get_project_id.return_value = "test_project"
-    wm_mock.load_project_state.return_value = (None, [], None)
+    wm_mock.load_project_state.return_value = (None, [], None, None)
     wm_mock.projects_dir = tmp_path / "projects"
     wm_mock.projects_dir.mkdir(exist_ok=True)
     (wm_mock.projects_dir / "test_project").mkdir(exist_ok=True)
@@ -141,7 +141,7 @@ def test_project_agent_handles_structured_analysis_response(latex_full_file, tmp
     # Setup
     wm_mock = MagicMock()
     wm_mock.get_project_id.return_value = "test_project"
-    wm_mock.load_project_state.return_value = (None, [], None)
+    wm_mock.load_project_state.return_value = (None, [], None, None)
     wm_mock.projects_dir = tmp_path / "projects"
     wm_mock.projects_dir.mkdir(exist_ok=True)
     (wm_mock.projects_dir / "test_project").mkdir(exist_ok=True)
@@ -205,9 +205,20 @@ def test_project_agent_handles_structured_analysis_response(latex_full_file, tmp
     # Verify Metadata
     assert agent.current_metadata.title == "Title A"
 
+    # Add a mock file suggestion to ensure it survives submission
+    from opendata.models import FileSuggestion
+
+    agent.current_analysis.file_suggestions = [
+        FileSuggestion(path="data.csv", reason="Important")
+    ]
+
     # Action: Submit answers
     agent.submit_analysis_answers({"title": "Title B"})
 
     # Verify final state
     assert agent.current_metadata.title == "Title B"
-    assert agent.current_analysis is None  # Should be cleared after submission
+    assert (
+        agent.current_analysis is not None
+    )  # Should NOT be cleared if suggestions exist
+    assert len(agent.current_analysis.file_suggestions) == 1
+    assert agent.current_analysis.questions == []  # Questions SHOULD be cleared
