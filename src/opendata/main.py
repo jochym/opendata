@@ -131,19 +131,25 @@ def main():
             time.sleep(1.5)
             webbrowser.open(url)
 
-        # Simplify menu - some backends dislike disabled items or complex nesting
+        # Simplify menu - remove default=True to prevent click hijacking on Linux
         menu = pystray.Menu(
-            pystray.MenuItem("Start Dashboard", on_open_dashboard, default=True),
+            pystray.MenuItem("Open Dashboard", on_open_dashboard),
             pystray.MenuItem("About", on_about),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Quit OpenData", on_exit),
         )
 
-        icon = pystray.Icon(
-            "opendata", create_icon_image(), f"OpenData Tool v{version}", menu
-        )
+        version_title = f"OpenData Tool v{version}"
+        icon = pystray.Icon("opendata", create_icon_image(), version_title, menu)
 
         print("[INFO] Starting system tray icon...")
+        import os
+
+        if sys.platform == "linux":
+            print(
+                f"[DEBUG] Desktop Environment: {os.environ.get('XDG_CURRENT_DESKTOP', 'Unknown')}"
+            )
+
         icon.run(setup=setup)
     except Exception as e:
         print(f"\n[ERROR] System tray icon failed to start: {e}")

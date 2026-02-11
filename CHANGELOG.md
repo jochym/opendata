@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.1] - 2026-02-11
+### Fixed
+- **Linux Tray Menu**: Removed the default action from the system tray icon to prevent menu hijacking on certain desktop environments (e.g., GNOME with AppIndicator). The icon now explicitly opens the menu on click, ensuring access to "Open Dashboard" and "Quit" options.
+- **Diagnostics**: Added logging of the desktop environment (`XDG_CURRENT_DESKTOP`) to assist in debugging Linux UI issues.
+
 ## [0.19.0] - 2026-02-11
 ### Changed
 - **Python Upgrade**: Upgraded the required Python version to `>=3.11`.
