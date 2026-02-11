@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.6] - 2026-02-11
+### Added
+- **Tray Icon Branding**: Updated the system tray icon to match the application logo (OpenData "OD" logo with sparkles on a navy background).
+- **Expanded Tray Menu**: Added "About", "Start Dashboard", and "Quit OpenData" actions to the system tray menu.
+- **Improved Error Messaging**: Provided specific installation hints (`python3-gi`, `libayatana-appindicator3-1`) for Linux users when the system tray icon fails to initialize.
+
 ## [0.18.5] - 2026-02-11
 ### Fixed
 - **Version Detection**: Corrected the version detection logic to properly display the version number in the UI tooltip across all execution modes (development, bundled, and installed).
