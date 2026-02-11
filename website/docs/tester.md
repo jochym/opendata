@@ -1,6 +1,6 @@
 # OpenData Tool - Beta Tester Manual
 
-**Version:** v0.12.0
+**Version:** v0.18.0
 **Status:** Proof of Concept (PoC) / Beta
 **Target Audience:** Domain Scientists (Physics, Medical Physics) & Research Data Stewards
 
@@ -29,10 +29,9 @@ The **OpenData Tool** is an AI-powered assistant designed to "read" your researc
 1. **Download:** Get the latest binary for your OS from the [Testing Portal](website/index.html) or your distribution source.
 2. **Run:** Double-click the executable (`opendata-win.exe`, `opendata-linux`, or `.dmg`).
    - *Note:* On Windows/Mac, you may need to "Run Anyway" if the app is unsigned.
-3. **Control Window:** A small window will appear. This is your "Kill Switch". 
-   - **Green Light:** Server is running.
-   - **Open Dashboard:** Relaunches the browser if you closed it.
-   - **Quit:** Stops the server and exits.
+3. **System Tray Icon:** A small icon will appear in your system tray (bottom-right on Windows, top-right on Mac/Linux). 
+   - **Open Dashboard:** Opens the main interface in your default browser.
+   - **Exit:** Stops the server and exits.
 4. **Browser Dashboard:** The main interface will open automatically in your default web browser (usually `http://localhost:8000`).
 
 ---
@@ -86,6 +85,9 @@ The **OpenData Tool** is an AI-powered assistant designed to "read" your researc
 - **Checkboxes:** You can manually include/exclude specific files.
 - **Smart Filters:** Type `.tex` or `README` in the filter bar to find files quickly.
 - **Lazy Loading:** Scroll down to load more files.
+- **AI Recommendations**: When the AI Curator finds relevant files, a blue banner appears. 
+    - **Dismiss**: Hides the banner for the session (data is kept).
+    - **Forget**: Permanently deletes the recommendations.
 
 ### 🧠 Protocols (Meta-Learning)
 - If you find yourself repeating instructions (e.g., "Always ignore the 'tmp' folder"), tell the AI!
@@ -108,7 +110,6 @@ The **OpenData Tool** is an AI-powered assistant designed to "read" your researc
 - **Corrupt Project:** If a project won't load, try selecting a different one, then delete the broken one from the dropdown list.
 
 ### 🐞 Reporting a Bug
-We have a built-in diagnostic tool.
 1. In the chat box, type: `/bug`
 2. Press Enter.
 3. The tool will generate a zip file containing logs, the current metadata draft, and chat history.
@@ -123,5 +124,6 @@ We have a built-in diagnostic tool.
 - [ ] **Teach a Protocol:** Create a custom rule (e.g., "Ignore 'old' folders") and see if it works on a *new* project.
 - [ ] **Interrupt the AI:** Click the "Stop" button while it's thinking. Does it recover gracefully?
 - [ ] **Package It:** Generate a ZIP and check if the `metadata.yaml` looks correct.
+- [ ] **System Tray:** Does the tray icon menu work for opening the dashboard and exiting?
 
 Thank you for helping us shape the future of Open Science tools!

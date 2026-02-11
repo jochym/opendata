@@ -1,6 +1,6 @@
 # OpenData Tool - Developer Manual
 
-**Version:** v0.12.0
+**Version:** v0.18.0
 **Maintained By:** Pawel T. Jochym & AI Agents
 
 ---
@@ -12,7 +12,7 @@ The OpenData Tool is a **hybrid desktop-web application** designed to provide a 
 ### Core Stack
 - **Frontend/UI:** [NiceGUI](https://nicegui.io/) (Vue.js wrapper for Python).
 - **Backend/Agent:** Python 3.10+, Google Gemini API (`google-genai`).
-- **Desktop Anchor:** `pywebview` (creates the "Control Window" and system tray presence).
+- **Desktop Anchor:** `pystray` (System Tray icon) + `NiceGUI` (Local server).
 - **State Management:** `Pydantic` models + SQLite + YAML persistence.
 
 ### Directory Structure
