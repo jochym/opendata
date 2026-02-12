@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.20.9] - 2026-02-12
+### Fixed
+- **Linux Build**: Switched from Docker container to native Ubuntu runner for more reliable dependency management and UPX support.
+
 ## [0.20.8] - 2026-02-12
 ### Fixed
 - **Linux Build**: Switched to non-slim build container and corrected UPX package name to resolve build failures.
