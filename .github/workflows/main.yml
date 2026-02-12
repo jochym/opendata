@@ -77,12 +77,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install . pyinstaller
-      - name: Install UPX (Windows)
-        if: runner.os == 'Windows'
-        run: choco install upx
-      - name: Install UPX (macOS)
-        if: runner.os == 'macOS'
-        run: brew install upx
       - name: Prepare client_secrets.json
         shell: bash
         env:
@@ -111,21 +105,17 @@ jobs:
           path: dist/${{ matrix.artifact_name }}
 
   build-linux:
-    name: Build Binary (Linux)
+    name: Build Binary (Linux Container)
     needs: test
     if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
+    container: python:3.11-slim-bookworm
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
       - name: Install System Dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y binutils tk-dev python3-tk upx-ucl
+          apt-get update
+          apt-get install -y binutils python3-tk
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
