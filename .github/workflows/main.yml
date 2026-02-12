@@ -115,13 +115,13 @@ jobs:
     needs: test
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
-    container: python:3.11-slim-bookworm
+    container: python:3.11-bookworm
     steps:
       - uses: actions/checkout@v4
       - name: Install System Dependencies
         run: |
           apt-get update
-          apt-get install -y binutils tk-dev python3-tk upx-ucl
+          apt-get install -y binutils tk-dev python3-tk upx
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
