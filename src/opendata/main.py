@@ -124,16 +124,13 @@ def main():
 
         version_title = f"OpenData Tool v{version}"
 
-        # Create icon initially WITHOUT menu to ensure object creation succeeds
-        # Attaching menu later can sometimes fix GNOME rendering issues
-        icon = pystray.Icon("opendata", create_icon_image(), version_title)
+        # Standard initialization - the previous delayed attachment didn't fix the issue
+        # and standard initialization is generally more robust if backend is present.
+        icon = pystray.Icon("opendata", create_icon_image(), version_title, menu)
 
         def setup(icon):
-            # Ensure menu is attached
-            icon.menu = menu
             icon.visible = True
             print("[INFO] System tray icon is now visible.")
-
             # Give the server a moment to start before opening browser
             time.sleep(1.5)
             webbrowser.open(url)
@@ -144,6 +141,7 @@ def main():
         if sys.platform == "linux":
             desktop = os.environ.get("XDG_CURRENT_DESKTOP", "Unknown")
             print(f"[DEBUG] Desktop Environment: {desktop}")
+            # Suggest backend if not set
             if "GNOME" in desktop and "PYSTRAY_BACKEND" not in os.environ:
                 print(
                     "[DEBUG] GNOME detected. If menu is missing, try running with: PYSTRAY_BACKEND=gtk ./opendata-linux"

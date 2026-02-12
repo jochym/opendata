@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.5] - 2026-02-11
+### Fixed
+- **Linux Tray Menu**: Included `libayatana-appindicator3-dev` in the build container. This ensures the necessary system headers are present for `PyGObject` to link against the AppIndicator libraries used by GNOME, which should restore functional tray menus in the distributed binary.
+
+## [0.19.4] - 2026-02-11
+### Fixed
+- **Linux Build**: Changed CI/CD strategy to install `PyGObject` from source (pip) within the build container. This ensures `dist-info` metadata is correctly generated, allowing PyInstaller to bundle the GTK bindings without hacks.
+- **Binary Size**: Significantly reduced Linux binary size by explicitly excluding unused heavy libraries (`matplotlib`, `PyQt5`, `PyQt6`, `tkinter`) from the build.
+- **About Action**: Tray menu "About" now opens the dashboard URL in the default browser, ensuring consistent behavior across all platforms.
+
 ## [0.19.3] - 2026-02-11
 ### Fixed
 - **Linux Build**: Restored `PyGObject` (`gi`) support in the binary build. PyInstaller now correctly bundles the `gi` module by manually injecting package metadata in the build container, resolving the "No module named 'gi'" error and enabling the `gtk` backend for the system tray icon.

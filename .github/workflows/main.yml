@@ -114,23 +114,7 @@ jobs:
       - name: Install System Dependencies
         run: |
           apt-get update
-          apt-get install -y libgtk-3-dev libgirepository1.0-dev libcairo2-dev pkg-config gobject-introspection libglib2.0-dev xvfb
-      - name: Inject PyGObject Metadata
-        run: |
-          # PyInstaller needs package metadata to find system-installed gi
-          SITE_PACKAGES=$(python -c 'import site; print(site.getsitepackages()[0])')
-          # Ensure gi is in site-packages (it usually is in dist-packages on Debian)
-          if [ -d "/usr/lib/python3/dist-packages/gi" ] && [ ! -d "$SITE_PACKAGES/gi" ]; then
-            ln -s /usr/lib/python3/dist-packages/gi $SITE_PACKAGES/gi
-          fi
-          
-          # Create fake metadata so PyInstaller detects it
-          VERSION="3.42.2"
-          METADATA_DIR="$SITE_PACKAGES/PyGObject-$VERSION.dist-info"
-          mkdir -p "$METADATA_DIR"
-          echo "Metadata-Version: 2.1" > "$METADATA_DIR/METADATA"
-          echo "Name: PyGObject" >> "$METADATA_DIR/METADATA"
-          echo "Version: $VERSION" >> "$METADATA_DIR/METADATA"
+          apt-get install -y libgtk-3-dev libgirepository1.0-dev libcairo2-dev pkg-config gobject-introspection libglib2.0-dev xvfb libayatana-appindicator3-dev
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
