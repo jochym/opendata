@@ -114,7 +114,7 @@ jobs:
       - name: Install System Dependencies
         run: |
           apt-get update
-          apt-get install -y binutils
+          apt-get install -y binutils tk-dev python3-tk
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -135,7 +135,7 @@ jobs:
             --add-data "src/opendata/prompts:opendata/prompts" \
             --add-data "VERSION:." \
             --add-data "client_secrets.json:." \
-            --exclude-module matplotlib --exclude-module PyQt5 --exclude-module PyQt6 --exclude-module tkinter \
+            --exclude-module matplotlib --exclude-module PyQt5 --exclude-module PyQt6 \
             src/opendata/main.py
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
