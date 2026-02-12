@@ -54,6 +54,9 @@ class AIService:
     def logout(self):
         self.provider.logout()
 
+    def get_user_info(self) -> dict:
+        return self.provider.get_user_info()
+
     def list_available_models(self) -> list[str]:
         return self.provider.list_available_models()
 

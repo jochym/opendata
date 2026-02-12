@@ -49,6 +49,11 @@ class BaseAIService(ABC):
         """Logs out/clears credentials."""
         pass
 
+    @abstractmethod
+    def get_user_info(self) -> dict:
+        """Returns information about the logged-in user and provider."""
+        pass
+
     # --- Shared Tools (Provider Agnostic) ---
 
     def fetch_arxiv_metadata(self, arxiv_id: str) -> str:

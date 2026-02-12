@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.20.2] - 2026-02-11
+### Added
+- **AI Status in Settings**: The Settings tab now displays the active AI provider and the currently logged-in account (email for Google, base URL for OpenAI/Ollama).
+
 ## [0.20.1] - 2026-02-11
 ### Fixed
 - **Linux Build Environment**: Added `binutils` to the Linux build container, resolving the `objdump` requirement for PyInstaller.

@@ -40,6 +40,9 @@ class OpenAIProvider(BaseAIService):
         # Nothing to clear for API key based auth (settings are managed by WorkspaceManager)
         pass
 
+    def get_user_info(self) -> dict:
+        return {"provider": "OpenAI / Compatible", "account": self.base_url}
+
     def list_available_models(self) -> list[str]:
         try:
             url = f"{self.base_url}/models"

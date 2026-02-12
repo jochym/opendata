@@ -34,6 +34,22 @@ class GoogleProvider(BaseAIService):
         self.creds = None
         self.model = None
 
+    def get_user_info(self) -> dict:
+        info = {"provider": "Google Gemini", "account": "Not signed in"}
+        if self.creds:
+            # We can't easily get the email without an extra API call or if it's not in the token
+            # But the scope "userinfo.email" is present, so we might have it if we use a helper
+            # For now, let's look at what's in the creds
+            from googleapiclient.discovery import build
+
+            try:
+                service = build("oauth2", "v2", credentials=self.creds)
+                user_info = service.userinfo().get().execute()
+                info["account"] = user_info.get("email", "Unknown")
+            except Exception:
+                info["account"] = "Signed in"
+        return info
+
     def list_available_models(self) -> list[str]:
         if not self.creds:
             return []

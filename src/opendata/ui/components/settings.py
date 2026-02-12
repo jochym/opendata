@@ -11,6 +11,25 @@ def render_settings_tab(ctx: AppContext):
         ui.label(_("Application Settings")).classes("text-h4 q-mb-md font-bold")
 
         with ui.column().classes("w-full gap-6"):
+            # AI Status
+            if ctx.ai.is_authenticated():
+                info = ctx.ai.get_user_info()
+                with ui.card().classes(
+                    "w-full bg-blue-50 p-4 border border-blue-200 shadow-none"
+                ):
+                    with ui.row().classes("items-center gap-4"):
+                        ui.icon("smart_toy", size="lg").classes("text-blue-600")
+                        with ui.column().classes("gap-0"):
+                            ui.label(_("Active AI Connection")).classes(
+                                "text-xs font-bold text-blue-800 uppercase tracking-wider"
+                            )
+                            ui.label(f"{info['provider']}").classes(
+                                "text-lg font-bold text-slate-800"
+                            )
+                            ui.label(info["account"]).classes(
+                                "text-sm text-slate-600 font-mono"
+                            )
+
             # Model Selection
             with ui.column().classes("gap-1"):
                 ui.label(_("AI Model")).classes("text-sm font-bold text-slate-600")
