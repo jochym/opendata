@@ -1,8 +1,9 @@
 import asyncio
 import time
 import logging
+import uvicorn
 from pathlib import Path
-from nicegui import ui
+from nicegui import app, ui
 from opendata.utils import get_local_ip
 from opendata.workspace import WorkspaceManager
 from opendata.packager import PackagingService
@@ -30,6 +31,16 @@ logger = logging.getLogger("opendata.ui")
 
 
 def start_ui(host: str = "127.0.0.1", port: int = 8080):
+    """Start the NiceGUI application server.
+
+    Note: When running in a multiprocessing child process, NiceGUI's ui.run()
+    returns early by design (see nicegui.ui_run line 165-166). We handle this
+    by manually starting uvicorn if the app wasn't started.
+
+    Args:
+        host: Host address to bind the server to (default: 127.0.0.1)
+        port: Port number to bind the server to (default: 8080)
+    """
     # 1. Initialize Backend
     wm = WorkspaceManager()
     settings = wm.get_settings()
@@ -175,7 +186,12 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
                     with ui.tab_panel(settings_tab):
                         render_settings_tab(ctx)
 
+    # Initialize NiceGUI app (completes setup even in child processes)
     ui.run(title="OpenData Agent", port=port, show=False, reload=False, host=host)
+
+    # Start server manually if ui.run() returned early (multiprocessing child)
+    if not app.is_started:
+        uvicorn.run(app, host=host, port=port, log_level="info")
 
 
 if __name__ == "__main__":
