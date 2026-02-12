@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.20.5] - 2026-02-12
+### Changed
+- **Version Management**: Implemented "Single Source of Truth" for versioning. The version is now defined only in `src/opendata/VERSION` and used dynamically by `pyproject.toml` and the application code.
+
 ## [0.20.4] - 2026-02-12
 ### Fixed
 - **Linux Binary**: Fixed missing Tkinter in Linux binary by removing it from PyInstaller excludes and installing system dependencies in the build container.

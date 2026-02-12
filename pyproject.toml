@@ -1,6 +1,6 @@
 [project]
 name = "opendata-tool"
-version = "0.20.4"
+dynamic = ["version"]
 description = "Scientific metadata preparation and packaging tool"
 authors = [
     {name = "Antigravity", email = "antigravity@example.com"}
@@ -36,6 +36,9 @@ opendata = "opendata.main:main"
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools.dynamic]
+version = {file = "src/opendata/VERSION"}
 
 [tool.setuptools.packages.find]
 where = ["src"]

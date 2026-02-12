@@ -42,7 +42,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Inject Version
         run: |
-          VERSION=$(cat VERSION)
+          VERSION=$(cat src/opendata/VERSION)
           sed -i "s/{{VERSION}}/$VERSION/g" website/index.html
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -94,7 +94,7 @@ jobs:
           pyinstaller --noconsole --onefile --name "${{ matrix.artifact_name }}" \
             --add-data "src/opendata/ui${SEP}opendata/ui" \
             --add-data "src/opendata/prompts${SEP}opendata/prompts" \
-            --add-data "VERSION${SEP}." \
+            --add-data "src/opendata/VERSION${SEP}." \
             --add-data "client_secrets.json${SEP}." \
             src/opendata/main.py
       - name: Upload Artifact
@@ -133,7 +133,7 @@ jobs:
           pyinstaller --onefile --name opendata-linux \
             --add-data "src/opendata/ui:opendata/ui" \
             --add-data "src/opendata/prompts:opendata/prompts" \
-            --add-data "VERSION:." \
+            --add-data "src/opendata/VERSION:." \
             --add-data "client_secrets.json:." \
             --exclude-module matplotlib --exclude-module PyQt5 --exclude-module PyQt6 \
             src/opendata/main.py
