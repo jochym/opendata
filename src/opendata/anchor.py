@@ -5,6 +5,7 @@ import os
 import signal
 import sys
 import logging
+from opendata.utils import get_app_version
 
 logger = logging.getLogger("opendata.anchor")
 
@@ -22,7 +23,7 @@ class AppAnchor:
 
         # Configuration
         self.root.title("OpenData Tool")
-        self.root.geometry("350x180")
+        self.root.geometry("350x240")
         self.root.resizable(False, False)
 
         # Handle window close (X button or Alt+F4)
@@ -37,9 +38,29 @@ class AppAnchor:
         frame.pack(fill=tk.BOTH, expand=True)
 
         # Header
-        ttk.Label(frame, text="OpenData Tool", font=("Helvetica", 12, "bold")).pack(
-            pady=(0, 5)
+        header_frame = ttk.Frame(frame)
+        header_frame.pack(fill=tk.X, pady=(0, 5))
+
+        ttk.Label(
+            header_frame, text="OpenData Tool", font=("Helvetica", 12, "bold")
+        ).pack(side=tk.LEFT)
+
+        version = get_app_version()
+        ttk.Label(
+            header_frame, text=f"v{version}", font=("Helvetica", 9), foreground="gray"
+        ).pack(side=tk.RIGHT, pady=(3, 0))
+
+        # About / Description
+        about_text = (
+            "Guided metadata preparation and packaging for the RODBUK repository."
         )
+        ttk.Label(
+            frame,
+            text=about_text,
+            font=("Helvetica", 9),
+            wraplength=300,
+            justify=tk.CENTER,
+        ).pack(pady=(0, 10))
 
         # Status Indicator
         self.status_label = ttk.Label(
