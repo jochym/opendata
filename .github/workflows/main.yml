@@ -152,6 +152,7 @@ jobs:
             --add-data "VERSION:." \
             --add-data "client_secrets.json:." \
             --hidden-import gi --hidden-import gi.repository.Gtk \
+            --exclude-module matplotlib --exclude-module PyQt5 --exclude-module PyQt6 --exclude-module tkinter \
             src/opendata/main.py
       - name: GUI Smoke Test
         run: |

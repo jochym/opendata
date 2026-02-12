@@ -101,21 +101,11 @@ def main():
         webbrowser.open(url)
 
     def on_about(icon, item):
-        import subprocess
-
-        msg = f"OpenData Tool v{version}\nScientific Metadata & Packaging Assistant\n\nAccess Dashboard at: {url}"
-        # Simple cross-platform "about" alert using notify-send/msg boxes if available
-        # or just print to console for now as fallback
-        print(f"\n--- ABOUT ---\n{msg}\n-------------")
-        try:
-            if sys.platform == "linux":
-                subprocess.run(["notify-send", "About OpenData", msg])
-            elif sys.platform == "win32":
-                import ctypes
-
-                ctypes.windll.user32.MessageBoxW(0, msg, "About OpenData", 0)
-        except Exception:
-            pass
+        # Open the dashboard URL in the browser - most reliable "About" screen
+        webbrowser.open(url)
+        print(
+            f"\n--- ABOUT ---\nOpenData Tool v{version}\nScientific Metadata & Packaging Assistant\n-------------"
+        )
 
     def on_exit(icon, item):
         print("[INFO] Shutting down...")
