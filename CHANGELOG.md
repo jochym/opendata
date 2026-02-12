@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.20.0] - 2026-02-11
+### Changed
+- **Architectural Shift**: Removed all system tray (`pystray`) and desktop anchor (`pywebview`) logic. The application now runs as a pure Terminal + Browser (NiceGUI) service for maximum cross-platform reliability and simplicity.
+- **Dependency Cleanup**: Removed `pystray`, `Pillow`, and `qrcode` from core dependencies.
+- **CI/CD Optimization**: Greatly simplified the build pipeline by removing GUI-specific system headers and metadata hacks.
+### Added
+- **Version Display**: Added the application version number to the Settings tab for easier identification.
+
 ## [0.19.5] - 2026-02-11
 ### Fixed
 - **Linux Tray Menu**: Included `libayatana-appindicator3-dev` in the build container. This ensures the necessary system headers are present for `PyGObject` to link against the AppIndicator libraries used by GNOME, which should restore functional tray menus in the distributed binary.

@@ -21,7 +21,7 @@ jobs:
       - name: Install System Dependencies (Linux)
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libgirepository1.0-dev libcairo2-dev pkg-config gobject-introspection libglib2.0-dev python3-gi python3-gi-cairo xvfb
+          sudo apt-get install -y xvfb
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -111,10 +111,6 @@ jobs:
     container: python:3.11-slim-bookworm
     steps:
       - uses: actions/checkout@v4
-      - name: Install System Dependencies
-        run: |
-          apt-get update
-          apt-get install -y libgtk-3-dev libgirepository1.0-dev libcairo2-dev pkg-config gobject-introspection libglib2.0-dev xvfb libayatana-appindicator3-dev
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -130,24 +126,13 @@ jobs:
           fi
       - name: Build with PyInstaller
         run: |
-          pyinstaller --noconsole --onefile --name opendata-linux \
+          pyinstaller --onefile --name opendata-linux \
             --add-data "src/opendata/ui:opendata/ui" \
             --add-data "src/opendata/prompts:opendata/prompts" \
             --add-data "VERSION:." \
             --add-data "client_secrets.json:." \
-            --hidden-import gi --hidden-import gi.repository.Gtk \
             --exclude-module matplotlib --exclude-module PyQt5 --exclude-module PyQt6 --exclude-module tkinter \
             src/opendata/main.py
-      - name: GUI Smoke Test
-        run: |
-          chmod +x dist/opendata-linux
-          xvfb-run ./dist/opendata-linux --help > smoke_test.log 2>&1 || true
-          cat smoke_test.log
-          if grep -i "failed" smoke_test.log | grep -i "GUI"; then
-            echo "CRITICAL: GUI Smoke Test failed!"
-            exit 1
-          fi
-          echo "GUI Smoke Test passed!"
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:

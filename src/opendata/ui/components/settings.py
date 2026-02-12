@@ -2,7 +2,7 @@ from nicegui import ui
 from opendata.i18n.translator import _, setup_i18n
 from opendata.ui.state import ScanState
 from opendata.ui.context import AppContext
-from opendata.utils import get_local_ip
+from opendata.utils import get_local_ip, get_app_version
 
 
 def render_settings_tab(ctx: AppContext):
@@ -68,6 +68,14 @@ def render_settings_tab(ctx: AppContext):
                         on_click=lambda: confirm_logout(ctx),
                         color="red",
                     ).props("flat")
+
+            ui.separator()
+
+            # Version Info
+            with ui.row().classes("w-full justify-center mt-4"):
+                ui.label(f"OpenData Tool v{get_app_version()}").classes(
+                    "text-xs text-slate-400 italic"
+                )
 
 
 def render_setup_wizard(ctx: AppContext):
