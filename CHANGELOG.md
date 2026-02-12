@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.20.1] - 2026-02-11
+### Fixed
+- **Linux Build Environment**: Added `binutils` to the Linux build container, resolving the `objdump` requirement for PyInstaller.
+
 ## [0.20.0] - 2026-02-11
 ### Changed
 - **Architectural Shift**: Removed all system tray (`pystray`) and desktop anchor (`pywebview`) logic. The application now runs as a pure Terminal + Browser (NiceGUI) service for maximum cross-platform reliability and simplicity.
