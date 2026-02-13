@@ -99,7 +99,7 @@ def extract_metadata_from_ai_response(
 
                     current_analysis = AIAnalysis.model_validate(normalized_analysis)
             except Exception as e:
-                print(f"[ERROR] Failed to validate AIAnalysis: {e}")
+                logger.error(f"Failed to validate AIAnalysis: {e}", exc_info=True)
         else:
             updates = data
 

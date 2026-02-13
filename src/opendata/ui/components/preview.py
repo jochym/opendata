@@ -43,7 +43,7 @@ def render_preview_and_build(ctx: AppContext):
         with ui.card().classes("w-full p-6 shadow-md"):
             ui.label(_("Final Selection Summary")).classes("text-h6 font-bold mb-2")
             if ctx.agent.project_id:
-                if UIState.is_loading_inventory:
+                if ctx.session.is_loading_inventory:
                     with ui.row().classes("items-center gap-2"):
                         ui.spinner(size="sm")
                         ui.label(_("Calculating package statistics...")).classes(
@@ -55,19 +55,19 @@ def render_preview_and_build(ctx: AppContext):
                         with ui.column().classes("gap-0"):
                             ui.label(
                                 _("{count} files selected for inclusion").format(
-                                    count=UIState.total_files_count
+                                    count=ctx.session.total_files_count
                                 )
                             ).classes("font-bold")
                             ui.label(
                                 _("Estimated Package Data Size: {size}").format(
-                                    size=format_size(UIState.total_files_size)
+                                    size=format_size(ctx.session.total_files_size)
                                 )
                             ).classes("text-sm text-slate-500")
 
                 ui.button(
                     _("Edit Selection"),
                     icon="edit",
-                    on_click=lambda: UIState.main_tabs.set_value(UIState.package_tab),
+                    on_click=lambda: ctx.main_tabs.set_value(ctx.package_tab),
                 ).classes("mt-4").props("flat color=primary")
             else:
                 ui.label(_("No project active.")).classes("text-slate-400 italic")

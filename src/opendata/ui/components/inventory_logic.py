@@ -118,28 +118,12 @@ async def load_inventory_background(ctx: AppContext):
     if not ctx.agent.project_id:
         return
 
-    if UIState.inventory_lock:
+    if ctx.session.inventory_lock:
         logger.info("Inventory lock active, skipping background load")
         return
 
-    # Clear old cache ONLY if project ID changed to prevent cross-project pollution
-    is_new_project = UIState.last_inventory_project != ctx.agent.project_id
-    if is_new_project:
-        UIState.inventory_cache = []
-        UIState.grid_rows = []
-        UIState.total_files_count = 0
-        UIState.total_files_size = 0
-        UIState.explorer_path = ""  # Reset explorer to root
-        UIState.folder_children_map = {}
-        UIState.folder_stats = {}
-        try:
-            ctx.refresh("package")
-            ctx.refresh("preview")
-        except RuntimeError:
-            pass
-
-    UIState.inventory_lock = True
-    UIState.is_loading_inventory = True
+    ctx.session.inventory_lock = True
+    ctx.session.is_loading_inventory = True
 
     # Wait a bit to let the initial project load UI stabilize
     await asyncio.sleep(0.3)
@@ -148,8 +132,8 @@ async def load_inventory_background(ctx: AppContext):
         project_path = Path(ScanState.current_path)
         if not project_path.exists():
             logger.warning(f"Project path does not exist: {project_path}")
-            UIState.is_loading_inventory = False
-            UIState.inventory_lock = False
+            ctx.session.is_loading_inventory = False
+            ctx.session.inventory_lock = False
             return
 
         logger.info(f"Loading inventory for {ctx.agent.project_id}...")
@@ -174,7 +158,7 @@ async def load_inventory_background(ctx: AppContext):
             ctx.pkg_mgr.get_inventory_for_ui, project_path, manifest, protocol_excludes
         )
 
-        UIState.inventory_cache = inventory
+        ctx.session.inventory_cache = inventory
 
         # Prepare UI data (summary and explorer index) in background thread
         def prepare_ui_data():
@@ -189,12 +173,12 @@ async def load_inventory_background(ctx: AppContext):
 
         count, size, children_map, stats = await asyncio.to_thread(prepare_ui_data)
 
-        UIState.total_files_count = count
-        UIState.total_files_size = size
-        UIState.folder_children_map = children_map
-        UIState.folder_stats = stats
+        ctx.session.total_files_count = count
+        ctx.session.total_files_size = size
+        ctx.session.folder_children_map = children_map
+        ctx.session.folder_stats = stats
 
-        UIState.last_inventory_project = ctx.agent.project_id
+        ctx.session.last_inventory_project = ctx.agent.project_id
 
         # Always refresh preview and package (if initialized)
         try:
@@ -210,5 +194,5 @@ async def load_inventory_background(ctx: AppContext):
 
         traceback.print_exc()
     finally:
-        UIState.is_loading_inventory = False
-        UIState.inventory_lock = False
+        ctx.session.is_loading_inventory = False
+        ctx.session.inventory_lock = False

@@ -5,6 +5,8 @@ import logging
 from ..models import ExtractionProtocol, ProtocolLevel
 from ..workspace import WorkspaceManager
 
+logger = logging.getLogger("opendata.protocols")
+
 
 class ProtocolManager:
     """Manages hierarchical extraction protocols (System, Global, Field, Project)."""
@@ -110,12 +112,18 @@ class ProtocolManager:
     def get_global_protocol(self) -> ExtractionProtocol:
         path = self.protocols_dir / "global.yaml"
         if path.exists():
-            with open(path, "r", encoding="utf-8") as f:
-                try:
+            try:
+                with open(path, "r", encoding="utf-8") as f:
                     data = yaml.safe_load(f)
+                    if data is None:
+                        return ExtractionProtocol(
+                            id="global_user",
+                            name="Global User Rules",
+                            level=ProtocolLevel.GLOBAL,
+                        )
                     return ExtractionProtocol.model_validate(data)
-                except Exception as e:
-                    print(f"[ERROR] Failed to load global protocol: {e}")
+            except Exception as e:
+                logger.error(f"Failed to load global protocol: {e}", exc_info=True)
         return ExtractionProtocol(
             id="global_user", name="Global User Rules", level=ProtocolLevel.GLOBAL
         )
@@ -174,7 +182,10 @@ class ProtocolManager:
                     data = yaml.safe_load(f)
                     return ExtractionProtocol.model_validate(data)
                 except Exception as e:
-                    print(f"[ERROR] Failed to load project protocol {project_id}: {e}")
+                    logger.error(
+                        f"Failed to load project protocol {project_id}: {e}",
+                        exc_info=True,
+                    )
         return ExtractionProtocol(
             id=f"project_{project_id}",
             name="Project Rules",

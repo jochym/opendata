@@ -24,8 +24,8 @@ def get_resource_path(relative_path: str) -> Path:
     Searches in bundled _MEIPASS, then in package dir, then relative to current file.
     """
     # 1. Check if running in a PyInstaller bundle
-    if hasattr(sys, "_MEIPASS"):
-        return Path(sys._MEIPASS) / relative_path
+    if getattr(sys, "_MEIPASS", None):
+        return Path(sys._MEIPASS) / relative_path  # type: ignore[attr-defined]
 
     # 2. Try to find relative to the package root (src/opendata or site-packages/opendata)
     try:
@@ -290,6 +290,7 @@ def scan_project_lazy(
         total_size_bytes=total_size,
         extensions=list(extensions),
         structure_sample=structure_sample,
+        primary_file=None,
     )
     return fp, full_inventory
 

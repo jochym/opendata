@@ -12,13 +12,13 @@ class PartialMetadata(BaseModel):
     """
 
     title: Optional[str] = None
-    authors: Optional[List[Dict[str, Any]]] = None
-    contacts: Optional[List[Dict[str, Any]]] = None
-    description: Optional[List[str]] = None
-    keywords: Optional[List[str]] = None
-    science_branches_mnisw: Optional[List[str]] = None
-    science_branches_oecd: Optional[List[str]] = None
-    languages: Optional[List[str]] = None
+    authors: Optional[list[dict[str, Any]]] = None
+    contacts: Optional[list[dict[str, Any]]] = None
+    description: Optional[list[str]] = None
+    keywords: Optional[list[str]] = None
+    science_branches_mnisw: Optional[list[str]] = None
+    science_branches_oecd: Optional[list[str]] = None
+    languages: Optional[list[str]] = None
     kind_of_data: Optional[str] = None
 
 
@@ -48,5 +48,5 @@ class ExtractorRegistry:
     def register(self, extractor: BaseExtractor):
         self._extractors.append(extractor)
 
-    def get_extractors_for(self, filepath: Path) -> List[BaseExtractor]:
+    def get_extractors_for(self, filepath: Path) -> list[BaseExtractor]:
         return [e for e in self._extractors if e.can_handle(filepath)]

@@ -20,6 +20,9 @@ from opendata.workspace import WorkspaceManager
 from opendata.utils import scan_project_lazy, PromptManager, FullTextReader
 from opendata.agents.parsing import extract_metadata_from_ai_response
 from opendata.agents.tools import handle_external_tools
+from opendata.agents.scanner import ScannerService
+from opendata.agents.persistence import ProjectStateManager
+from opendata.agents.engine import AnalysisEngine
 
 logger = logging.getLogger("opendata.agents.project_agent")
 
@@ -45,6 +48,11 @@ class ProjectAnalysisAgent:
         self.current_analysis: Optional[AIAnalysis] = None
         self.chat_history: List[Tuple[str, str]] = []  # (Role, Message)
 
+        # Specialized services
+        self.scanner = ScannerService(wm)
+        self.state_manager = ProjectStateManager(wm)
+        self.engine = AnalysisEngine(self.prompt_manager)
+
     def _setup_extractors(self):
         from opendata.extractors.latex import LatexExtractor
         from opendata.extractors.docx import DocxExtractor
@@ -68,11 +76,10 @@ class ProjectAnalysisAgent:
 
     def load_project(self, project_path: Path):
         """Loads an existing project or initializes a new one."""
-        self.project_id = self.wm.get_project_id(project_path)
-        metadata, history, fingerprint, analysis = self.wm.load_project_state(
-            self.project_id
+        pid, metadata, history, fingerprint, analysis = self.state_manager.load_project(
+            project_path
         )
-
+        self.project_id = pid
         if metadata:
             self.current_metadata = metadata
             self.chat_history = history
@@ -83,14 +90,15 @@ class ProjectAnalysisAgent:
 
     def save_state(self):
         """Persists the current state to the workspace."""
-        if self.project_id:
-            self.wm.save_project_state(
-                self.project_id,
-                self.current_metadata,
-                self.chat_history,
-                self.current_fingerprint,
-                self.current_analysis,
-            )
+        if not self.project_id:
+            return
+        self.state_manager.save_state(
+            self.project_id,
+            self.current_metadata,
+            self.chat_history,
+            self.current_fingerprint,
+            self.current_analysis,
+        )
 
     def clear_chat_history(self):
         """Clears the chat history and persists the change."""
@@ -154,6 +162,30 @@ class ProjectAnalysisAgent:
         effective = self.pm.resolve_effective_protocol(self.project_id, field_name)
         exclude_patterns = effective.get("exclude", [])
 
+        self.current_fingerprint, _ = self.scanner.refresh_inventory(
+            self.project_id,
+            project_dir,
+            exclude_patterns,
+            progress_callback,
+            stop_event,
+        )
+
+        if stop_event and stop_event.is_set():
+            return "Scan cancelled by user."
+
+        # Heuristics
+        heuristics_data = self.scanner.run_heuristics(
+            project_dir,
+            self.current_fingerprint,
+            exclude_patterns,
+            self.registry,
+            progress_callback,
+            stop_event,
+        )
+
+        effective = self.pm.resolve_effective_protocol(self.project_id, field_name)
+        exclude_patterns = effective.get("exclude", [])
+
         # 1. Quick fingerpint update
         def wrapped_cb(msg, fpath="", spath=""):
             if progress_callback:
@@ -177,7 +209,7 @@ class ProjectAnalysisAgent:
             db = ProjectInventoryDB(self.wm.get_project_db_path(self.project_id))
             db.update_inventory(full_files)
         except Exception as e:
-            print(f"[ERROR] Failed to refresh inventory in SQLite: {e}")
+            logger.error(f"Failed to refresh inventory in SQLite: {e}", exc_info=True)
 
         # Heuristics
         heuristics_data: Dict[str, Any] = {}
@@ -287,7 +319,7 @@ class ProjectAnalysisAgent:
         mode: str = "metadata",
         stop_event: Optional[Any] = None,
     ) -> str:
-        """Main iterative loop with Context Persistence and Tool recognition."""
+        """Main iterative loop delegated to AnalysisEngine."""
         if not skip_user_append:
             self.chat_history.append(("user", user_text))
             if on_update:
@@ -357,9 +389,8 @@ class ProjectAnalysisAgent:
                     ai_service, extra_files=extra_files, on_update=on_update
                 )
 
-        enhanced_input = handle_external_tools(user_text, ai_service) or user_text
-
         # 3. ADD EXTRA FILES TO CONTEXT
+        enhanced_input = user_text
         if extra_files and self.current_fingerprint:
             extra_context = []
             read_files = []
@@ -372,14 +403,12 @@ class ProjectAnalysisAgent:
                         if p.is_relative_to(project_dir_to_use)
                         else p.name
                     )
-                    # Content goes to enhanced_input but NOT to visible history
                     extra_context.append(
                         f"--- USER-REQUESTED FILE: {rel_p} ---\n{content}"
                     )
                     read_files.append(f"`{rel_p}`")
 
             if extra_context:
-                # Add a stable system message about what was actually read (visible)
                 self.chat_history.append(
                     (
                         "agent",
@@ -390,229 +419,89 @@ class ProjectAnalysisAgent:
                     on_update()
 
                 enhanced_input = (
-                    f"{enhanced_input}\n\n[CONTEXT FROM ATTACHED FILES]\n"
+                    f"{user_text}\n\n[CONTEXT FROM ATTACHED FILES]\n"
                     + "\n".join(extra_context)
                 )
 
-        # 4. CALL AI (With Tool Loop)
-        max_tool_iterations = 5
-        for iteration in range(max_tool_iterations):
-            if stop_event and stop_event.is_set():
-                abort_msg = "🛑 **Analysis cancelled by user.**"
-                self.chat_history.append(("agent", abort_msg))
-                self.save_state()
-                if on_update:
-                    on_update()
-                return abort_msg
+        # 4. CALL ENGINE
+        field_name = (
+            self.current_metadata.science_branches_mnisw[0]
+            if self.current_metadata.science_branches_mnisw
+            else None
+        )
+        effective = self.pm.resolve_effective_protocol(self.project_id, field_name)
 
-            context = self.generate_ai_prompt(mode=mode)
+        def on_system_msg(msg: str):
+            self.chat_history.append(("agent", f"[System] {msg}"))
 
-            # Use only a window of history for context
-            history_str = "\n".join(
-                [f"{role}: {m}" for role, m in self.chat_history[-15:]]
+        clean_msg, analysis, metadata = self.engine.run_ai_loop(
+            ai_service=ai_service,
+            user_input=enhanced_input,
+            chat_history=self.chat_history,
+            current_metadata=self.current_metadata,
+            fingerprint=self.current_fingerprint,
+            effective_protocol=effective,
+            mode=mode,
+            on_update=on_update,
+            on_system_msg=on_system_msg,
+            stop_event=stop_event,
+        )
+
+        # SELECTIVE METADATA UPDATE IN CURATOR MODE
+        if mode == "curator":
+            logger.info(
+                "Curator mode active: allowing only data-related metadata updates."
             )
+            allowed_curator_fields = {
+                "kind_of_data",
+                "software",
+                "notes",
+            }
 
-            full_prompt = self.prompt_manager.render(
-                "chat_wrapper",
-                {
-                    "history": history_str,
-                    "user_input": enhanced_input,
-                    "context": context,
-                },
-            )
+            current_dict = self.current_metadata.model_dump()
+            new_dict = metadata.model_dump()
 
-            # --- STATUS UPDATE: THINKING ---
-            # We assume the UI shows a spinner, but we can also log or notify if needed
-            # For now, relying on the spinner is standard, but we must catch errors.
-
-            def status_callback(msg: str):
-                # Add a temporary system message to history to inform user about backoff
-                self.chat_history.append(("agent", f"[System] {msg}"))
-                self.save_state()
-                if on_update:
-                    on_update()
-
-            try:
-                ai_response = ai_service.ask_agent(
-                    full_prompt, on_status=status_callback
-                )
-            except Exception as e:
-                error_msg = f"❌ **AI Communication Error:** {str(e)}"
-                logger.error(f"AI Error: {e}", exc_info=True)
-                self.chat_history.append(("agent", error_msg))
-                self.save_state()
-                if on_update:
-                    on_update()
-                return error_msg
-
-            # Check for AI errors returned as text
-            if ai_response.startswith("AI Error:") or ai_response.startswith(
-                "AI not authenticated"
-            ):
-                self.chat_history.append(("agent", f"❌ **{ai_response}**"))
-                self.save_state()
-                if on_update:
-                    on_update()
-                return ai_response
-
-            # Ensure ai_response starts with JSON context if it looks like JSON
-            if (
-                ai_response.strip().startswith("{")
-                and "METADATA" not in ai_response
-                and "ANALYSIS" not in ai_response
-            ):
-                # Wrap it to satisfy the extractor
-                ai_response = f"METADATA:\n{ai_response}"
-            elif "METADATA:" not in ai_response and "ANALYSIS" not in ai_response:
-                # Try to find a JSON block even if not labeled
-                json_match = re.search(r"({.*})", ai_response, re.DOTALL)
-                if json_match:
-                    ai_response = f"METADATA:\n{ai_response}"
-
-            # Check for READ_FILE command
-            read_match = re.search(r"READ_FILE:\s*(.+)", ai_response)
-            if read_match and self.current_fingerprint:
-                file_paths_str = read_match.group(1).strip()
-                requested_files = [f.strip() for f in file_paths_str.split(",")]
-                project_dir_to_use = Path(self.current_fingerprint.root_path)
-
-                tool_output = []
-                visible_files = []
-                for rf in requested_files:
-                    p = project_dir_to_use / rf
-                    if p.exists() and p.is_file():
-                        content = FullTextReader.read_full_text(p)
-                        tool_output.append(f"--- FILE CONTENT: {rf} ---\n{content}")
-                        visible_files.append(f"`{rf}`")
-                    else:
-                        tool_output.append(f"--- FILE NOT FOUND: {rf} ---")
-                        visible_files.append(f"`{rf}` (not found)")
-
-                # Invisible full response for context, visible placeholder for history
-                self.chat_history.append(
-                    (
-                        "agent",
-                        f"[System] AI requested content of: {', '.join(visible_files)}",
-                    )
-                )
-
-                # Enhanced input for next step contains the actual data
-                enhanced_input = "[System] READ_FILE Tool Results:\n\n" + "\n\n".join(
-                    tool_output
-                )
-
-                if on_update:
-                    on_update()
-                continue  # Next iteration of the loop
-
-            # If no READ_FILE, finish
-            wrapped_response = (
-                f"METADATA:\n{ai_response}"
-                if "METADATA:" not in ai_response
-                else ai_response
-            )
-
-            clean_msg, analysis, metadata = extract_metadata_from_ai_response(
-                wrapped_response, self.current_metadata
-            )
-
-            # --- GLOB EXPANSION FOR FILE SUGGESTIONS ---
-            if analysis and analysis.file_suggestions and self.current_fingerprint:
-                project_dir = Path(self.current_fingerprint.root_path)
-                expanded_suggestions = []
-                seen_paths = set()
-
-                for sug in analysis.file_suggestions:
-                    # Check if sug.path is a glob pattern
-                    if any(x in sug.path for x in ["*", "?", "["]):
-                        found = list(project_dir.glob(sug.path))
-                        if not found and not sug.path.startswith("**/"):
-                            found = list(project_dir.glob(f"**/{sug.path}"))
-
-                        for p in found:
-                            if p.is_file():
-                                rel_p = str(p.relative_to(project_dir))
-                                if rel_p not in seen_paths:
-                                    expanded_suggestions.append(
-                                        FileSuggestion(
-                                            path=rel_p,
-                                            reason=f"[Pattern match: {sug.path}] {sug.reason}",
-                                        )
-                                    )
-                                    seen_paths.add(rel_p)
-                    else:
-                        if sug.path not in seen_paths:
-                            expanded_suggestions.append(sug)
-                            seen_paths.add(sug.path)
-
-                analysis.file_suggestions = expanded_suggestions
-
-            # SELECTIVE METADATA UPDATE IN CURATOR MODE
-            if mode == "curator":
-                logger.info(
-                    "Curator mode active: allowing only data-related metadata updates."
-                )
-                allowed_curator_fields = {
-                    "kind_of_data",
-                    "software",
-                    "notes",
-                }
-
-                # Create a hybrid metadata: current base + allowed updates from AI
-                current_dict = self.current_metadata.model_dump()
-                new_dict = metadata.model_dump()
-
-                for field in allowed_curator_fields:
-                    if field in new_dict and new_dict[field]:
-                        if field == "notes" and current_dict.get("notes"):
-                            # Append curator's description to existing notes if it's different
-                            if new_dict.get("description"):
-                                desc_str = (
-                                    "\n".join(new_dict["description"])
-                                    if isinstance(new_dict["description"], list)
-                                    else str(new_dict["description"])
+            for field in allowed_curator_fields:
+                if field in new_dict and new_dict[field]:
+                    if field == "notes" and current_dict.get("notes"):
+                        if new_dict.get("description"):
+                            desc_str = (
+                                "\n".join(new_dict["description"])
+                                if isinstance(new_dict["description"], list)
+                                else str(new_dict["description"])
+                            )
+                            if desc_str not in current_dict["notes"]:
+                                current_dict["notes"] += (
+                                    f"\n\n[Curator Analysis]\n{desc_str}"
                                 )
-                                if desc_str not in current_dict["notes"]:
-                                    current_dict["notes"] += (
-                                        f"\n\n[Curator Analysis]\n{desc_str}"
-                                    )
-                        else:
-                            current_dict[field] = new_dict[field]
+                    else:
+                        current_dict[field] = new_dict[field]
 
-                # If curator provided a description, but it's blocked, we move it to notes
-                if "description" in new_dict and new_dict["description"]:
-                    desc_str = (
-                        "\n".join(new_dict["description"])
-                        if isinstance(new_dict["description"], list)
-                        else str(new_dict["description"])
-                    )
-                    current_notes = current_dict.get("notes") or ""
-                    if desc_str not in current_notes:
-                        header = "[Curator Description]"
-                        if header not in current_notes:
-                            current_dict["notes"] = (
-                                current_notes + f"\n\n{header}\n{desc_str}"
-                            ).strip()
+            if "description" in new_dict and new_dict["description"]:
+                desc_str = (
+                    "\n".join(new_dict["description"])
+                    if isinstance(new_dict["description"], list)
+                    else str(new_dict["description"])
+                )
+                current_notes = current_dict.get("notes") or ""
+                if desc_str not in current_notes:
+                    header = "[Curator Description]"
+                    if header not in current_notes:
+                        current_dict["notes"] = (
+                            current_notes + f"\n\n{header}\n{desc_str}"
+                        ).strip()
 
-                metadata = Metadata.model_validate(current_dict)
+            metadata = Metadata.model_validate(current_dict)
 
-            else:
-                # In metadata mode, all fields are updatable (respecting locked_fields inside extract_metadata)
-                pass
+        if analysis:
+            self.current_analysis = analysis
 
-            # Only overwrite analysis if a new one was actually produced
-            if analysis:
-                self.current_analysis = analysis
-
-            self.current_metadata = metadata
-
-            self.chat_history.append(("agent", clean_msg))
-            self.save_state()
-            if on_update:
-                on_update()
-            return clean_msg
-
-        return "Tool loop exceeded maximum iterations."
+        self.current_metadata = metadata
+        self.chat_history.append(("agent", clean_msg))
+        self.save_state()
+        if on_update:
+            on_update()
+        return clean_msg
 
     def analyze_full_text(
         self,
@@ -740,7 +629,9 @@ class ProjectAnalysisAgent:
                     self.current_analysis = None
         except Exception as e:
             # Re-raise with context but protect agent state
-            print(f"[ERROR] Metadata validation failed during form submission: {e}")
+            logger.error(
+                f"Metadata validation failed during form submission: {e}", exc_info=True
+            )
             raise e
 
         human_answers = []
@@ -761,56 +652,15 @@ class ProjectAnalysisAgent:
         return msg
 
     def generate_ai_prompt(self, mode: str = "metadata") -> str:
-        if not self.current_fingerprint:
-            return "No project scanned."
-        fingerprint_summary = self.current_fingerprint.model_dump_json(indent=2)
-        current_data = yaml.dump(
-            self.current_metadata.model_dump(exclude_unset=True), allow_unicode=True
-        )
-
+        """Delegates prompt generation to AnalysisEngine."""
         field_name = (
             self.current_metadata.science_branches_mnisw[0]
             if self.current_metadata.science_branches_mnisw
             else None
         )
         effective = self.pm.resolve_effective_protocol(self.project_id, field_name)
-
-        protocols_str = ""
-        # Legacy prompts
-        if effective.get("prompts"):
-            protocols_str += "ACTIVE PROTOCOLS & USER RULES:\n" + "\n".join(
-                [f"{i}. {p}" for i, p in enumerate(effective["prompts"], 1)]
-            )
-
-        # Mode-specific prompts
-        mode_prompts = effective.get(
-            "metadata_prompts" if mode == "metadata" else "curator_prompts", []
-        )
-        if mode_prompts:
-            if protocols_str:
-                protocols_str += "\n\n"
-            protocols_str += f"SPECIFIC {mode.upper()} INSTRUCTIONS:\n" + "\n".join(
-                [f"{i}. {p}" for i, p in enumerate(mode_prompts, 1)]
-            )
-
-        primary_file_info = ""
-        if self.current_fingerprint and self.current_fingerprint.primary_file:
-            primary_file_info = (
-                f"PRIMARY PUBLICATION FILE: {self.current_fingerprint.primary_file}\n"
-            )
-
-        template = (
-            "system_prompt_metadata" if mode == "metadata" else "system_prompt_curator"
-        )
-
-        return self.prompt_manager.render(
-            template,
-            {
-                "fingerprint": fingerprint_summary,
-                "metadata": current_data,
-                "protocols": protocols_str,
-                "primary_file": primary_file_info,
-            },
+        return self.engine.generate_ai_prompt(
+            mode, self.current_metadata, self.current_fingerprint, effective
         )
 
     def _handle_bug_command(self, user_text: str) -> str:

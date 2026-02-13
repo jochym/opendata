@@ -1,10 +1,13 @@
 from pathlib import Path
 import json
+import logging
 from typing import List, Set, Dict, Optional
 from opendata.models import PackageManifest
 from opendata.workspace import WorkspaceManager
 from opendata.utils import walk_project_files
 import fnmatch
+
+logger = logging.getLogger("opendata.packaging")
 
 
 class PackageManager:
@@ -23,7 +26,9 @@ class PackageManager:
                 with open(manifest_path, "r", encoding="utf-8") as f:
                     return PackageManifest.model_validate_json(f.read())
             except Exception as e:
-                print(f"[ERROR] Failed to load manifest for {project_id}: {e}")
+                logger.error(
+                    f"Failed to load manifest for {project_id}: {e}", exc_info=True
+                )
 
         return PackageManifest(project_id=project_id)
 

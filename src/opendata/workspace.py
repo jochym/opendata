@@ -1,10 +1,13 @@
 from pathlib import Path
 import yaml
 import hashlib
+import logging
 from typing import Any, Dict, List, Type, TypeVar
 from pydantic import BaseModel
 from opendata.models import UserSettings, Metadata, ProjectFingerprint, AIAnalysis
 import json
+
+logger = logging.getLogger("opendata.workspace")
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -210,7 +213,9 @@ class WorkspaceManager:
                     self._projects_cache = None
                 return success
             except Exception as e:
-                print(f"[ERROR] Failed to delete project directory {pdir}: {e}")
+                logger.error(
+                    f"Failed to delete project directory {pdir}: {e}", exc_info=True
+                )
                 return False
         return False
 

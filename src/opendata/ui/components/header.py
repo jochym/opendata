@@ -54,7 +54,7 @@ def header_content_ui(ctx: AppContext):
 
             async def on_selector_change(e):
                 # Guard against infinite loops: only load if ID actually changed AND not in refresh
-                if UIState._is_refreshing_global:
+                if ctx.session._is_refreshing_global:
                     return
                 if e.value and e.value != ctx.agent.project_id:
                     if e.value in project_options:
@@ -81,10 +81,10 @@ def header_content_ui(ctx: AppContext):
                 .classes("w-48 text-xs")
             )
             selector.bind_visibility_from(
-                UIState, "is_project_loading", backward=lambda x: not x
+                ctx.session, "is_project_loading", backward=lambda x: not x
             )
             ui.spinner(size="sm", color="white").bind_visibility_from(
-                UIState, "is_project_loading"
+                ctx.session, "is_project_loading"
             )
 
             with (
@@ -108,11 +108,16 @@ async def handle_load_project(ctx: AppContext, path: str):
         ui.notify(_("Invalid path: {error}").format(error=str(e)), type="negative")
         return
 
-    UIState.is_project_loading = True
+    ctx.session.is_project_loading = True
     try:
         ui.notify(_("Opening project..."))
         project_id = ctx.wm.get_project_id(path_obj)
         ctx.agent.project_id = project_id
+
+        # Reset session state for new project
+        from opendata.ui.context import SessionState
+
+        ctx.session = SessionState()
 
         success = await asyncio.to_thread(ctx.agent.load_project, path_obj)
         ScanState.current_path = str(path_obj)
@@ -135,7 +140,7 @@ async def handle_load_project(ctx: AppContext, path: str):
         else:
             ui.notify(_("New project directory opened."))
     finally:
-        UIState.is_project_loading = False
+        ctx.session.is_project_loading = False
 
 
 async def handle_delete_current(ctx: AppContext):

@@ -16,13 +16,15 @@ class Hdf5Extractor(BaseExtractor):
             with h5py.File(filepath, "r") as f:
                 # Look for common metadata attributes at the root
                 if "title" in f.attrs:
-                    metadata.title = f.attrs["title"]
+                    metadata.title = str(f.attrs["title"])
                 if "description" in f.attrs:
-                    metadata.description = [f.attrs["description"]]
+                    metadata.description = [str(f.attrs["description"])]
 
                 # Check for RODBUK specific fields if they were saved previously
                 if "authors" in f.attrs:
-                    metadata.authors = [{"name": a} for a in f.attrs["authors"]]
+                    metadata.authors = [
+                        {"name": str(a)} for a in list(f.attrs["authors"])
+                    ]
 
                 metadata.kind_of_data = "HDF5 Dataset"
 

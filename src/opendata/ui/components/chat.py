@@ -182,120 +182,121 @@ def render_analysis_dashboard(ctx: AppContext):
         value=ctx.settings.splitter_value, on_change=on_splitter_change
     ).classes("w-full h-[calc(100vh-104px)] min-h-[600px] m-0 p-0") as splitter:
         with splitter.before:
-            with ui.column().classes("w-full h-full pr-2"):
-                with ui.card().classes("w-full h-full p-0 shadow-md flex flex-col"):
-                    with ui.row().classes(
-                        "bg-slate-100 text-slate-800 p-2 w-full justify-between items-center shrink-0 border-b"
-                    ):
-                        with ui.row().classes("items-center gap-2"):
-                            ui.label(_("Agent Mode:")).classes("text-xs font-bold")
-                            ui.toggle(
-                                {"metadata": _("Metadata"), "curator": _("Curator")},
-                                value=ScanState.agent_mode,
-                                on_change=lambda e: setattr(
-                                    ScanState, "agent_mode", e.value
-                                ),
-                            ).props("dense size=sm").bind_value(ScanState, "agent_mode")
-
-                        with ui.row().classes("gap-2"):
-                            ui.button(
-                                icon="delete_sweep",
-                                on_click=lambda: handle_clear_chat(ctx),
-                            ).props("flat dense color=red").classes("text-xs")
-                            ui.tooltip(_("Clear Chat History"))
-                    with ui.scroll_area().classes("flex-grow w-full"):
-                        chat_messages_ui(ctx)
-                    with ui.row().classes(
-                        "bg-white p-3 border-t w-full items-center no-wrap gap-2 shrink-0"
-                    ):
-                        user_input = (
-                            ui.textarea(
-                                placeholder=_(
-                                    "Type your response (Ctrl+Enter or button to send)..."
-                                )
-                            )
-                            .classes("flex-grow")
-                            .props("rows=3")
-                        )
-
-                        async def handle_ctrl_enter(e):
-                            if getattr(e.args, "ctrlKey", False):
-                                await handle_user_msg(ctx, user_input)
-
-                        user_input.on("keydown.enter", handle_ctrl_enter)
-                        ui.button(
-                            icon="send",
-                            on_click=lambda: handle_user_msg(ctx, user_input),
-                        ).props("round elevated color=primary")
-
+            render_chat_panel(ctx)
         with splitter.after:
-            with ui.column().classes("w-full h-full pl-2"):
-                with ui.card().classes(
-                    "w-full h-full p-3 shadow-md border-l-4 border-green-500 flex flex-col"
-                ):
-                    with ui.row().classes(
-                        "w-full justify-between items-center mb-1 shrink-0"
-                    ):
-                        ui.label(_("RODBUK Metadata")).classes(
-                            "text-h5 font-bold text-green-800"
+            render_metadata_panel(ctx)
+
+
+def render_chat_panel(ctx: AppContext):
+    with ui.column().classes("w-full h-full pr-2"):
+        with ui.card().classes("w-full h-full p-0 shadow-md flex flex-col"):
+            with ui.row().classes(
+                "bg-slate-100 text-slate-800 p-2 w-full justify-between items-center shrink-0 border-b"
+            ):
+                with ui.row().classes("items-center gap-2"):
+                    ui.label(_("Agent Mode:")).classes("text-xs font-bold")
+                    ui.toggle(
+                        {"metadata": _("Metadata"), "curator": _("Curator")},
+                        value=ScanState.agent_mode,
+                        on_change=lambda e: setattr(ScanState, "agent_mode", e.value),
+                    ).props("dense size=sm")
+
+                with ui.row().classes("gap-2"):
+                    ui.button(
+                        icon="delete_sweep",
+                        on_click=lambda: handle_clear_chat(ctx),
+                    ).props("flat dense color=red").classes("text-xs")
+                    ui.tooltip(_("Clear Chat History"))
+            with ui.scroll_area().classes("flex-grow w-full"):
+                chat_messages_ui(ctx)
+            with ui.row().classes(
+                "bg-white p-3 border-t w-full items-center no-wrap gap-2 shrink-0"
+            ):
+                user_input = (
+                    ui.textarea(
+                        placeholder=_(
+                            "Type your response (Ctrl+Enter or button to send)..."
                         )
-                        ui.button(
-                            icon="refresh", on_click=lambda: handle_clear_metadata(ctx)
-                        ).props("flat dense color=orange")
-                        ui.tooltip(_("Reset Metadata"))
-                    with ui.row().classes("w-full items-center gap-1 mb-2 shrink-0"):
+                    )
+                    .classes("flex-grow")
+                    .props("rows=3")
+                )
 
-                        async def pick_dir():
-                            picker = LocalFilePicker(
-                                directory=ScanState.current_path or "~",
-                                directory_only=True,
-                            )
-                            result = await picker
-                            if result:
-                                ScanState.current_path = result
-                                path_input.value = result
+                async def handle_ctrl_enter(e):
+                    if getattr(e.args, "ctrlKey", False):
+                        await handle_user_msg(ctx, user_input)
 
-                        path_input = (
-                            ui.input(
-                                label=_("Project Path"),
-                                placeholder="/path/to/research",
-                            )
-                            .classes("flex-grow")
-                            .props("dense")
-                        )
-                        # Manual binding to state only, without on_change triggers
-                        path_input.bind_value(ScanState, "current_path")
+                user_input.on("keydown.enter", handle_ctrl_enter)
+                ui.button(
+                    icon="send",
+                    on_click=lambda: handle_user_msg(ctx, user_input),
+                ).props("round elevated color=primary")
 
-                        ui.button(icon="folder", on_click=pick_dir).props("dense flat")
 
-                        from opendata.ui.components.header import handle_load_project
+def render_metadata_panel(ctx: AppContext):
+    with ui.column().classes("w-full h-full pl-2"):
+        with ui.card().classes(
+            "w-full h-full p-3 shadow-md border-l-4 border-green-500 flex flex-col"
+        ):
+            with ui.row().classes("w-full justify-between items-center mb-1 shrink-0"):
+                ui.label(_("RODBUK Metadata")).classes(
+                    "text-h5 font-bold text-green-800"
+                )
+                ui.button(
+                    icon="refresh", on_click=lambda: handle_clear_metadata(ctx)
+                ).props("flat dense color=orange")
+                ui.tooltip(_("Reset Metadata"))
+            with ui.row().classes("w-full items-center gap-1 mb-2 shrink-0"):
 
-                        ui.button(
-                            _("Open"),
-                            on_click=lambda: handle_load_project(ctx, path_input.value),
-                        ).props("dense outline").classes("shrink-0")
+                async def pick_dir():
+                    picker = LocalFilePicker(
+                        directory=ScanState.current_path or "~",
+                        directory_only=True,
+                    )
+                    result = await picker
+                    if result:
+                        ScanState.current_path = result
+                        path_input.value = result
 
-                    with ui.column().classes("gap-1 mb-2 w-full shrink-0"):
-                        ui.button(
-                            _("Analyze Directory"),
-                            icon="search",
-                            on_click=lambda: handle_scan(
-                                ctx, path_input.value, force=True
-                            ),
-                        ).classes("w-full").props("dense").bind_visibility_from(
-                            ScanState, "is_scanning", backward=lambda x: not x
-                        )
-                        ui.button(
-                            _("Cancel Scan"),
-                            icon="stop",
-                            on_click=lambda: handle_cancel_scan(ctx),
-                            color="red",
-                        ).classes("w-full").props("dense").bind_visibility_from(
-                            ScanState, "is_scanning"
-                        )
-                        ui.separator().classes("mt-1")
-                    with ui.scroll_area().classes("flex-grow w-full"):
-                        metadata_preview_ui(ctx)
+                path_input = (
+                    ui.input(
+                        label=_("Project Path"),
+                        placeholder="/path/to/research",
+                    )
+                    .classes("flex-grow")
+                    .props("dense")
+                )
+                # Manual binding to state only, without on_change triggers
+                path_input.bind_value(ScanState, "current_path")
+
+                ui.button(icon="folder", on_click=pick_dir).props("dense flat")
+
+                from opendata.ui.components.header import handle_load_project
+
+                ui.button(
+                    _("Open"),
+                    on_click=lambda: handle_load_project(ctx, path_input.value),
+                ).props("dense outline").classes("shrink-0")
+
+            with ui.column().classes("gap-1 mb-2 w-full shrink-0"):
+                ui.button(
+                    _("Analyze Directory"),
+                    icon="search",
+                    on_click=lambda: handle_scan(ctx, path_input.value, force=True),
+                ).classes("w-full").props("dense").bind_visibility_from(
+                    ScanState, "is_scanning", backward=lambda x: not x
+                )
+                ui.button(
+                    _("Cancel Scan"),
+                    icon="stop",
+                    on_click=lambda: handle_cancel_scan(ctx),
+                    color="red",
+                ).classes("w-full").props("dense").bind_visibility_from(
+                    ScanState, "is_scanning"
+                )
+                ui.separator().classes("mt-1")
+            with ui.scroll_area().classes("flex-grow w-full"):
+                metadata_preview_ui(ctx)
 
 
 async def handle_user_msg(ctx: AppContext, input_element):
@@ -322,7 +323,7 @@ async def handle_user_msg_from_code(ctx: AppContext, text: str, mode: str = "met
         )
 
     ScanState.is_processing_ai = True
-    UIState.ai_stop_event = threading.Event()
+    ctx.session.ai_stop_event = threading.Event()
     ctx.refresh("chat")
 
     try:
@@ -333,14 +334,15 @@ async def handle_user_msg_from_code(ctx: AppContext, text: str, mode: str = "met
             skip_user_append=True,
             on_update=ctx.refresh_all,
             mode=mode,
-            stop_event=UIState.ai_stop_event,
+            stop_event=ctx.session.ai_stop_event,
         )
     except Exception as e:
         ui.notify(f"Error processing AI request: {e}", type="negative")
     finally:
         ScanState.is_processing_ai = False
-        UIState.ai_stop_event = None
+        ctx.session.ai_stop_event = None
         ctx.refresh_all()
+
         try:
             ui.run_javascript("window.scrollTo(0, document.body.scrollHeight)")
         except RuntimeError:
@@ -360,8 +362,8 @@ async def handle_cancel_scan(ctx: AppContext):
 
 
 async def handle_cancel_ai(ctx: AppContext):
-    if UIState.ai_stop_event:
-        UIState.ai_stop_event.set()
+    if ctx.session.ai_stop_event:
+        ctx.session.ai_stop_event.set()
         ui.notify(_("Stopping AI..."))
 
 

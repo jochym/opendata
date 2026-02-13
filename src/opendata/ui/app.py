@@ -72,18 +72,18 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
     ai.authenticate(silent=True)
 
     # --- REFRESH LOGIC ---
-    UIState._is_refreshing_global = False
+    ctx.session._is_refreshing_global = False
 
     def refresh_all():
-        if UIState._is_refreshing_global:
+        if ctx.session._is_refreshing_global:
             return
 
         now = time.time()
-        if now - UIState.last_refresh_time < 0.5:
+        if now - ctx.session.last_refresh_time < 0.5:
             return
 
-        UIState.last_refresh_time = now
-        UIState._is_refreshing_global = True
+        ctx.session.last_refresh_time = now
+        ctx.session._is_refreshing_global = True
         try:
             # Thread-safe refresh calls
             ctx.refresh("chat")
@@ -95,7 +95,9 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
         except Exception as e:
             logger.error(f"Refresh error: {e}")
         finally:
-            UIState._is_refreshing_global = False
+            ctx.session._is_refreshing_global = False
+
+    ctx.refresh_all = refresh_all
 
     ctx.refresh_all = refresh_all
 

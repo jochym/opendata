@@ -13,7 +13,7 @@ class DocxExtractor(BaseExtractor):
         metadata = PartialMetadata()
         try:
             # We use python-docx's built-in core properties (fast, no heavy read)
-            doc = Document(filepath)
+            doc = Document(str(filepath))
             props = doc.core_properties
 
             if props.title:

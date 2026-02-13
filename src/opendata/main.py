@@ -6,6 +6,8 @@ import time
 import webbrowser
 from opendata.utils import get_app_version, setup_logging
 
+logger = logging.getLogger("opendata.main")
+
 
 def run_server_process(host: str, port: int, log_level: int):
     """
@@ -18,7 +20,7 @@ def run_server_process(host: str, port: int, log_level: int):
 
         start_ui(host=host, port=port)
     except Exception as e:
-        print(f"[ERROR] Server process failed: {e}")
+        logger.error(f"Server process failed: {e}", exc_info=True)
         sys.exit(1)
 
 

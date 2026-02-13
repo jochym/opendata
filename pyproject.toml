@@ -47,6 +47,7 @@ where = ["src"]
 "opendata" = ["prompts/*.md", "ui/**/*", "VERSION"]
 
 [tool.pytest.ini_options]
+pythonpath = ["src"]
 testpaths = ["tests"]
 python_files = "test_*.py"
 

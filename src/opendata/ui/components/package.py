@@ -24,11 +24,11 @@ def render_package_tab(ctx: AppContext):
         return
 
     # Trigger background load if project changed, but in a safe way
-    if UIState.last_inventory_project != ctx.agent.project_id:
-        if not UIState.is_loading_inventory:
+    if ctx.session.last_inventory_project != ctx.agent.project_id:
+        if not ctx.session.is_loading_inventory:
             ui.timer(0.1, lambda: load_inventory_background(ctx), once=True)
 
-    if UIState.is_loading_inventory and not UIState.inventory_cache:
+    if ctx.session.is_loading_inventory and not ctx.session.inventory_cache:
         with ui.column().classes("w-full items-center justify-center p-20 gap-4"):
             ui.spinner(size="xl")
             ui.label(_("Reading project inventory from database...")).classes(
@@ -41,11 +41,11 @@ def render_package_tab(ctx: AppContext):
     if (
         ctx.agent.current_analysis
         and ctx.agent.current_analysis.file_suggestions
-        and UIState.show_suggestions_banner
+        and ctx.session.show_suggestions_banner
     ):
         render_suggestions_banner(ctx)
 
-    if not UIState.inventory_cache:
+    if not ctx.session.inventory_cache:
         with ui.column().classes("w-full items-center justify-center p-20 gap-4"):
             ui.icon("inventory", size="xl", color="grey-400")
             ui.label(_("No file inventory found.")).classes("text-orange-600 font-bold")
@@ -99,7 +99,7 @@ def render_package_tab(ctx: AppContext):
                 ).props("outline color=grey-7")
 
         # Progress & Stats Bar
-        if ScanState.is_scanning or UIState.is_loading_inventory:
+        if ScanState.is_scanning or ctx.session.is_loading_inventory:
             with ui.row().classes(
                 "w-full items-center gap-2 p-2 bg-blue-50 border border-blue-100 rounded"
             ):
@@ -112,7 +112,7 @@ def render_package_tab(ctx: AppContext):
                         "text-[10px] text-blue-400 truncate flex-grow"
                     )
 
-        included_files = [f for f in inventory if f["included"]]
+        included_files = [f for f in ctx.session.inventory_cache if f["included"]]
         total_size = sum(f["size"] for f in included_files)
 
         with ui.row().classes(
@@ -127,9 +127,9 @@ def render_package_tab(ctx: AppContext):
 
             ui.switch(
                 _("Show only included files"),
-                value=UIState.show_only_included,
+                value=ctx.session.show_only_included,
                 on_change=lambda e: (
-                    setattr(UIState, "show_only_included", e.value),
+                    setattr(ctx.session, "show_only_included", e.value),
                     ctx.refresh("package"),
                 ),
             ).props("dense size=sm")
@@ -146,7 +146,7 @@ def render_package_tab(ctx: AppContext):
 
 def render_breadcrumbs(ctx: AppContext):
     """Renders the navigation path."""
-    current_path = UIState.explorer_path
+    current_path = ctx.session.explorer_path
     parts = Path(current_path).parts if current_path else []
 
     with ui.row().classes(
@@ -186,15 +186,15 @@ def render_breadcrumbs(ctx: AppContext):
 
 def navigate_to(ctx: AppContext, path: str):
     """Updates the explorer path and refreshes the view."""
-    UIState.explorer_path = path
+    ctx.session.explorer_path = path
     ctx.refresh("package")
 
 
 def render_file_list(ctx: AppContext):
     """Renders the list of files and folders in the current explorer path."""
-    current_path = UIState.explorer_path
+    current_path = ctx.session.explorer_path
     # Get children from cache (built in inventory_logic)
-    children = UIState.folder_children_map.get(current_path, [])
+    children = ctx.session.folder_children_map.get(current_path, [])
 
     if not children:
         with ui.column().classes(
@@ -208,7 +208,7 @@ def render_file_list(ctx: AppContext):
     with ui.column().classes("w-full gap-0"):
         for item in children:
             # Filter if "Show only included" is active
-            if UIState.show_only_included:
+            if ctx.session.show_only_included:
                 if item["type"] == "file" and not item["included"]:
                     continue
                 # For folders, we'd need recursive check, simplified for now:
@@ -306,7 +306,7 @@ async def toggle_folder(ctx: AppContext, folder_path: str, current_state: str):
     should_include = current_state == "unchecked"
     pid = ctx.agent.project_id
     manifest = ctx.pkg_mgr.get_manifest(pid)
-    inventory = UIState.inventory_cache
+    inventory = ctx.session.inventory_cache
 
     folder_prefix = folder_path + "/"
     target_files = []
@@ -449,7 +449,7 @@ async def open_suggestions_dialog(ctx: AppContext):
 
 
 def clear_suggestions(ctx: AppContext):
-    UIState.show_suggestions_banner = False
+    ctx.session.show_suggestions_banner = False
     ctx.refresh("package")
 
 
@@ -457,7 +457,7 @@ def forget_suggestions(ctx: AppContext):
     if ctx.agent.current_analysis:
         ctx.agent.current_analysis.file_suggestions = []
         ctx.agent.save_state()
-    UIState.show_suggestions_banner = True
+    ctx.session.show_suggestions_banner = True
     ctx.refresh("package")
 
 
@@ -466,7 +466,7 @@ async def handle_ai_suggestion_request(ctx: AppContext):
         ui.notify(_("Please open a project first."), type="warning")
         return
 
-    UIState.show_suggestions_banner = True
+    ctx.session.show_suggestions_banner = True
     ScanState.agent_mode = "curator"
     prompt = _(
         "Analyze the project structure and primary publication to suggest all files required for results reproduction. Focus on data-script linkages."
@@ -508,7 +508,7 @@ async def handle_refresh_inventory(ctx: AppContext):
 
     ScanState.is_scanning = False
     ScanState.stop_event = None
-    UIState.last_inventory_project = ""
+    ctx.session.last_inventory_project = ""
     await load_inventory_background(ctx)
 
     try:
