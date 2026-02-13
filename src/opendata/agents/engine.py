@@ -134,6 +134,10 @@ class AnalysisEngine:
                 return f"❌ **{ai_response}**", None, current_metadata
 
             # Ensure ai_response starts with JSON context if it looks like JSON
+            # But ONLY if it's not an explicit error message
+            if ai_response.startswith(("AI Error", "AI Connection Error", "❌")):
+                return ai_response, None, current_metadata
+
             if (
                 ai_response.strip().startswith("{")
                 and "METADATA" not in ai_response

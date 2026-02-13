@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.0] - 2026-02-13
+### Added
+- **AI-Driven Heuristics**: Replaced traditional local parsers with a purely AI-driven file identification phase. The AI now analyzes the project structure to find the most significant files for metadata extraction.
+- **Three-Phase Workflow**: Implemented a clear, linear analysis sequence: **Scan** (Inventory) -> **Heuristics** (File Identification) -> **AI Analyze** (Content Extraction).
+- **Significant Files Management**: Added an interactive, foldable UI component to view and manually edit the list of files identified for deep analysis.
+- **Enhanced Metadata Rendering**:
+    - **Software Badges**: Software names are now displayed as badges with version details in tooltips.
+    - **Funding Badges**: Funder and award information is regularized into "Agency (ID)" badges with full details in tooltips.
+- **Prompt Architecture Documentation**: Created `docs/PROMPT_ARCHITECTURE.md` detailing the hierarchical protocol system and context injection mechanics.
+
+### Changed
+- **AI Timeout**: Increased OpenAI/Ollama provider timeout to 120 seconds to handle slower local endpoints.
+- **Context Injection**: The AI analysis phase now actively reads and sends the full text content of all identified significant files (papers, configs, READMEs).
+- **Protocol Naming**: Renamed "Global" protocol to **"User"** protocol to better reflect its per-user configuration nature.
+
+### Fixed
+- **Stability**: Fixed several `AttributeError` and `TypeError` crashes during AI response parsing and form submission.
+- **Data Integrity**: Implemented robust Pydantic validators to handle structured AI responses (e.g., software/funding as dictionaries) and ensure consistent metadata updates.
+- **UI Responsiveness**: Added `try...finally` blocks to all background tasks to ensure the scanning spinner is always reset, even on failure or cancellation.
+- **Auto-Open**: Selecting a directory via the folder browser now automatically opens the project and initializes its state.
+- **Database Initialization**: Fixed `sqlite3.OperationalError` by ensuring project directories are created before initializing the inventory database.
+
+## [0.20.12] - 2026-02-13
+### Fixed
+- **AI Response Parsing**: Added robust handling for malformed JSON and error messages from AI providers.
+- **UI Polish**: Adjusted field heights and padding in the metadata panel to prevent text clipping.
+- **Cancellation**: Improved visual feedback when stopping an active AI analysis.
+
 ## [0.20.11] - 2026-02-13
 ### Added
 - **Diagnostic Logging**: Implemented standard logging system with command-line switches.

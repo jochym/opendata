@@ -18,7 +18,7 @@ def render_protocols_tab(ctx: AppContext):
 
             with ui.tabs().classes("flex-grow justify-end") as protocol_tabs:
                 sys_tab = ui.tab(_("System"), icon="settings_suggest")
-                glob_tab = ui.tab(_("Global"), icon="public")
+                user_tab = ui.tab(_("User"), icon="person")
                 field_tab = ui.tab(_("Field"), icon="science")
                 proj_tab = ui.tab(_("Project"), icon="folder_special")
 
@@ -28,11 +28,11 @@ def render_protocols_tab(ctx: AppContext):
             with ui.tab_panel(sys_tab).classes("p-0 h-full"):
                 render_protocol_editor(ctx, ctx.pm.system_protocol)
 
-            with ui.tab_panel(glob_tab).classes("p-0 h-full"):
+            with ui.tab_panel(user_tab).classes("p-0 h-full"):
                 render_protocol_editor(
                     ctx,
-                    ctx.pm.get_global_protocol(),
-                    on_save=ctx.pm.save_global_protocol,
+                    ctx.pm.get_user_protocol(),
+                    on_save=ctx.pm.save_user_protocol,
                 )
 
             with ui.tab_panel(field_tab).classes("p-0 h-full"):
@@ -246,6 +246,15 @@ def render_protocol_editor(ctx: AppContext, protocol: ExtractionProtocol, on_sav
             ):
 
                 def handle_save():
+                    # Stop any running scan if protocol changes
+                    if ScanState.is_scanning and ScanState.stop_event:
+                        ScanState.stop_event.set()
+                        # We don't reset is_scanning here, the scan thread finally block will do it
+                        ui.notify(
+                            _("Stopping current scan to apply protocol changes..."),
+                            type="warning",
+                        )
+
                     protocol.exclude_patterns = [
                         l.strip() for l in exclude_area.value.split("\n") if l.strip()
                     ]

@@ -133,7 +133,17 @@ This document serves as a historical log of completed development phases for the
 
 - **Phase 20 Scalability & Transparency [COMPLETE]:**
   - **High-Performance File Explorer:** Replaced legacy tree view with a virtualized list and breadcrumb navigation for handling infinite file counts.
-  - **Transparent AI Status:** Implemented real-time system callbacks in the chat window (e.g., "Reading file...", "Rate limit hit").
+  - **Transparent AI Status:** Implemented real-time system callbacks in the chat window (e.g., \"Reading file...\", \"Rate limit hit\").
   - **Stop Button:** Added a dedicated button to abort AI analysis or directory scanning operations.
   - **Robust Error Handling:** Enabled raw error view for malformed AI responses and persistent file suggestions.
   - **UI Polish:** Unified icon sizes and layout alignment across the Package and Chat components.
+
+- **Phase 21 AI-Centric Workflow & Refinement [COMPLETE]:**
+  - **AI Heuristics:** Replaced traditional local parsers with a purely AI-driven identification phase that selects significant files (papers, configs, logs) from the inventory.
+  - **Three-Phase Sequence:** Implemented a strict, linear analysis flow: **Scan** (Inventory) -> **Heuristics** (Selection) -> **AI Analyze** (Deep Extraction).
+  - **Significant Files Management:** Added a foldable UI component and interactive dialog to view and manually edit the list of files used for deep AI analysis.
+  - **Context-Grounded Analysis:** Integrated full-text reading of all identified significant files directly into the initial AI analysis prompt.
+  - **Advanced Metadata Rendering:** Implemented name-badges with detailed tooltips for software and funding fields, restoring the intuitive 0.20.x series style.
+  - **Robust Data Handling:** Added automatic Pydantic validation and normalization for complex metadata fields, preventing crashes from structured AI responses.
+  - **Stability & Reliability:** Wrapped all background tasks in `try...finally` blocks with explicit `asyncio.CancelledError` handling to ensure consistent UI state and spinner resets.
+

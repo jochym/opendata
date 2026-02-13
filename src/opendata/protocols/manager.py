@@ -109,28 +109,43 @@ class ProtocolManager:
             ],
         )
 
-    def get_global_protocol(self) -> ExtractionProtocol:
-        path = self.protocols_dir / "global.yaml"
+    def get_user_protocol(self) -> ExtractionProtocol:
+        path = self.protocols_dir / "user.yaml"
+        old_path = self.protocols_dir / "global.yaml"
+
+        # Migration: global.yaml -> user.yaml
+        if old_path.exists() and not path.exists():
+            try:
+                old_path.rename(path)
+                logger.info("Migrated global.yaml to user.yaml")
+            except Exception as e:
+                logger.warning(f"Failed to migrate global protocol: {e}")
+
         if path.exists():
             try:
                 with open(path, "r", encoding="utf-8") as f:
                     data = yaml.safe_load(f)
                     if data is None:
                         return ExtractionProtocol(
-                            id="global_user",
-                            name="Global User Rules",
-                            level=ProtocolLevel.GLOBAL,
+                            id="user_rules",
+                            name="User Rules",
+                            level=ProtocolLevel.USER,
                         )
+
+                    # Data Migration: global -> user level
+                    if isinstance(data, dict) and data.get("level") == "global":
+                        data["level"] = "user"
+
                     return ExtractionProtocol.model_validate(data)
             except Exception as e:
-                logger.error(f"Failed to load global protocol: {e}", exc_info=True)
+                logger.error(f"Failed to load user protocol: {e}", exc_info=True)
         return ExtractionProtocol(
-            id="global_user", name="Global User Rules", level=ProtocolLevel.GLOBAL
+            id="user_rules", name="User Rules", level=ProtocolLevel.USER
         )
 
-    def save_global_protocol(self, protocol: ExtractionProtocol):
-        protocol.level = ProtocolLevel.GLOBAL
-        path = self.protocols_dir / "global.yaml"
+    def save_user_protocol(self, protocol: ExtractionProtocol):
+        protocol.level = ProtocolLevel.USER
+        path = self.protocols_dir / "user.yaml"
         with open(path, "w", encoding="utf-8") as f:
             yaml.dump(
                 protocol.model_dump(mode="json"), f, allow_unicode=True, sort_keys=False
@@ -206,7 +221,7 @@ class ProtocolManager:
         self, project_id: Optional[str] = None, field_name: Optional[str] = None
     ) -> Dict:
         """Merges all layers into a final instruction set."""
-        layers = [self.system_protocol, self.get_global_protocol()]
+        layers = [self.system_protocol, self.get_user_protocol()]
 
         if field_name:
             layers.append(self.get_field_protocol(field_name))

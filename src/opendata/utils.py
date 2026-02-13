@@ -1,5 +1,6 @@
 import logging
 import re
+import asyncio
 from pathlib import Path
 import socket
 import sys
@@ -257,6 +258,9 @@ def scan_project_lazy(
     UI_UPDATE_INTERVAL = 0.1
 
     for p, stat in walk_project_files(root, stop_event, exclude_patterns):
+        if stop_event and stop_event.is_set():
+            raise asyncio.CancelledError("Scan cancelled by user")
+
         if stat is None:  # It's a directory
             pass
         else:  # It's a file

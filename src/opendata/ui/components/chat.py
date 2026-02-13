@@ -1,72 +1,49 @@
 import asyncio
-import threading
+import logging
 import re
-from typing import Any
+import threading
 from pathlib import Path
+from typing import Any
+
 from nicegui import ui
+
 from opendata.i18n.translator import _
-from opendata.ui.state import ScanState, UIState
-from opendata.ui.context import AppContext
-from opendata.ui.components.metadata import metadata_preview_ui, handle_clear_metadata
 from opendata.ui.components.file_picker import LocalFilePicker
+from opendata.ui.components.metadata import metadata_preview_ui
+from opendata.ui.context import AppContext
+from opendata.ui.state import ScanState
+
+logger = logging.getLogger("opendata.ui.chat")
 
 
 @ui.refreshable
 def chat_messages_ui(ctx: AppContext):
-    with ui.column().classes("w-full gap-1 overflow-x-hidden"):
-        # Limit history display to last 30 messages to avoid WebSocket overload
-        display_history = ctx.agent.chat_history[-30:]
+    with ui.column().classes("w-full gap-4 p-4"):
+        if not ctx.agent.chat_history:
+            with ui.column().classes(
+                "w-full items-center justify-center p-8 opacity-50"
+            ):
+                ui.icon("chat_bubble_outline", size="lg")
+                ui.label(_("No conversation history yet.")).classes("text-sm")
+                ui.label(
+                    _("Analyze the directory or ask a question to start.")
+                ).classes("text-xs")
 
-        for i, (role, msg) in enumerate(display_history):
-            # Skip technical messages from display
-            if msg.startswith("READ_FILE:"):
-                continue
-
-            # Format System/Context messages nicely
-            if msg.startswith("[System] context expanded with content of:"):
-                files = msg.replace(
-                    "[System] context expanded with content of:", ""
-                ).strip()
-                msg = f"📂 **Context Loaded:** Read content of {files}"
-
-            elif msg.startswith("[System] AI requested content of:"):
-                files = msg.replace("[System] AI requested content of:", "").strip()
-                msg = f"🔍 **Analysis:** I need to read {files} to understand the data structure."
-
-            elif "[System] READ_FILE Tool Results:" in msg:
-                # Show only a placeholder for read files
-                msg = _("✅ **File Content Loaded.** Continuing analysis...")
-
+        for i, (role, text) in enumerate(ctx.agent.chat_history):
             if role == "user":
-                with ui.row().classes("w-full justify-start"):
+                with ui.row().classes("w-full justify-end"):
                     with ui.card().classes(
-                        "bg-blue-50 border border-blue-100 rounded-lg py-0.5 px-3 w-full ml-12 shadow-none"
+                        "bg-blue-500 text-white rounded-lg py-2 px-4 max-w-[80%] shadow-sm"
                     ):
-                        ui.markdown(msg).classes(
-                            "text-sm text-gray-800 m-0 p-0 break-words"
-                        )
+                        ui.markdown(text).classes("text-sm")
             else:
                 with ui.row().classes("w-full justify-start"):
                     with ui.card().classes(
-                        "bg-gray-100 border border-gray-200 rounded-lg py-0.5 px-3 w-full shadow-none"
+                        "bg-white border border-slate-200 rounded-lg py-2 px-4 max-w-[90%] shadow-sm"
                     ):
-                        # Filter out internal JSON blocks from the visible message
-                        # UNLESS it is an error report which needs to show the raw data
-                        if "❌" in msg or "**Error" in msg:
-                            display_msg = msg
-                        else:
-                            display_msg = re.sub(
-                                r"METADATA:.*", "", msg, flags=re.DOTALL
-                            ).strip()
+                        ui.markdown(text).classes("text-sm text-slate-800")
 
-                        if not display_msg and "METADATA:" in msg:
-                            display_msg = _("✅ Metadata processed (see Preview tab)")
-
-                        ui.markdown(display_msg).classes(
-                            "text-sm text-gray-800 m-0 p-0 break-words"
-                        )
-
-                        # If this is the last agent message and we have an active analysis, show the form
+                        # If this is the last message and there's an active analysis form, show it
                         if (
                             i == len(ctx.agent.chat_history) - 1
                             and ctx.agent.current_analysis
@@ -76,26 +53,52 @@ def chat_messages_ui(ctx: AppContext):
         if ScanState.is_scanning or ScanState.is_processing_ai:
             with ui.row().classes("w-full justify-start"):
                 with ui.card().classes(
-                    "bg-gray-100 border border-gray-200 rounded-lg py-0.5 px-3 w-full shadow-none"
+                    "bg-gray-100 border border-gray-200 rounded-lg py-1 px-3 w-full shadow-none"
                 ):
-                    with ui.row().classes("items-center gap-1"):
-                        label_text = (
-                            _("Scanning project...")
-                            if ScanState.is_scanning
-                            else _("AI is thinking...")
-                        )
-                        ui.markdown(label_text).classes("text-sm text-gray-800 m-0 p-0")
-                        ui.spinner(size="xs")
-                        if ScanState.is_scanning:
-                            ui.button(
-                                "", on_click=lambda: handle_cancel_scan(ctx)
-                            ).props("icon=close flat color=gray size=xs").classes(
-                                "min-h-6 min-w-6 p-0.5"
+                    with ui.row().classes("items-center w-full justify-between gap-2"):
+                        with ui.row().classes("items-center gap-2"):
+                            is_stopping = (
+                                (ScanState.stop_event and ScanState.stop_event.is_set())
+                                if ScanState.is_scanning
+                                else (
+                                    ctx.session.ai_stop_event
+                                    and ctx.session.ai_stop_event.is_set()
+                                )
                             )
-                        elif ScanState.is_processing_ai:
-                            ui.button("", on_click=lambda: handle_cancel_ai(ctx)).props(
-                                "icon=stop_circle flat color=red size=xs"
-                            ).classes("min-h-6 min-w-6 p-0.5")
+
+                            if is_stopping:
+                                ui.icon("cancel", color="red", size="sm")
+                                label_text = _("Canceled")
+                            else:
+                                ui.spinner(size="sm")
+                                if ScanState.is_scanning:
+                                    label_text = ScanState.progress or _(
+                                        "Scanning project..."
+                                    )
+                                else:
+                                    label_text = _("AI is thinking...")
+
+                            ui.markdown(label_text).classes(
+                                "text-sm text-gray-800 m-0 p-0 font-medium"
+                            )
+                            if ScanState.is_scanning and ScanState.short_path:
+                                ui.label(ScanState.short_path).classes(
+                                    "text-[10px] text-gray-500 truncate max-w-xs"
+                                )
+
+                        if not is_stopping:
+                            if ScanState.is_scanning:
+                                ui.button(
+                                    "", on_click=lambda: handle_cancel_scan(ctx)
+                                ).props(
+                                    "icon=stop_circle flat color=red size=md"
+                                ).classes("p-0")
+                            elif ScanState.is_processing_ai:
+                                ui.button(
+                                    "", on_click=lambda: handle_cancel_ai(ctx)
+                                ).props(
+                                    "icon=stop_circle flat color=red size=md"
+                                ).classes("p-0")
     try:
         ui.run_javascript("window.scrollTo(0, document.body.scrollHeight)")
     except RuntimeError:
@@ -124,8 +127,8 @@ def render_analysis_form(ctx: AppContext, analysis: Any):
                 sources = conflict.get("sources", [])
                 options = {
                     str(
-                        s.get("value", "")
-                    ): f"{str(s.get('value', ''))} (Source: {s.get('source', 'unknown')})"
+                        s.get("value", s) if isinstance(s, dict) else s
+                    ): f"{str(s.get('value', s) if isinstance(s, dict) else s)} (Source: {s.get('source', 'unknown') if isinstance(s, dict) else 'unknown'})"
                     for s in sources
                 }
 
@@ -134,7 +137,13 @@ def render_analysis_form(ctx: AppContext, analysis: Any):
                     form_data[field] = (
                         ui.select(
                             options=options,
-                            value=str(sources[0].get("value", "")) if sources else None,
+                            value=str(
+                                sources[0].get("value", sources[0])
+                                if isinstance(sources[0], dict)
+                                else sources[0]
+                            )
+                            if sources
+                            else None,
                         )
                         .props("dense outlined")
                         .classes("flex-grow")
@@ -146,31 +155,27 @@ def render_analysis_form(ctx: AppContext, analysis: Any):
                 "text-xs font-bold text-blue-600 mt-2"
             )
             for q in analysis.questions:
-                with ui.column().classes("w-full gap-1 mt-1"):
+                with ui.column().classes("w-full gap-1 mt-2"):
                     ui.label(q.question).classes("text-xs text-slate-600")
-                    if q.type == "choice":
+                    if q.type == "choice" and q.options:
                         form_data[q.field] = (
-                            ui.select(options=q.options or [], label=q.label)
+                            ui.select(options=q.options, value=q.value)
                             .props("dense outlined")
                             .classes("w-full")
                         )
                     else:
                         form_data[q.field] = (
-                            ui.input(label=q.label)
+                            ui.input(value=q.value)
                             .props("dense outlined")
                             .classes("w-full")
                         )
 
-        async def submit_form():
-            final_answers = {
-                field: component.value for field, component in form_data.items()
-            }
-            ctx.agent.submit_analysis_answers(final_answers, on_update=ctx.refresh_all)
-            ui.notify(_("Metadata updated from form."), type="positive")
+        async def submit():
+            answers = {k: v.value for k, v in form_data.items()}
+            ctx.agent.submit_analysis_answers(answers, on_update=ctx.refresh_all)
+            ui.notify(_("Metadata updated from form answers."))
 
-        ui.button(_("Update Metadata"), on_click=submit_form).props(
-            "elevated color=primary icon=check"
-        ).classes("w-full mt-4")
+        ui.button(_("Update Metadata"), on_click=submit).classes("w-full mt-4")
 
 
 def render_analysis_dashboard(ctx: AppContext):
@@ -197,9 +202,7 @@ def render_chat_panel(ctx: AppContext):
                     ui.label(_("Agent Mode:")).classes("text-xs font-bold")
                     ui.toggle(
                         {"metadata": _("Metadata"), "curator": _("Curator")},
-                        value=ScanState.agent_mode,
-                        on_change=lambda e: setattr(ScanState, "agent_mode", e.value),
-                    ).props("dense size=sm")
+                    ).props("dense size=sm").bind_value(ScanState, "agent_mode")
 
                 with ui.row().classes("gap-2"):
                     ui.button(
@@ -233,6 +236,110 @@ def render_chat_panel(ctx: AppContext):
                 ).props("round elevated color=primary")
 
 
+async def handle_scan_only(ctx: AppContext, path: str):
+    if not path:
+        ui.notify(_("Please provide a path"), type="warning")
+        return
+    ScanState.current_path = path
+    resolved_path = Path(path).expanduser()
+
+    ScanState.stop_event = threading.Event()
+    ScanState.is_scanning = True
+    ScanState.progress = _("Scanning...")
+    ctx.refresh("chat")
+
+    def update_progress(msg, full_path="", short_path=""):
+        ScanState.progress = msg
+        ScanState.full_path = full_path
+        ScanState.short_path = short_path
+        ctx.refresh("chat")
+
+    try:
+        result = await asyncio.to_thread(
+            ctx.agent.refresh_inventory,
+            resolved_path,
+            update_progress,
+            stop_event=ScanState.stop_event,
+            force=True,
+        )
+        if ScanState.stop_event and ScanState.stop_event.is_set():
+            ctx.agent.chat_history.append(("agent", f"🛑 **{result}**"))
+        else:
+            ui.notify(_("Inventory refreshed."), type="positive")
+    except asyncio.CancelledError:
+        logger.info("Scan cancelled by user.")
+    except Exception as e:
+        ui.notify(f"Scan error: {e}", type="negative")
+    finally:
+        ScanState.is_scanning = False
+        ScanState.stop_event = None
+        ctx.refresh_all()
+
+
+async def handle_heuristics(ctx: AppContext, path: str):
+    if not path:
+        ui.notify(_("Please provide a path"), type="warning")
+        return
+    resolved_path = Path(path).expanduser()
+
+    ScanState.stop_event = threading.Event()
+    ScanState.is_scanning = True
+    ScanState.progress = _("Running heuristics...")
+    ctx.refresh("chat")
+
+    def update_progress(msg, full_path="", short_path=""):
+        ScanState.progress = msg
+        ScanState.full_path = full_path
+        ScanState.short_path = short_path
+        ctx.refresh("chat")
+
+    try:
+        await asyncio.to_thread(
+            ctx.agent.run_heuristics_phase,
+            resolved_path,
+            ctx.ai,
+            update_progress,
+            stop_event=ScanState.stop_event,
+        )
+        ui.notify(_("Heuristics phase complete."), type="positive")
+    except asyncio.CancelledError:
+        logger.info("Heuristics cancelled by user.")
+    except Exception as e:
+        ui.notify(f"Heuristics error: {e}", type="negative")
+    finally:
+        ScanState.is_scanning = False
+        ScanState.stop_event = None
+        ctx.refresh_all()
+
+
+async def handle_ai_analysis(ctx: AppContext, path: str):
+    if not path:
+        ui.notify(_("Please provide a path"), type="warning")
+        return
+
+    ScanState.stop_event = threading.Event()
+    ScanState.is_scanning = True
+    ScanState.progress = _("AI analysis in progress...")
+    ctx.refresh("metadata")
+
+    try:
+        await asyncio.to_thread(
+            ctx.agent.run_ai_analysis_phase,
+            ctx.ai,
+            None,
+            stop_event=ScanState.stop_event,
+        )
+        ui.notify(_("AI analysis phase complete."), type="positive")
+    except asyncio.CancelledError:
+        logger.info("AI analysis cancelled by user.")
+    except Exception as e:
+        ui.notify(f"AI analysis error: {e}", type="negative")
+    finally:
+        ScanState.is_scanning = False
+        ScanState.stop_event = None
+        ctx.refresh_all()
+
+
 def render_metadata_panel(ctx: AppContext):
     with ui.column().classes("w-full h-full pl-2"):
         with ui.card().classes(
@@ -257,6 +364,10 @@ def render_metadata_panel(ctx: AppContext):
                     if result:
                         ScanState.current_path = result
                         path_input.value = result
+                        # Auto-open project after selection
+                        from opendata.ui.components.header import handle_load_project
+
+                        await handle_load_project(ctx, result)
 
                 path_input = (
                     ui.input(
@@ -278,16 +389,55 @@ def render_metadata_panel(ctx: AppContext):
                     on_click=lambda: handle_load_project(ctx, path_input.value),
                 ).props("dense outline").classes("shrink-0")
 
-            with ui.column().classes("gap-1 mb-2 w-full shrink-0"):
+            with ui.row().classes("gap-1 mb-2 w-full shrink-0"):
+                # Button 1: Scan
                 ui.button(
-                    _("Analyze Directory"),
-                    icon="search",
-                    on_click=lambda: handle_scan(ctx, path_input.value, force=True),
-                ).classes("w-full").props("dense").bind_visibility_from(
+                    _("Scan"),
+                    icon="refresh",
+                    on_click=lambda: handle_scan_only(ctx, path_input.value),
+                ).classes("flex-grow").props("dense outline").bind_visibility_from(
                     ScanState, "is_scanning", backward=lambda x: not x
                 )
+
+                # Button 2: Heuristics
+                heur_btn = (
+                    ui.button(
+                        _("Heuristics"),
+                        icon="science",
+                        on_click=lambda: handle_heuristics(ctx, path_input.value),
+                    )
+                    .classes("flex-grow")
+                    .props("dense outline")
+                    .bind_visibility_from(
+                        ScanState, "is_scanning", backward=lambda x: not x
+                    )
+                )
+                # Enable only if scan is done
+                heur_btn.bind_enabled_from(
+                    ctx.agent, "current_fingerprint", backward=lambda x: bool(x)
+                )
+
+                # Button 3: AI Analysis
+                ai_btn = (
+                    ui.button(
+                        _("AI Analyze"),
+                        icon="auto_awesome",
+                        on_click=lambda: handle_ai_analysis(ctx, path_input.value),
+                    )
+                    .classes("flex-grow")
+                    .props("dense elevated color=primary")
+                    .bind_visibility_from(
+                        ScanState, "is_scanning", backward=lambda x: not x
+                    )
+                )
+                # Enable only if heuristics have been run
+                ai_btn.bind_enabled_from(
+                    ctx.agent, "heuristics_run", backward=lambda x: bool(x)
+                )
+
+                # Cancel Button
                 ui.button(
-                    _("Cancel Scan"),
+                    _("Cancel"),
                     icon="stop",
                     on_click=lambda: handle_cancel_scan(ctx),
                     color="red",
@@ -295,6 +445,7 @@ def render_metadata_panel(ctx: AppContext):
                     ScanState, "is_scanning"
                 )
                 ui.separator().classes("mt-1")
+
             with ui.scroll_area().classes("flex-grow w-full"):
                 metadata_preview_ui(ctx)
 
@@ -312,7 +463,7 @@ async def handle_user_msg_from_code(ctx: AppContext, text: str, mode: str = "met
     ctx.agent.chat_history.append(("user", text))
 
     # 2. Add System Report if @files are detected
-    at_matches = re.findall(r"@([^\\s,]+)", text)
+    at_matches = re.findall(r"@([^\s,]+)", text)
     if at_matches:
         file_list = ", ".join([f"`{m}`" for m in at_matches])
         ctx.agent.chat_history.append(
@@ -359,49 +510,45 @@ async def handle_cancel_scan(ctx: AppContext):
     if ScanState.stop_event:
         ScanState.stop_event.set()
         ui.notify(_("Cancelling scan..."))
+        # We don't set is_scanning = False here anymore to allow the UI
+        # to show a "Stopping" state until the thread actually finishes.
+        ctx.refresh_all()
 
 
 async def handle_cancel_ai(ctx: AppContext):
     if ctx.session.ai_stop_event:
         ctx.session.ai_stop_event.set()
         ui.notify(_("Stopping AI..."))
+        # We don't set is_processing_ai = False here anymore to allow the UI
+        # to show a "Stopping" state until the thread actually finishes.
+        ctx.refresh_all()
 
 
-async def handle_scan(ctx: AppContext, path: str, force: bool = False):
-    if not path:
-        ui.notify(_("Please provide a path"), type="warning")
+async def handle_clear_metadata(ctx: AppContext):
+    from opendata.ui.components.metadata import handle_clear_metadata as hcm
+
+    await hcm(ctx)
+
+
+async def handle_ai_scan_experiment(ctx: AppContext):
+    if not ctx.agent.project_id:
+        ui.notify(_("Please open a project first."), type="warning")
         return
-    ScanState.current_path = path
-    resolved_path = Path(path).expanduser()
 
-    ScanState.stop_event = threading.Event()
-    ScanState.is_scanning = True
-    ScanState.progress = _("Initializing...")
-    ctx.refresh("metadata")
+    ScanState.is_processing_ai = True
+    ctx.session.ai_stop_event = threading.Event()
+    ctx.refresh("chat")
 
-    import time
+    ui.notify(_("Running AI Inventory Scan..."))
 
-    last_refresh = 0
-
-    def update_progress(msg, full_path="", short_path=""):
-        nonlocal last_refresh
-        ScanState.progress = msg
-        ScanState.full_path = full_path
-        ScanState.short_path = short_path
-
-        now = time.time()
-        if now - last_refresh > 0.5:
-            ctx.refresh("metadata")
-            ctx.refresh("chat")
-            last_refresh = now
-
-    await asyncio.to_thread(
-        ctx.agent.start_analysis,
-        resolved_path,
-        update_progress,
-        force_rescan=force,
-        stop_event=ScanState.stop_event,
-    )
-    ScanState.is_scanning = False
-    ScanState.stop_event = None
-    ctx.refresh_all()
+    try:
+        experiment = AIScanExperiment(ctx.wm, ctx.agent.project_id)
+        result = await asyncio.to_thread(experiment.run, ctx.ai)
+        ctx.agent.chat_history.append(("agent", result))
+        ctx.agent.save_state()
+    except Exception as e:
+        ui.notify(f"Experiment failed: {e}", type="negative")
+    finally:
+        ScanState.is_processing_ai = False
+        ctx.session.ai_stop_event = None
+        ctx.refresh_all()

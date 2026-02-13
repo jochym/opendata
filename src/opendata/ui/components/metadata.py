@@ -22,11 +22,36 @@ def metadata_preview_ui(ctx: AppContext):
             ScanState.progress_label = lbl
         return
 
+    if not ctx.agent.project_id:
+        return
+
+    # Significant Files Section (Foldable)
+    if (
+        ctx.agent.current_fingerprint
+        and ctx.agent.current_fingerprint.significant_files
+    ):
+        with ui.expansion(
+            _("Significant Files for Analysis"), icon="fact_check"
+        ).classes(
+            "w-full bg-blue-50 border border-blue-100 rounded-lg shadow-none mt--6 mb-2"
+        ):
+            with ui.column().classes("w-full p-3 pt-0"):
+                with ui.row().classes("w-full items-center justify-end mb-1"):
+                    ui.button(
+                        _("Edit List"),
+                        icon="edit",
+                        on_click=lambda: open_significant_files_dialog(ctx),
+                    ).props("flat dense size=sm color=primary")
+
+                with ui.column().classes("w-full gap-1"):
+                    for f in ctx.agent.current_fingerprint.significant_files:
+                        ui.label(f).classes("text-sm font-mono text-blue-700 truncate")
+
     fields = ctx.agent.current_metadata.model_dump(exclude_unset=True)
 
     def create_expandable_text(text, key=None):
         with ui.column().classes(
-            "w-full gap-0 bg-slate-50 border border-slate-100 rounded relative group"
+            "w-full gap-0 bg-slate-50 border border-slate-100 rounded relative group pb-6"
         ):
             # Lock indicator
             if key:
@@ -62,7 +87,7 @@ def metadata_preview_ui(ctx: AppContext):
                     "px-3 py-2 text-sm text-gray-800 break-words overflow-hidden transition-all duration-300 cursor-pointer"
                 )
                 content.style(
-                    "max-height: 120px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical;"
+                    "max-height: 100px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;"
                 )
             elif key == "keywords":
                 kw_text = ", ".join(text) if isinstance(text, list) else text
@@ -73,9 +98,11 @@ def metadata_preview_ui(ctx: AppContext):
             else:
                 display_text = str(text)
                 content = ui.markdown(display_text).classes(
-                    "px-2 py-0 text-sm text-gray-800 break-words overflow-hidden transition-all duration-300 cursor-pointer"
+                    "px-3 py-2 text-sm text-gray-800 break-words overflow-hidden transition-all duration-300 cursor-pointer"
                 )
-                content.style("max-height: 110px; line-height: 1.5;")
+                content.style(
+                    "max-height: 100px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;"
+                )
 
             if key:
                 content.on("click", lambda: open_edit_dialog(ctx, key))
@@ -84,13 +111,18 @@ def metadata_preview_ui(ctx: AppContext):
                 (key == "description" and isinstance(text, list) and len(text) > 0)
                 or (isinstance(text, list) and len(text) > 1)
                 or len(str(text)) > 300
+                or key in ["abstract", "notes"]
             ):
 
                 def toggle(e, target=content):
                     is_expanded = target.style["max-height"] == "none"
                     if key == "description":
                         target.style(
-                            f"max-height: {'120px' if is_expanded else 'none'}; -webkit-line-clamp: {'6' if is_expanded else 'unset'}"
+                            f"max-height: {'100px' if is_expanded else 'none'}; -webkit-line-clamp: {'4' if is_expanded else 'unset'}"
+                        )
+                    elif key in ["abstract", "notes"] or not isinstance(text, list):
+                        target.style(
+                            f"max-height: {'100px' if is_expanded else 'none'}; -webkit-line-clamp: {'4' if is_expanded else 'unset'}"
                         )
                     else:
                         target.style(
@@ -98,9 +130,10 @@ def metadata_preview_ui(ctx: AppContext):
                         )
                     e.sender.text = _("more...") if is_expanded else _("less...")
 
-                ui.button(_("more..."), on_click=toggle).props(
-                    "flat dense color=primary"
-                ).classes("text-xs self-end px-2 pb-1")
+                with ui.row().classes("w-full justify-end px-2 pb-1 absolute bottom-0"):
+                    ui.button(_("more..."), on_click=toggle).props(
+                        "flat dense color=primary"
+                    ).classes("text-xs")
             else:
                 content.style("max-height: none")
 
@@ -342,69 +375,60 @@ def metadata_preview_ui(ctx: AppContext):
                         )
 
                     for s in value:
-                        ui.label(str(s)).classes(
-                            "text-sm bg-purple-50 text-purple-800 py-0.5 px-2 rounded border border-purple-100 inline-block mr-1 mb-1"
-                        )
+                        # Handle both SoftwareInfo objects and dicts (from AI)
+                        if isinstance(s, dict):
+                            name = s.get("name", str(s))
+                            version = s.get("version")
+                        else:
+                            # SoftwareInfo object
+                            name = getattr(s, "name", str(s))
+                            version = getattr(s, "version", None)
+
+                        with ui.badge(name, color="purple-1").classes(
+                            "text-purple-800 px-2 py-1 rounded-md cursor-help"
+                        ):
+                            if version:
+                                ui.tooltip(f"Version: {version}")
+                            else:
+                                ui.tooltip(_("Version unknown"))
             elif key == "funding":
                 ui.label(key.replace("_", " ").title()).classes(
                     "text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-wider"
                 )
-                with ui.column().classes("w-full gap-1 items-start mt--1"):
+                with ui.row().classes(
+                    "w-full gap-1 flex-wrap items-center mt--1"
+                ) as fund_container:
+                    is_locked = key in ctx.agent.current_metadata.locked_fields
+                    fund_container.on(
+                        "click", lambda _e, k=key: open_edit_dialog(ctx, k)
+                    )
+
                     for f in value:
                         if isinstance(f, dict):
                             agency = f.get("funder_name", "")
                             award = f.get("award_title", "")
                             grant_id = f.get("grant_id", "")
 
-                            display_title = award if award else agency
+                            agency_name = agency if agency else award
+                            if not agency_name:
+                                agency_name = _("Funding")
 
-                            with ui.label("").classes(
-                                "py-1 px-1.5 rounded bg-amber-50 border border-amber-100 cursor-pointer hover:bg-amber-100 text-sm inline-block w-full relative group"
-                            ) as fund_container:
-                                is_locked = (
-                                    key in ctx.agent.current_metadata.locked_fields
-                                )
-                                fund_container.on(
-                                    "click", lambda _e, k=key: open_edit_dialog(ctx, k)
-                                )
+                            display_title = (
+                                f"{agency_name} ({grant_id})"
+                                if grant_id
+                                else agency_name
+                            )
 
-                                with (
-                                    ui.button(
-                                        icon="lock" if is_locked else "lock_open",
-                                        on_click=lambda _e, k=key: toggle_lock_list(
-                                            _e, k
-                                        ),
-                                    )
-                                    .props("flat dense")
-                                    .classes(
-                                        f"absolute -top-2 -right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity {'text-orange-600 opacity-100' if is_locked else 'text-slate-400'}"
-                                    )
-                                    .style(
-                                        "font-size: 10px; background: white; border-radius: 50%; border: 1px solid #eee; width: 20px; height: 20px;"
-                                    )
-                                ):
-                                    ui.tooltip(
-                                        _("Lock field from AI updates")
-                                        if not is_locked
-                                        else _("Unlock field")
-                                    )
-
-                                with ui.column().classes("gap-0"):
-                                    ui.label(display_title).classes(
-                                        "text-sm font-medium break-words leading-tight"
-                                    )
-                                    if grant_id:
-                                        ui.label(grant_id).classes(
-                                            "text-xs text-slate-500 italic"
-                                        )
-
+                            with ui.badge(display_title, color="amber-1").classes(
+                                "text-amber-900 px-2 py-1 rounded-md cursor-help"
+                            ):
                                 with ui.tooltip().classes(
-                                    "bg-slate-800 text-white p-2 text-xs whitespace-normal max-w-xs"
+                                    "bg-slate-800 text-white p-2 text-xs max-w-xs"
                                 ):
-                                    if award:
-                                        ui.label(f"Award: {award}")
                                     if agency:
                                         ui.label(f"Funder: {agency}")
+                                    if award:
+                                        ui.label(f"Award: {award}")
                                     if grant_id:
                                         ui.label(f"Grant ID: {grant_id}")
             elif (
@@ -570,3 +594,79 @@ async def handle_clear_metadata(ctx: AppContext):
     ctx.agent.clear_metadata()
     ctx.refresh("metadata")
     ui.notify(_("Metadata reset"))
+
+
+async def open_significant_files_dialog(ctx: AppContext):
+    """Dialog to manage the list of files selected for deep analysis."""
+    if not ctx.agent.current_fingerprint:
+        return
+
+    with ui.dialog() as dialog, ui.card().classes("w-[600px]"):
+        ui.label(_("Manage Significant Files")).classes("text-h6 mb-4")
+        ui.markdown(
+            _(
+                "These files are used as context for AI analysis. You can add or remove files from this list."
+            )
+        )
+
+        current_files = list(ctx.agent.current_fingerprint.significant_files)
+
+        with ui.column().classes("w-full gap-2 mb-4"):
+            file_list_container = ui.column().classes(
+                "w-full border rounded p-2 max-h-60 overflow-y-auto"
+            )
+
+            def refresh_list():
+                file_list_container.clear()
+                with file_list_container:
+                    if not current_files:
+                        ui.label(_("No files selected.")).classes(
+                            "text-slate-400 italic text-sm"
+                        )
+                    for f in current_files:
+                        with ui.row().classes(
+                            "w-full items-center justify-between hover:bg-slate-50 p-1 rounded"
+                        ):
+                            ui.label(f).classes("text-xs font-mono truncate flex-grow")
+                            ui.button(
+                                icon="delete",
+                                on_click=lambda _e, path=f: remove_file(path),
+                            ).props("flat dense color=red size=sm")
+
+            def remove_file(path):
+                if path in current_files:
+                    current_files.remove(path)
+                    refresh_list()
+
+            refresh_list()
+
+        new_file_input = (
+            ui.input(label=_("Add file path (relative to root)"))
+            .classes("w-full mb-4")
+            .props("dense outlined")
+        )
+
+        def add_file():
+            path = new_file_input.value.strip()
+            if path and path not in current_files:
+                current_files.append(path)
+                new_file_input.value = ""
+                refresh_list()
+
+        ui.button(_("Add File"), on_click=add_file).classes("w-full mb-4").props(
+            "outline"
+        )
+
+        with ui.row().classes("w-full justify-end gap-2"):
+            ui.button(_("Cancel"), on_click=dialog.close).props("flat")
+
+            def save():
+                ctx.agent.current_fingerprint.significant_files = current_files
+                ctx.agent.save_state()
+                ctx.refresh("metadata")
+                dialog.close()
+                ui.notify(_("Significant files updated."))
+
+            ui.button(_("Save Changes"), on_click=save).props("elevated color=primary")
+
+    dialog.open()

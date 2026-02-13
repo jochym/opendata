@@ -82,7 +82,7 @@ class OpenAIProvider(BaseAIService):
                 "temperature": 0.7,
             }
 
-            response = requests.post(url, json=payload, headers=headers, timeout=60)
+            response = requests.post(url, json=payload, headers=headers, timeout=120)
 
             if response.status_code == 200:
                 data = response.json()

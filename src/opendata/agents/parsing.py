@@ -202,13 +202,19 @@ def extract_metadata_from_ai_response(
 
     # Fallback if no specific analysis object was returned
     if not clean_text or clean_text == "Thank you, I've updated the metadata.":
-        changed_fields = list(updates.keys())
+        # Filter out 'error' and other non-metadata keys that might come from AI error bodies
+        changed_fields = [
+            f for f in updates.keys() if f.lower() not in ["error", "status", "message"]
+        ]
         if changed_fields:
             clean_text = "✅ **Metadata updated.**\n\nModified fields:\n" + "\n".join(
                 [f"- {f.replace('_', ' ').title()}" for f in changed_fields]
             )
         else:
-            clean_text = "ℹ️ No metadata changes detected in the response."
+            if "error" in updates:
+                clean_text = f"❌ **AI Error:** {updates['error']}"
+            else:
+                clean_text = "ℹ️ No metadata changes detected in the response."
 
     return (
         clean_text,

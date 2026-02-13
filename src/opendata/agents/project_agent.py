@@ -4,6 +4,8 @@ import platform
 import sys
 import datetime
 import logging
+import threading
+import asyncio
 from typing import List, Optional, Dict, Any, Tuple, Callable
 from pathlib import Path
 from opendata.models import (
@@ -14,15 +16,17 @@ from opendata.models import (
     Contact,
     FileSuggestion,
 )
+from opendata.i18n.translator import _
 
 from opendata.extractors.base import ExtractorRegistry
 from opendata.workspace import WorkspaceManager
-from opendata.utils import scan_project_lazy, PromptManager, FullTextReader
+from opendata.utils import scan_project_lazy, PromptManager, FullTextReader, format_size
 from opendata.agents.parsing import extract_metadata_from_ai_response
 from opendata.agents.tools import handle_external_tools
 from opendata.agents.scanner import ScannerService
 from opendata.agents.persistence import ProjectStateManager
 from opendata.agents.engine import AnalysisEngine
+from opendata.agents.ai_heuristics import AIHeuristicsService
 
 logger = logging.getLogger("opendata.agents.project_agent")
 
@@ -44,14 +48,16 @@ class ProjectAnalysisAgent:
         self.project_id: Optional[str] = None
 
         self.current_fingerprint: Optional[ProjectFingerprint] = None
-        self.current_metadata = Metadata.model_construct()
+        self.current_metadata = Metadata()
         self.current_analysis: Optional[AIAnalysis] = None
         self.chat_history: List[Tuple[str, str]] = []  # (Role, Message)
+        self.heuristics_run = False
 
         # Specialized services
         self.scanner = ScannerService(wm)
         self.state_manager = ProjectStateManager(wm)
         self.engine = AnalysisEngine(self.prompt_manager)
+        self.ai_heuristics = AIHeuristicsService(wm)
 
     def _setup_extractors(self):
         from opendata.extractors.latex import LatexExtractor
@@ -88,10 +94,50 @@ class ProjectAnalysisAgent:
             return True
         return False
 
+    def _normalize_metadata(self):
+        """Ensures all metadata fields are properly typed as Pydantic objects."""
+        from opendata.models import SoftwareInfo, RelatedResource
+
+        if self.current_metadata.authors:
+            self.current_metadata.authors = [
+                a if isinstance(a, PersonOrOrg) else PersonOrOrg.model_validate(a)
+                for a in self.current_metadata.authors
+            ]
+        if self.current_metadata.contacts:
+            self.current_metadata.contacts = [
+                c if isinstance(c, Contact) else Contact.model_validate(c)
+                for c in self.current_metadata.contacts
+            ]
+        if self.current_metadata.software:
+            self.current_metadata.software = [
+                s if isinstance(s, SoftwareInfo) else SoftwareInfo.model_validate(s)
+                for s in self.current_metadata.software
+            ]
+        if self.current_metadata.related_publications:
+            self.current_metadata.related_publications = [
+                p
+                if isinstance(p, RelatedResource)
+                else RelatedResource.model_validate(p)
+                for p in self.current_metadata.related_publications
+            ]
+        if self.current_metadata.related_datasets:
+            self.current_metadata.related_datasets = [
+                d
+                if isinstance(d, RelatedResource)
+                else RelatedResource.model_validate(d)
+                for d in self.current_metadata.related_datasets
+            ]
+        if self.current_metadata.contacts:
+            self.current_metadata.contacts = [
+                c if isinstance(c, Contact) else Contact.model_validate(c)
+                for c in self.current_metadata.contacts
+            ]
+
     def save_state(self):
         """Persists the current state to the workspace."""
         if not self.project_id:
             return
+        self._normalize_metadata()
         self.state_manager.save_state(
             self.project_id,
             self.current_metadata,
@@ -107,51 +153,31 @@ class ProjectAnalysisAgent:
 
     def clear_metadata(self):
         """Resets the metadata to a fresh state and persists the change."""
-        self.current_metadata = Metadata.model_construct()
+        self.current_metadata = Metadata()
+        self.current_analysis = None
         self.save_state()
 
     def reset_agent_state(self):
         """Resets the agent state in memory without persisting to disk."""
-        self.current_metadata = Metadata.model_construct()
+        self.current_metadata = Metadata()
         self.chat_history = []
         self.current_fingerprint = None
         self.project_id = None
-
-    def start_analysis(
-        self,
-        project_dir: Path,
-        progress_callback: Optional[Callable[[str, str, str], None]] = None,
-        force_rescan: bool = False,
-        stop_event: Optional[Any] = None,
-    ) -> str:
-        """Initial scan and heuristic extraction phase."""
-        self.project_id = self.wm.get_project_id(project_dir)
-
-        if not force_rescan and self.load_project(project_dir):
-            if progress_callback:
-                progress_callback("Loaded existing project state.", "", "")
-            return self.chat_history[-1][1] if self.chat_history else "Project loaded."
-
-        # NEW PROJECT or FORCED RESCAN
-        self.current_metadata = Metadata.model_construct()
-        self.chat_history = []
-        self.current_fingerprint = None
-
-        if progress_callback:
-            progress_callback(f"Scanning {project_dir}...", "", "")
-
-        return self.refresh_inventory(project_dir, progress_callback, stop_event)
 
     def refresh_inventory(
         self,
         project_dir: Path,
         progress_callback: Optional[Callable[[str, str, str], None]] = None,
         stop_event: Optional[Any] = None,
+        force: bool = False,
     ) -> str:
         """
         Performs a fast file scan and updates the SQLite inventory without running heuristics or AI.
         """
         self.project_id = self.wm.get_project_id(project_dir)
+
+        if force:
+            self.current_fingerprint = None
 
         # Get field from metadata if exists
         field_name = (
@@ -162,7 +188,7 @@ class ProjectAnalysisAgent:
         effective = self.pm.resolve_effective_protocol(self.project_id, field_name)
         exclude_patterns = effective.get("exclude", [])
 
-        self.current_fingerprint, _ = self.scanner.refresh_inventory(
+        fingerprint, unused_files = self.scanner.refresh_inventory(
             self.project_id,
             project_dir,
             exclude_patterns,
@@ -171,144 +197,143 @@ class ProjectAnalysisAgent:
         )
 
         if stop_event and stop_event.is_set():
-            return "Scan cancelled by user."
+            return _("Scan cancelled by user.")
 
-        # Heuristics
-        heuristics_data = self.scanner.run_heuristics(
-            project_dir,
-            self.current_fingerprint,
-            exclude_patterns,
-            self.registry,
-            progress_callback,
-            stop_event,
+        if fingerprint:
+            self.current_fingerprint = fingerprint
+            self.save_state()
+            return _("Inventory refreshed.")
+        else:
+            return _("Scan failed or was interrupted.")
+
+    def run_heuristics_phase(
+        self,
+        project_dir: Path,
+        ai_service: Any,
+        progress_callback: Optional[Callable[[str, str, str], None]] = None,
+        stop_event: Optional[Any] = None,
+    ) -> str:
+        """
+        Phase 2: Pure AI-driven identification of significant files.
+        """
+        if not self.current_fingerprint:
+            return _("Error: No inventory found. Please scan the project first.")
+
+        if progress_callback:
+            progress_callback(_("AI is analyzing project structure..."), "", "")
+
+        # 1. AI File Identification
+        significant_files, ai_analysis = self.ai_heuristics.identify_significant_files(
+            self.project_id, ai_service
         )
-
-        effective = self.pm.resolve_effective_protocol(self.project_id, field_name)
-        exclude_patterns = effective.get("exclude", [])
-
-        # 1. Quick fingerpint update
-        def wrapped_cb(msg, fpath="", spath=""):
-            if progress_callback:
-                progress_callback(msg, fpath, spath)
-
-        res = scan_project_lazy(
-            project_dir,
-            progress_callback=wrapped_cb,
-            stop_event=stop_event,
-            exclude_patterns=exclude_patterns,
-        )
-        self.current_fingerprint, full_files = res
 
         if stop_event and stop_event.is_set():
-            return "Scan cancelled by user."
+            return _("Heuristics analysis cancelled by user.")
 
-        # 2. Update SQLite Inventory
-        try:
-            from opendata.storage.project_db import ProjectInventoryDB
+        if not significant_files:
+            msg = _("AI failed to identify significant files from the inventory.")
+            self.chat_history.append(("agent", msg))
+            self.save_state()
+            return msg
 
-            db = ProjectInventoryDB(self.wm.get_project_db_path(self.project_id))
-            db.update_inventory(full_files)
-        except Exception as e:
-            logger.error(f"Failed to refresh inventory in SQLite: {e}", exc_info=True)
-
-        # Heuristics
-        heuristics_data: Dict[str, Any] = {}
-        candidate_main_files = []
-        from opendata.utils import walk_project_files, format_size
-
-        total_files = self.current_fingerprint.file_count
-        current_file_idx = 0
-        total_size_str = format_size(self.current_fingerprint.total_size_bytes)
-
-        for p, p_stat in walk_project_files(
-            project_dir, stop_event=stop_event, exclude_patterns=exclude_patterns
-        ):
-            if stop_event and stop_event.is_set():
+        self.current_fingerprint.significant_files = significant_files
+        # Update primary file if AI found one
+        for f in significant_files:
+            if f.endswith((".tex", ".docx")):
+                self.current_fingerprint.primary_file = f
                 break
-            if p_stat is not None:
-                current_file_idx += 1
-                if progress_callback:
-                    progress_callback(
-                        f"{total_size_str} - {current_file_idx}/{total_files}",
-                        str(p.relative_to(project_dir)),
-                        f"Checking {p.name}...",
-                    )
 
-                if p.suffix.lower() in [".tex", ".docx"]:
-                    candidate_main_files.append(p)
+        # 2. Report findings
+        msg = _("### AI Heuristics Analysis\n\n")
+        if ai_analysis:
+            msg += f"{ai_analysis.summary}\n\n"
 
-                for extractor in self.registry.get_extractors_for(p):
-                    partial = extractor.extract(p)
-                    for key, val in partial.model_dump(exclude_unset=True).items():
-                        if val:
-                            if isinstance(val, list) and key in heuristics_data:
-                                for item in val:
-                                    if item not in heuristics_data[key]:
-                                        heuristics_data[key].append(item)
-                            else:
-                                heuristics_data[key] = val
+        msg += _("**Significant Files Identified:**\n")
+        for f in significant_files:
+            p = project_dir / f
+            size = format_size(p.stat().st_size) if p.exists() else "???"
+            msg += f"- `{f}` ({size})\n"
 
-        self.current_metadata = Metadata.model_construct(**heuristics_data)
-
-        # authors/contacts normalization
-        if self.current_metadata.authors:
-            self.current_metadata.authors = [
-                a if isinstance(a, PersonOrOrg) else PersonOrOrg(**a)
-                for a in self.current_metadata.authors
-            ]
-        if self.current_metadata.contacts:
-            self.current_metadata.contacts = [
-                c if isinstance(c, Contact) else Contact(**c)
-                for c in self.current_metadata.contacts
-            ]
-
-        msg = f"I've scanned {self.current_fingerprint.file_count} files in your project. "
-        found_fields = list(heuristics_data.keys())
-        if found_fields:
-            msg += f"I automatically found some data for: {', '.join(found_fields)}. "
-        else:
-            msg += "I couldn't find obvious metadata files like LaTeX or BibTeX. "
-
-        # Physics Reasoning
-        physics_tools = []
-        for s in self.current_fingerprint.structure_sample:
-            s_up = s.upper()
-            if any(x in s_up for x in ["INCAR", "OUTCAR", "POSCAR"]):
-                if "VASP" not in physics_tools:
-                    physics_tools.append("VASP")
-            if "phonopy" in s.lower() and "Phonopy" not in physics_tools:
-                physics_tools.append("Phonopy")
-            if "alamode" in s.lower() and "ALAMODE" not in physics_tools:
-                physics_tools.append("ALAMODE")
-
-        if physics_tools:
-            msg += f"I noticed you are using {', '.join(physics_tools)}. "
-            msg += "This looks like a computational physics project. "
-
-        if candidate_main_files:
-            main_file = sorted(
-                candidate_main_files, key=lambda x: x.stat().st_size, reverse=True
-            )[0]
-            rel_main_file = str(main_file.relative_to(project_dir))
-
-            # Update fingerprint with primary file
-            if self.current_fingerprint:
-                self.current_fingerprint.primary_file = rel_main_file
-
-            aux_files = []
-            root_aux_extensions = {".md", ".yaml", ".yml"}
-            for p in project_dir.iterdir():
-                if p.is_file() and p.suffix.lower() in root_aux_extensions:
-                    if p != main_file:
-                        aux_files.append(f"`{p.name}`")
-            aux_msg = f" along with {', '.join(aux_files)}" if aux_files else ""
-            msg += f"\n\nI found **{rel_main_file}**. This appears to be your principal publication. Shall I process its full text{aux_msg} to extract all metadata at once? (This will send these files to the AI)."
-        else:
-            msg += "\n\nShould I use AI to analyze the paper titles or would you like to provide an arXiv/DOI link?"
+        msg += _(
+            "\n*Ready for deep content analysis. Click **AI Analyze** to proceed.*"
+        )
 
         self.chat_history.append(("agent", msg))
+        self.heuristics_run = True
         self.save_state()
         return msg
+
+    def run_ai_analysis_phase(
+        self,
+        ai_service: Any,
+        progress_callback: Optional[Callable[[str, str, str], None]] = None,
+        stop_event: Optional[Any] = None,
+    ) -> str:
+        """
+        Phase 3: Runs the AI analysis loop to refine metadata.
+        Injects full text of significant files found in heuristics.
+        """
+        if not self.current_fingerprint:
+            return _("Error: No inventory found. Please scan the project first.")
+
+        if progress_callback:
+            progress_callback(_("Consulting AI for project summary..."), "", "")
+
+        # 1. Gather Context from Significant Files
+        project_dir = Path(self.current_fingerprint.root_path)
+        all_context_files = set(self.current_fingerprint.significant_files)
+        if self.current_fingerprint.primary_file:
+            all_context_files.add(self.current_fingerprint.primary_file)
+
+        # Read content
+        extra_context = []
+        for rel_path in sorted(list(all_context_files)):
+            p = project_dir / rel_path
+            if p.exists():
+                content = FullTextReader.read_full_text(p)
+                if content:
+                    extra_context.append(f"--- FILE CONTENT: {rel_path} ---\n{content}")
+
+        # 2. Prepare Prompt
+        field_name = (
+            self.current_metadata.science_branches_mnisw[0]
+            if self.current_metadata.science_branches_mnisw
+            else None
+        )
+        effective = self.pm.resolve_effective_protocol(self.project_id, field_name)
+
+        initial_prompt = _(
+            "Please analyze the gathered project heuristics and the provided file contents to generate a comprehensive summary and draft metadata."
+        )
+
+        if extra_context:
+            initial_prompt += "\n\n[CONTEXT FROM PROJECT FILES]\n" + "\n".join(
+                extra_context
+            )
+
+        from opendata.ui.state import ScanState
+
+        mode = ScanState.agent_mode if hasattr(ScanState, "agent_mode") else "metadata"
+
+        clean_msg, analysis, metadata = self.engine.run_ai_loop(
+            ai_service=ai_service,
+            user_input=initial_prompt,
+            chat_history=[],  # Start fresh analysis context
+            current_metadata=self.current_metadata,
+            fingerprint=self.current_fingerprint,
+            effective_protocol=effective,
+            mode=mode,
+            stop_event=stop_event,
+        )
+
+        if stop_event and stop_event.is_set():
+            return _("AI analysis cancelled by user.")
+
+        self.current_metadata = metadata
+        self.current_analysis = analysis
+        self.chat_history.append(("agent", clean_msg))
+        self.save_state()
+        return clean_msg
 
     def process_user_input(
         self,
@@ -456,6 +481,8 @@ class ProjectAnalysisAgent:
                 "kind_of_data",
                 "software",
                 "notes",
+                "related_publications",
+                "related_datasets",
             }
 
             current_dict = self.current_metadata.model_dump()
@@ -593,6 +620,8 @@ class ProjectAnalysisAgent:
             "keywords",
             "description",
             "software",
+            "related_publications",
+            "related_datasets",
         ]
 
         current_dict = self.current_metadata.model_dump(exclude_unset=True)

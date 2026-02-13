@@ -90,5 +90,21 @@ Every substantial step must have an accompanying automated test. Before completi
 - **Testing:** Include a "minimal viable project" fixture in `tests/fixtures/`.
 - **Transparency:** Every background step should have a corresponding UI status update.
 
+## Release & Versioning Procedure (CRITICAL)
+Strictly adhere to **Semantic Versioning** (major.minor.patch) and the following release sequence:
+
+1. **Verification & QA**:
+   - Run the full test suite (`pytest`).
+   - For **Minor (x.y.0)** or **Major (x.0.0)** releases: Perform a comprehensive review of all documentation (docs, tutorials, references) and the website to ensure a consistent and updated project state.
+2. **State Synchronization**:
+   - Update `CHANGELOG.md` with all changes since the last release.
+   - Update `src/opendata/VERSION` (Single Source of Truth).
+   - Ensure the documentation website reflects the new version's features and changes.
+3. **Git Commit**: Commit all changes (VERSION, CHANGELOG, docs) *before* tagging the release.
+4. **GitHub Release**:
+   - Create a tag (e.g., `v1.2.3`).
+   - Use `gh release create` with the current version's changelog section.
+   - **Formatting Mandate**: ALWAYS use a `heredoc` (e.g., `cat << 'EOF' | gh release create ... --notes-file -`) to pass release notes. This prevents Markdown escaping issues and ensures proper rendering on GitHub.
+
 ---
 *This file is intended for AI agents. Please update it as the project evolves.*

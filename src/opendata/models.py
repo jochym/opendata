@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, EmailStr, field_validator
+from pydantic import BaseModel, Field, EmailStr, field_validator, model_validator
 from typing import List, Optional, Literal, Any, Dict
 from pathlib import Path
 from enum import Enum
@@ -6,7 +6,7 @@ from enum import Enum
 
 class ProtocolLevel(str, Enum):
     SYSTEM = "system"
-    GLOBAL = "global"
+    USER = "user"
     FIELD = "field"
     PROJECT = "project"
 
@@ -21,6 +21,13 @@ class ExtractionProtocol(BaseModel):
     extraction_prompts: List[str] = Field(default_factory=list)
     metadata_prompts: List[str] = Field(default_factory=list)
     curator_prompts: List[str] = Field(default_factory=list)
+
+    @field_validator("level", mode="before")
+    @classmethod
+    def migrate_level(cls, v: Any) -> Any:
+        if v == "global":
+            return "user"
+        return v
 
 
 class PackageManifest(BaseModel):
@@ -71,11 +78,30 @@ class Contact(BaseModel):
 
 
 class RelatedResource(BaseModel):
-    relation_type: str = Field(..., description="e.g., 'cited by', 'supplement to'")
+    relation_type: str = Field(
+        "IsSupplementTo", description="e.g., 'cited by', 'supplement to'"
+    )
     authors: Optional[str] = Field(None, description="APA style list")
     title: str = Field(...)
     id_type: Optional[str] = Field(None, description="DOI, Handle, etc.")
     id_number: Optional[str] = Field(None, description="Full URL identifier")
+
+    @model_validator(mode="before")
+    @classmethod
+    def from_string(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            return {"title": v, "relation_type": "IsSupplementTo"}
+        return v
+
+
+class SoftwareInfo(BaseModel):
+    name: str = Field(..., description="Software name")
+    version: Optional[str] = Field(None, description="Software version")
+
+    def __str__(self) -> str:
+        if self.version:
+            return f"{self.name} {self.version}"
+        return self.name
 
 
 class Metadata(BaseModel):
@@ -103,7 +129,7 @@ class Metadata(BaseModel):
     license: Optional[str] = Field(
         "CC-BY-4.0", description="Data license (e.g., CC-BY-4.0, MIT)"
     )
-    software: List[str] = Field(
+    software: List[SoftwareInfo] = Field(
         default_factory=list,
         description="Software and versions used (e.g., VASP 6.4.1)",
     )
@@ -127,17 +153,48 @@ class Metadata(BaseModel):
         "science_branches_mnisw",
         "science_branches_oecd",
         "languages",
-        "software",
+        "related_publications",
+        "related_datasets",
         mode="before",
     )
     @classmethod
-    def ensure_list_fields(cls, v: Any) -> List[str]:
+    def ensure_list_fields(cls, v: Any) -> List[Any]:
         if v is None:
             return []
         if isinstance(v, str):
             if "," in v and "[" not in v:
-                return [i.strip() for i in v.split(",")]
-            return [v]
+                items = [i.strip() for i in v.split(",")]
+            else:
+                items = [v]
+
+            # For related_publications/datasets, convert string to title object
+            # We check the field name context if possible, but here we just check if
+            # we are dealing with a field that expects RelatedResource objects.
+            # Actually, Pydantic will try to validate the list items later.
+            return items
+        return v
+
+    @field_validator("software", mode="before")
+    @classmethod
+    def ensure_software_list(cls, v: Any) -> List[SoftwareInfo]:
+        if v is None:
+            return []
+        if isinstance(v, str):
+            if "," in v and "[" not in v:
+                items = [i.strip() for i in v.split(",")]
+            else:
+                items = [v]
+            return [SoftwareInfo(name=i) for i in items]
+        if isinstance(v, list):
+            res = []
+            for item in v:
+                if isinstance(item, str):
+                    res.append(SoftwareInfo(name=item))
+                elif isinstance(item, dict):
+                    res.append(SoftwareInfo(**item))
+                else:
+                    res.append(item)
+            return res
         return v
 
 
@@ -151,6 +208,10 @@ class ProjectFingerprint(BaseModel):
     structure_sample: List[str] = Field(description="First 50 file paths found")
     primary_file: Optional[str] = Field(
         None, description="Path to the main research paper (TeX/Docx)"
+    )
+    significant_files: List[str] = Field(
+        default_factory=list,
+        description="Files identified by AI or heuristics for deep analysis",
     )
 
 
@@ -175,6 +236,39 @@ class AIAnalysis(BaseModel):
     missing_fields: List[str] = Field(
         default_factory=list, validation_alias="missingfields", alias="missing_fields"
     )
+    non_compliant: List[str] = Field(
+        default_factory=list, validation_alias="noncompliant", alias="non_compliant"
+    )
+    conflicting_data: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        validation_alias="conflictingdata",
+        alias="conflicting_data",
+    )
+    questions: List[Question] = Field(default_factory=list)
+    file_suggestions: List[FileSuggestion] = Field(
+        default_factory=list,
+        validation_alias="filesuggestions",
+        alias="file_suggestions",
+    )
+
+    @field_validator("non_compliant", "missing_fields", mode="before")
+    @classmethod
+    def ensure_string_list(cls, v: Any) -> List[str]:
+        if v is None:
+            return []
+        if isinstance(v, list):
+            res = []
+            for item in v:
+                if isinstance(item, dict):
+                    # Convert dict to string representation
+                    field = item.get("field", "unknown")
+                    reason = item.get("reason", "")
+                    res.append(f"{field}: {reason}" if reason else field)
+                else:
+                    res.append(str(item))
+            return res
+        return v
+
     non_compliant: List[str] = Field(
         default_factory=list, validation_alias="noncompliant", alias="non_compliant"
     )

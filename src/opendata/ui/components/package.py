@@ -50,9 +50,7 @@ def render_package_tab(ctx: AppContext):
             ui.icon("inventory", size="xl", color="grey-400")
             ui.label(_("No file inventory found.")).classes("text-orange-600 font-bold")
             ui.markdown(
-                _(
-                    "Please click **Analyze Directory** in the Analysis tab to list project files."
-                )
+                _("Please click **Scan** in the Analysis tab to list project files.")
             ).classes("text-sm text-slate-500")
             with ui.row().classes("gap-2"):
                 ui.button(
@@ -66,7 +64,7 @@ def render_package_tab(ctx: AppContext):
                 ).props("elevated color=primary")
         return
 
-    inventory = UIState.inventory_cache
+    inventory = ctx.session.inventory_cache
 
     with ui.column().classes("w-full gap-4 h-[calc(100vh-130px)] p-4"):
         # Header Section
@@ -466,8 +464,16 @@ async def handle_ai_suggestion_request(ctx: AppContext):
         ui.notify(_("Please open a project first."), type="warning")
         return
 
+    # 1. Switch to Analysis Tab
+    ctx.main_tabs.set_value(ctx.analysis_tab)
+
+    # 2. Update Mode and Notify
     ctx.session.show_suggestions_banner = True
     ScanState.agent_mode = "curator"
+
+    # 3. Refresh UI to show the mode change in the toggle
+    ctx.refresh_all()
+
     prompt = _(
         "Analyze the project structure and primary publication to suggest all files required for results reproduction. Focus on data-script linkages."
     )
@@ -476,7 +482,7 @@ async def handle_ai_suggestion_request(ctx: AppContext):
 
     await handle_user_msg_from_code(ctx, prompt, mode="curator")
     try:
-        ui.notify(_("AI is analyzing file linkages... check Chat tab for results."))
+        ui.notify(_("AI Curator mode activated. Analyzing file linkages..."))
     except RuntimeError:
         pass
 
@@ -499,22 +505,27 @@ async def handle_refresh_inventory(ctx: AppContext):
         ScanState.full_path = full_path
         ScanState.short_path = short_path
 
-    await asyncio.to_thread(
-        ctx.agent.refresh_inventory,
-        resolved_path,
-        update_progress,
-        stop_event=ScanState.stop_event,
-    )
-
-    ScanState.is_scanning = False
-    ScanState.stop_event = None
-    ctx.session.last_inventory_project = ""
-    await load_inventory_background(ctx)
-
     try:
-        ui.notify(_("File list updated."), type="positive")
-    except Exception:
-        pass
+        result = await asyncio.to_thread(
+            ctx.agent.refresh_inventory,
+            resolved_path,
+            update_progress,
+            stop_event=ScanState.stop_event,
+            force=True,
+        )
+        if ScanState.stop_event and ScanState.stop_event.is_set():
+            ctx.agent.chat_history.append(("agent", f"🛑 **{result}**"))
+        else:
+            ui.notify(_("File list updated."), type="positive")
+    except asyncio.CancelledError:
+        logger.info("Scan cancelled by user.")
+    except Exception as e:
+        ui.notify(f"Scan error: {e}", type="negative")
+    finally:
+        ScanState.is_scanning = False
+        ScanState.stop_event = None
+        ctx.session.last_inventory_project = ""
+        await load_inventory_background(ctx)
 
 
 async def handle_reset(ctx: AppContext):

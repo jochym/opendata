@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from opendata.models import ProjectFingerprint, Metadata
@@ -21,21 +22,25 @@ class ScannerService:
         exclude_patterns: list[str],
         progress_callback: Optional[Callable[[str, str, str], None]] = None,
         stop_event: Optional[Any] = None,
-    ) -> Tuple[ProjectFingerprint, list[dict]]:
+    ) -> Tuple[Optional[ProjectFingerprint], list[dict]]:
         """
         Performs a fast file scan and updates the SQLite inventory.
         """
         # 1. Quick fingerprint update
-        res = scan_project_lazy(
-            project_dir,
-            progress_callback=progress_callback,
-            stop_event=stop_event,
-            exclude_patterns=exclude_patterns,
-        )
-        fingerprint, full_files = res
+        try:
+            res = scan_project_lazy(
+                project_dir,
+                progress_callback=progress_callback,
+                stop_event=stop_event,
+                exclude_patterns=exclude_patterns,
+            )
+            fingerprint, full_files = res
+        except asyncio.CancelledError:
+            logger.info("Scan cancelled during directory walk.")
+            return None, []
 
         if stop_event and stop_event.is_set():
-            return fingerprint, []
+            return None, []
 
         # 2. Update SQLite Inventory
         try:
@@ -63,6 +68,8 @@ class ScannerService:
         current_file_idx = 0
         total_size_str = format_size(fingerprint.total_size_bytes)
 
+        candidate_main_files = []
+
         for p, p_stat in walk_project_files(
             project_dir, stop_event=stop_event, exclude_patterns=exclude_patterns
         ):
@@ -70,6 +77,11 @@ class ScannerService:
                 break
             if p_stat is not None:
                 current_file_idx += 1
+
+                # Check for primary file candidates
+                if p.suffix.lower() in [".tex", ".docx"]:
+                    candidate_main_files.append(p)
+
                 if progress_callback:
                     progress_callback(
                         f"{total_size_str} - {current_file_idx}/{total_files}",
@@ -91,5 +103,12 @@ class ScannerService:
                         logger.warning(
                             f"Extractor {ext.__class__.__name__} failed on {p}: {e}"
                         )
+
+        # Determine primary file
+        if candidate_main_files:
+            main_file = sorted(
+                candidate_main_files, key=lambda x: x.stat().st_size, reverse=True
+            )[0]
+            fingerprint.primary_file = str(main_file.relative_to(project_dir))
 
         return heuristics_data
