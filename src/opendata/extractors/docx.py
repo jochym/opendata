@@ -1,6 +1,8 @@
 from pathlib import Path
-from opendata.extractors.base import BaseExtractor, PartialMetadata
+
 from docx import Document
+
+from opendata.extractors.base import BaseExtractor, PartialMetadata
 
 
 class DocxExtractor(BaseExtractor):

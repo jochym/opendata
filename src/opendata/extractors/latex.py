@@ -1,5 +1,6 @@
 import re
 from pathlib import Path
+
 from opendata.extractors.base import BaseExtractor, PartialMetadata
 from opendata.utils import read_file_header
 
@@ -26,7 +27,6 @@ class LatexExtractor(BaseExtractor):
         authors = []
         author_blocks = re.findall(r"\\author\{([^}]+)\}", content)
 
-        from opendata.models import PersonOrOrg
 
         for block in author_blocks:
             # Clean up LaTeX macros like \inst, \thanks, \orcidlink, but keep the content of some if needed

@@ -1,10 +1,9 @@
-from pathlib import Path
-import json
-from typing import List, Set, Dict, Optional
-from opendata.models import PackageManifest
-from opendata.workspace import WorkspaceManager
-from opendata.utils import walk_project_files
 import fnmatch
+from pathlib import Path
+
+from opendata.models import PackageManifest
+from opendata.utils import walk_project_files
+from opendata.workspace import WorkspaceManager
 
 
 class PackageManager:
@@ -20,7 +19,7 @@ class PackageManager:
 
         if manifest_path.exists():
             try:
-                with open(manifest_path, "r", encoding="utf-8") as f:
+                with open(manifest_path, encoding="utf-8") as f:
                     return PackageManifest.model_validate_json(f.read())
             except Exception as e:
                 print(f"[ERROR] Failed to load manifest for {project_id}: {e}")
@@ -35,8 +34,8 @@ class PackageManager:
             f.write(manifest.model_dump_json(indent=2))
 
     def build_file_tree(
-        self, root_path: Path, exclude_patterns: List[str]
-    ) -> List[Dict]:
+        self, root_path: Path, exclude_patterns: list[str]
+    ) -> list[dict]:
         """
         Builds a hierarchical tree structure for NiceGUI ui.tree.
         Optimized for reasonable depth.
@@ -110,8 +109,8 @@ class PackageManager:
         self,
         project_path: Path,
         manifest: PackageManifest,
-        protocol_excludes: List[str],
-    ) -> List[Path]:
+        protocol_excludes: list[str],
+    ) -> list[Path]:
         """
         Calculates the final list of files to include in the package.
         Logic:
@@ -157,8 +156,8 @@ class PackageManager:
         self,
         project_path: Path,
         manifest: PackageManifest,
-        protocol_excludes: List[str],
-    ) -> List[dict]:
+        protocol_excludes: list[str],
+    ) -> list[dict]:
         """
         Returns a flat list of all files with their inclusion status and reasons.
         Reads from SQLite cache instead of re-scanning the disk.

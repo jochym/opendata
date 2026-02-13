@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional, Callable
-import requests
+from collections.abc import Callable
 from pathlib import Path
+
+import requests
 
 
 class BaseAIService(ABC):
@@ -23,7 +24,7 @@ class BaseAIService(ABC):
 
     @abstractmethod
     def ask_agent(
-        self, prompt: str, on_status: Optional[Callable[[str], None]] = None
+        self, prompt: str, on_status: Callable[[str], None] | None = None
     ) -> str:
         """
         Sends a prompt to the AI and returns the text response.
@@ -35,7 +36,7 @@ class BaseAIService(ABC):
         pass
 
     @abstractmethod
-    def list_available_models(self) -> List[str]:
+    def list_available_models(self) -> list[str]:
         """Lists models available for this provider."""
         pass
 

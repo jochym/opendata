@@ -1,6 +1,6 @@
 import gettext
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 # Global variable to hold the current translation function
 _current_t: Callable[[str], str] = gettext.gettext

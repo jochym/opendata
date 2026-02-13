@@ -1,9 +1,11 @@
-from pathlib import Path
 import asyncio
+from pathlib import Path
+
 from nicegui import ui
+
 from opendata.i18n.translator import _
-from opendata.ui.state import ScanState, UIState
 from opendata.ui.context import AppContext
+from opendata.ui.state import ScanState, UIState
 from opendata.utils import get_app_version
 
 
@@ -94,7 +96,7 @@ def header_content_ui(ctx: AppContext):
             ):
                 ui.tooltip(_("Remove current project from history"))
                 del_btn.bind_visibility_from(
-                    ctx.agent, "project_id", backward=lambda x: bool(x)
+                    ctx.agent, "project_id", backward=bool
                 )
 
 
@@ -140,13 +142,12 @@ async def handle_load_project(ctx: AppContext, path: str):
 
 async def handle_delete_current(ctx: AppContext):
     project_id = ctx.agent.project_id
-    if not project_id:
-        if ScanState.current_path:
-            projects = ctx.wm.list_projects()
-            for p in projects:
-                if p["path"] == ScanState.current_path:
-                    project_id = p["id"]
-                    break
+    if not project_id and ScanState.current_path:
+        projects = ctx.wm.list_projects()
+        for p in projects:
+            if p["path"] == ScanState.current_path:
+                project_id = p["id"]
+                break
 
     if not project_id:
         ui.notify(_("Please select a project to delete first."), type="warning")

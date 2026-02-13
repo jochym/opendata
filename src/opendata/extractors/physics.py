@@ -1,5 +1,6 @@
 import re
 from pathlib import Path
+
 from opendata.extractors.base import BaseExtractor, PartialMetadata
 from opendata.utils import read_file_header
 

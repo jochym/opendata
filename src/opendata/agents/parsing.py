@@ -1,17 +1,16 @@
 import json
-import re
-import yaml
 import logging
-from typing import Tuple, Optional, Any
-from opendata.models import Metadata, AIAnalysis
+import re
+
 from opendata.i18n.translator import _
+from opendata.models import AIAnalysis, Metadata
 
 logger = logging.getLogger("opendata.agents.parsing")
 
 
 def extract_metadata_from_ai_response(
     response_text: str, current_metadata: Metadata
-) -> Tuple[str, Optional[AIAnalysis], Metadata]:
+) -> tuple[str, AIAnalysis | None, Metadata]:
     """
     Extract METADATA JSON from AI response and merge into current_metadata.
     Handles both legacy and new (ANALYSIS + METADATA) structures.

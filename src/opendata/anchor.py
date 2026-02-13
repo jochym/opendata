@@ -1,10 +1,11 @@
-import tkinter as tk
-from tkinter import ttk, messagebox
-import webbrowser
+import logging
 import os
 import signal
 import sys
-import logging
+import tkinter as tk
+import webbrowser
+from tkinter import messagebox, ttk
+
 from opendata.utils import get_app_version
 
 logger = logging.getLogger("opendata.anchor")

@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Optional, Dict, Any, List
+from typing import Any
+
 from pydantic import BaseModel
-from opendata.models import Metadata, PersonOrOrg, Contact
 
 
 class PartialMetadata(BaseModel):
@@ -11,15 +11,15 @@ class PartialMetadata(BaseModel):
     Used for merging results from multiple extractors.
     """
 
-    title: Optional[str] = None
-    authors: Optional[List[Dict[str, Any]]] = None
-    contacts: Optional[List[Dict[str, Any]]] = None
-    description: Optional[List[str]] = None
-    keywords: Optional[List[str]] = None
-    science_branches_mnisw: Optional[List[str]] = None
-    science_branches_oecd: Optional[List[str]] = None
-    languages: Optional[List[str]] = None
-    kind_of_data: Optional[str] = None
+    title: str | None = None
+    authors: list[dict[str, Any]] | None = None
+    contacts: list[dict[str, Any]] | None = None
+    description: list[str] | None = None
+    keywords: list[str] | None = None
+    science_branches_mnisw: list[str] | None = None
+    science_branches_oecd: list[str] | None = None
+    languages: list[str] | None = None
+    kind_of_data: str | None = None
 
 
 class BaseExtractor(ABC):
@@ -48,5 +48,5 @@ class ExtractorRegistry:
     def register(self, extractor: BaseExtractor):
         self._extractors.append(extractor)
 
-    def get_extractors_for(self, filepath: Path) -> List[BaseExtractor]:
+    def get_extractors_for(self, filepath: Path) -> list[BaseExtractor]:
         return [e for e in self._extractors if e.can_handle(filepath)]

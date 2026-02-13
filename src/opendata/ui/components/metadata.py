@@ -1,9 +1,11 @@
 import re
+
 import yaml
 from nicegui import ui
+
 from opendata.i18n.translator import _
-from opendata.ui.state import ScanState, UIState
 from opendata.ui.context import AppContext
+from opendata.ui.state import ScanState
 
 
 @ui.refreshable
@@ -108,7 +110,7 @@ def metadata_preview_ui(ctx: AppContext):
         for key, value in fields.items():
             if key == "locked_fields":
                 continue
-            if key == "authors" or key == "contacts":
+            if key in {"authors", "contacts"}:
                 ui.label(key.replace("_", " ").title()).classes(
                     "text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-wider"
                 )
@@ -408,9 +410,7 @@ def metadata_preview_ui(ctx: AppContext):
                                     if grant_id:
                                         ui.label(f"Grant ID: {grant_id}")
             elif (
-                key == "science_branches_mnisw"
-                or key == "science_branches_oecd"
-                or key == "languages"
+                key in {"science_branches_mnisw", "science_branches_oecd", "languages"}
             ):
                 ui.label(key.replace("_", " ").title()).classes(
                     "text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-wider"

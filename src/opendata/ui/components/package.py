@@ -1,12 +1,15 @@
 import asyncio
+import contextlib
 import logging
 from pathlib import Path
+
 from nicegui import ui
+
 from opendata.i18n.translator import _
-from opendata.ui.state import ScanState, UIState
-from opendata.ui.context import AppContext
-from opendata.utils import format_size
 from opendata.ui.components.inventory_logic import load_inventory_background
+from opendata.ui.context import AppContext
+from opendata.ui.state import ScanState, UIState
+from opendata.utils import format_size
 
 logger = logging.getLogger("opendata.ui.package")
 
@@ -36,7 +39,6 @@ def render_package_tab(ctx: AppContext):
             )
         return
 
-    project_id: str = ctx.agent.project_id
 
     if (
         ctx.agent.current_analysis
@@ -164,10 +166,7 @@ def render_breadcrumbs(ctx: AppContext):
         for i, part in enumerate(parts):
             ui.label("/").classes("text-slate-400")
 
-            if i > 0:
-                accumulated_path = str(Path(accumulated_path) / part)
-            else:
-                accumulated_path = part
+            accumulated_path = str(Path(accumulated_path) / part) if i > 0 else part
 
             is_last = i == len(parts) - 1
 
@@ -289,11 +288,10 @@ async def toggle_file(ctx: AppContext, path: str, new_value: bool):
             manifest.force_exclude.remove(path)
         elif path not in manifest.force_include:
             manifest.force_include.append(path)
-    else:
-        if path in manifest.force_include:
-            manifest.force_include.remove(path)
-        elif path not in manifest.force_exclude:
-            manifest.force_exclude.append(path)
+    elif path in manifest.force_include:
+        manifest.force_include.remove(path)
+    elif path not in manifest.force_exclude:
+        manifest.force_exclude.append(path)
 
     ctx.pkg_mgr.save_manifest(manifest)
     await load_inventory_background(ctx)
@@ -338,7 +336,7 @@ async def toggle_folder(ctx: AppContext, folder_path: str, current_state: str):
 
     if changed:
         ctx.pkg_mgr.save_manifest(manifest)
-        try:
+        with contextlib.suppress(Exception):
             ui.notify(
                 _("{action} {count} files in {folder}").format(
                     action=_("Included") if should_include else _("Excluded"),
@@ -346,8 +344,6 @@ async def toggle_folder(ctx: AppContext, folder_path: str, current_state: str):
                     folder=Path(folder_path).name,
                 )
             )
-        except Exception:
-            pass
         await load_inventory_background(ctx)
 
 
@@ -405,7 +401,7 @@ async def open_suggestions_dialog(ctx: AppContext):
                 with ui.row().classes(
                     "w-full items-start no-wrap gap-2 py-2 border-b last:border-0"
                 ):
-                    cb = ui.checkbox(
+                    ui.checkbox(
                         value=True,
                         on_change=lambda e, p=s.path: (
                             selected_paths.add(p)
@@ -428,15 +424,13 @@ async def open_suggestions_dialog(ctx: AppContext):
                         if p not in manifest.force_include:
                             manifest.force_include.append(p)
                     ctx.pkg_mgr.save_manifest(manifest)
-                    try:
+                    with contextlib.suppress(Exception):
                         ui.notify(
                             _("Included {count} suggested files.").format(
                                 count=len(selected_paths)
                             ),
                             type="positive",
                         )
-                    except Exception:
-                        pass
                 forget_suggestions(ctx)
                 dialog.close()
                 await load_inventory_background(ctx)
@@ -475,10 +469,8 @@ async def handle_ai_suggestion_request(ctx: AppContext):
     from opendata.ui.components.chat import handle_user_msg_from_code
 
     await handle_user_msg_from_code(ctx, prompt, mode="curator")
-    try:
+    with contextlib.suppress(RuntimeError):
         ui.notify(_("AI is analyzing file linkages... check Chat tab for results."))
-    except RuntimeError:
-        pass
 
 
 async def handle_refresh_inventory(ctx: AppContext):
@@ -511,10 +503,8 @@ async def handle_refresh_inventory(ctx: AppContext):
     UIState.last_inventory_project = ""
     await load_inventory_background(ctx)
 
-    try:
+    with contextlib.suppress(Exception):
         ui.notify(_("File list updated."), type="positive")
-    except Exception:
-        pass
 
 
 async def handle_reset(ctx: AppContext):

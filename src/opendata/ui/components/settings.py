@@ -1,8 +1,9 @@
 from nicegui import ui
+
 from opendata.i18n.translator import _, setup_i18n
-from opendata.ui.state import ScanState
 from opendata.ui.context import AppContext
-from opendata.utils import get_local_ip, get_app_version
+from opendata.ui.state import ScanState
+from opendata.utils import get_app_version
 
 
 def render_settings_tab(ctx: AppContext):
@@ -16,19 +17,18 @@ def render_settings_tab(ctx: AppContext):
                 info = ctx.ai.get_user_info()
                 with ui.card().classes(
                     "w-full bg-blue-50 p-4 border border-blue-200 shadow-none"
-                ):
-                    with ui.row().classes("items-center gap-4"):
-                        ui.icon("smart_toy", size="lg").classes("text-blue-600")
-                        with ui.column().classes("gap-0"):
-                            ui.label(_("Active AI Connection")).classes(
-                                "text-xs font-bold text-blue-800 uppercase tracking-wider"
-                            )
-                            ui.label(f"{info['provider']}").classes(
-                                "text-lg font-bold text-slate-800"
-                            )
-                            ui.label(info["account"]).classes(
-                                "text-sm text-slate-600 font-mono"
-                            )
+                ), ui.row().classes("items-center gap-4"):
+                    ui.icon("smart_toy", size="lg").classes("text-blue-600")
+                    with ui.column().classes("gap-0"):
+                        ui.label(_("Active AI Connection")).classes(
+                            "text-xs font-bold text-blue-800 uppercase tracking-wider"
+                        )
+                        ui.label(f"{info['provider']}").classes(
+                            "text-lg font-bold text-slate-800"
+                        )
+                        ui.label(info["account"]).classes(
+                            "text-sm text-slate-600 font-mono"
+                        )
 
             # Model Selection
             with ui.column().classes("gap-1"):
@@ -172,7 +172,7 @@ def render_setup_wizard(ctx: AppContext):
 
 
 async def handle_auth_provider(ctx: AppContext, provider: str):
-    setattr(ctx.settings, "ai_provider", provider)
+    ctx.settings.ai_provider = provider
     ctx.wm.save_yaml(ctx.settings, "settings.yaml")
 
     ctx.ai.reload_provider(ctx.settings)

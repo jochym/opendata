@@ -1,7 +1,8 @@
 import zipfile
-import yaml
-import json
 from pathlib import Path
+
+import yaml
+
 from opendata.models import Metadata
 from opendata.utils import walk_project_files
 

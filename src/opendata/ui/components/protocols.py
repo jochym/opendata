@@ -1,7 +1,7 @@
 from nicegui import ui
+
 from opendata.i18n.translator import _
 from opendata.models import ExtractionProtocol
-from opendata.ui.state import ScanState
 from opendata.ui.context import AppContext
 
 
@@ -137,10 +137,6 @@ def _make_textarea(value: str, is_readonly: bool, mono: bool = False):
 
 def render_protocol_editor(ctx: AppContext, protocol: ExtractionProtocol, on_save=None):
     is_readonly = protocol.is_read_only
-
-    # Calculate available height: subtract header bar (if readonly banner shown, ~40px extra)
-    banner_h = 40 if is_readonly else 0
-    save_h = 48 if (not is_readonly and on_save) else 0
 
     with ui.element("div").style(
         "width:100%; height:100%; display:flex; flex-direction:column; overflow:hidden; padding:8px; gap:8px;"

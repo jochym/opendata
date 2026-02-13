@@ -1,6 +1,8 @@
 from pathlib import Path
-from opendata.extractors.base import BaseExtractor, PartialMetadata
+
 import pydicom
+
+from opendata.extractors.base import BaseExtractor, PartialMetadata
 
 
 class DicomExtractor(BaseExtractor):

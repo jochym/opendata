@@ -1,6 +1,8 @@
 from pathlib import Path
-from opendata.extractors.base import BaseExtractor, PartialMetadata
+
 import bibtexparser
+
+from opendata.extractors.base import BaseExtractor, PartialMetadata
 
 
 class BibtexExtractor(BaseExtractor):

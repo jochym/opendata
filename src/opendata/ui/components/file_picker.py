@@ -1,7 +1,8 @@
 import logging
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+
 from nicegui import ui
+
 from opendata.i18n.translator import _
 
 logger = logging.getLogger("opendata.ui.file_picker")

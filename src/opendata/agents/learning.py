@@ -1,7 +1,7 @@
-from pydantic import BaseModel, Field
-from typing import List, Dict
 from pathlib import Path
+
 import yaml
+from pydantic import BaseModel, Field
 
 
 class FieldProtocol(BaseModel):
@@ -11,10 +11,10 @@ class FieldProtocol(BaseModel):
     """
 
     field_name: str
-    heuristics: List[str] = Field(
+    heuristics: list[str] = Field(
         default_factory=list, description="Regex or pattern rules"
     )
-    ai_prompts: List[str] = Field(
+    ai_prompts: list[str] = Field(
         default_factory=list, description="Specific prompt snippets learned from user"
     )
 
@@ -41,6 +41,6 @@ class ProtocolStore:
         if not target_path.exists():
             return None
 
-        with open(target_path, "r", encoding="utf-8") as f:
+        with open(target_path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
             return FieldProtocol.model_validate(data)

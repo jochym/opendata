@@ -1,8 +1,11 @@
-import requests
+from collections.abc import Callable
 from pathlib import Path
-from typing import Optional, Callable
-from .base import BaseAIService
+
+import requests
+
 from opendata.models import UserSettings
+
+from .base import BaseAIService
 
 
 class OpenAIProvider(BaseAIService):
@@ -55,8 +58,7 @@ class OpenAIProvider(BaseAIService):
                 if "data" in data:
                     return [m["id"] for m in data["data"]]
                 return [self.model_name]  # Fallback
-            else:
-                return [self.model_name]
+            return [self.model_name]
         except Exception:
             return [self.model_name]
 
@@ -67,7 +69,7 @@ class OpenAIProvider(BaseAIService):
         # Here we just update internal state.
 
     def ask_agent(
-        self, prompt: str, on_status: Optional[Callable[[str], None]] = None
+        self, prompt: str, on_status: Callable[[str], None] | None = None
     ) -> str:
         try:
             url = f"{self.base_url}/chat/completions"
@@ -86,10 +88,8 @@ class OpenAIProvider(BaseAIService):
 
             if response.status_code == 200:
                 data = response.json()
-                content = data["choices"][0]["message"]["content"]
-                return content
-            else:
-                return f"AI Error ({response.status_code}): {response.text}"
+                return data["choices"][0]["message"]["content"]
+            return f"AI Error ({response.status_code}): {response.text}"
 
         except Exception as e:
             return f"AI Connection Error: {e}"

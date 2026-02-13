@@ -1,11 +1,10 @@
 import asyncio
 import logging
-from pathlib import Path
 from collections import defaultdict
-from nicegui import ui
-from opendata.ui.state import ScanState, UIState
+from pathlib import Path
+
 from opendata.ui.context import AppContext
-from opendata.utils import format_size
+from opendata.ui.state import ScanState, UIState
 
 logger = logging.getLogger("opendata.ui.inventory_logic")
 
