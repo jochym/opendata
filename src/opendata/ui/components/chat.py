@@ -1,14 +1,17 @@
 import asyncio
-import threading
+import contextlib
 import re
-from typing import Any
+import threading
 from pathlib import Path
+from typing import Any
+
 from nicegui import ui
+
 from opendata.i18n.translator import _
-from opendata.ui.state import ScanState, UIState
-from opendata.ui.context import AppContext
-from opendata.ui.components.metadata import metadata_preview_ui, handle_clear_metadata
 from opendata.ui.components.file_picker import LocalFilePicker
+from opendata.ui.components.metadata import handle_clear_metadata, metadata_preview_ui
+from opendata.ui.context import AppContext
+from opendata.ui.state import ScanState, UIState
 
 
 @ui.refreshable
@@ -96,10 +99,8 @@ def chat_messages_ui(ctx: AppContext):
                             ui.button("", on_click=lambda: handle_cancel_ai(ctx)).props(
                                 "icon=stop_circle flat color=red size=xs"
                             ).classes("min-h-6 min-w-6 p-0.5")
-    try:
+    with contextlib.suppress(RuntimeError):
         ui.run_javascript("window.scrollTo(0, document.body.scrollHeight)")
-    except RuntimeError:
-        pass
 
 
 def render_analysis_form(ctx: AppContext, analysis: Any):
@@ -228,74 +229,73 @@ def render_analysis_dashboard(ctx: AppContext):
                             on_click=lambda: handle_user_msg(ctx, user_input),
                         ).props("round elevated color=primary")
 
-        with splitter.after:
-            with ui.column().classes("w-full h-full pl-2"):
-                with ui.card().classes(
-                    "w-full h-full p-3 shadow-md border-l-4 border-green-500 flex flex-col"
+        with splitter.after, ui.column().classes("w-full h-full pl-2"):
+            with ui.card().classes(
+                "w-full h-full p-3 shadow-md border-l-4 border-green-500 flex flex-col"
+            ):
+                with ui.row().classes(
+                    "w-full justify-between items-center mb-1 shrink-0"
                 ):
-                    with ui.row().classes(
-                        "w-full justify-between items-center mb-1 shrink-0"
-                    ):
-                        ui.label(_("RODBUK Metadata")).classes(
-                            "text-h5 font-bold text-green-800"
+                    ui.label(_("RODBUK Metadata")).classes(
+                        "text-h5 font-bold text-green-800"
+                    )
+                    ui.button(
+                        icon="refresh", on_click=lambda: handle_clear_metadata(ctx)
+                    ).props("flat dense color=orange")
+                    ui.tooltip(_("Reset Metadata"))
+                with ui.row().classes("w-full items-center gap-1 mb-2 shrink-0"):
+
+                    async def pick_dir():
+                        picker = LocalFilePicker(
+                            directory=ScanState.current_path or "~",
+                            directory_only=True,
                         )
-                        ui.button(
-                            icon="refresh", on_click=lambda: handle_clear_metadata(ctx)
-                        ).props("flat dense color=orange")
-                        ui.tooltip(_("Reset Metadata"))
-                    with ui.row().classes("w-full items-center gap-1 mb-2 shrink-0"):
+                        result = await picker
+                        if result:
+                            ScanState.current_path = result
+                            path_input.value = result
 
-                        async def pick_dir():
-                            picker = LocalFilePicker(
-                                directory=ScanState.current_path or "~",
-                                directory_only=True,
-                            )
-                            result = await picker
-                            if result:
-                                ScanState.current_path = result
-                                path_input.value = result
-
-                        path_input = (
-                            ui.input(
-                                label=_("Project Path"),
-                                placeholder="/path/to/research",
-                            )
-                            .classes("flex-grow")
-                            .props("dense")
+                    path_input = (
+                        ui.input(
+                            label=_("Project Path"),
+                            placeholder="/path/to/research",
                         )
-                        # Manual binding to state only, without on_change triggers
-                        path_input.bind_value(ScanState, "current_path")
+                        .classes("flex-grow")
+                        .props("dense")
+                    )
+                    # Manual binding to state only, without on_change triggers
+                    path_input.bind_value(ScanState, "current_path")
 
-                        ui.button(icon="folder", on_click=pick_dir).props("dense flat")
+                    ui.button(icon="folder", on_click=pick_dir).props("dense flat")
 
-                        from opendata.ui.components.header import handle_load_project
+                    from opendata.ui.components.header import handle_load_project
 
-                        ui.button(
-                            _("Open"),
-                            on_click=lambda: handle_load_project(ctx, path_input.value),
-                        ).props("dense outline").classes("shrink-0")
+                    ui.button(
+                        _("Open"),
+                        on_click=lambda: handle_load_project(ctx, path_input.value),
+                    ).props("dense outline").classes("shrink-0")
 
-                    with ui.column().classes("gap-1 mb-2 w-full shrink-0"):
-                        ui.button(
-                            _("Analyze Directory"),
-                            icon="search",
-                            on_click=lambda: handle_scan(
-                                ctx, path_input.value, force=True
-                            ),
-                        ).classes("w-full").props("dense").bind_visibility_from(
-                            ScanState, "is_scanning", backward=lambda x: not x
-                        )
-                        ui.button(
-                            _("Cancel Scan"),
-                            icon="stop",
-                            on_click=lambda: handle_cancel_scan(ctx),
-                            color="red",
-                        ).classes("w-full").props("dense").bind_visibility_from(
-                            ScanState, "is_scanning"
-                        )
-                        ui.separator().classes("mt-1")
-                    with ui.scroll_area().classes("flex-grow w-full"):
-                        metadata_preview_ui(ctx)
+                with ui.column().classes("gap-1 mb-2 w-full shrink-0"):
+                    ui.button(
+                        _("Analyze Directory"),
+                        icon="search",
+                        on_click=lambda: handle_scan(
+                            ctx, path_input.value, force=True
+                        ),
+                    ).classes("w-full").props("dense").bind_visibility_from(
+                        ScanState, "is_scanning", backward=lambda x: not x
+                    )
+                    ui.button(
+                        _("Cancel Scan"),
+                        icon="stop",
+                        on_click=lambda: handle_cancel_scan(ctx),
+                        color="red",
+                    ).classes("w-full").props("dense").bind_visibility_from(
+                        ScanState, "is_scanning"
+                    )
+                    ui.separator().classes("mt-1")
+                with ui.scroll_area().classes("flex-grow w-full"):
+                    metadata_preview_ui(ctx)
 
 
 async def handle_user_msg(ctx: AppContext, input_element):
@@ -341,10 +341,8 @@ async def handle_user_msg_from_code(ctx: AppContext, text: str, mode: str = "met
         ScanState.is_processing_ai = False
         UIState.ai_stop_event = None
         ctx.refresh_all()
-        try:
+        with contextlib.suppress(RuntimeError):
             ui.run_javascript("window.scrollTo(0, document.body.scrollHeight)")
-        except RuntimeError:
-            pass
 
 
 async def handle_clear_chat(ctx: AppContext):

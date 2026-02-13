@@ -1,11 +1,13 @@
 import asyncio
 from pathlib import Path
+
 from nicegui import ui
+
 from opendata.i18n.translator import _
-from opendata.ui.state import ScanState, UIState
-from opendata.ui.context import AppContext
-from opendata.utils import format_size
 from opendata.ui.components.metadata import metadata_preview_ui
+from opendata.ui.context import AppContext
+from opendata.ui.state import ScanState, UIState
+from opendata.utils import format_size
 
 
 @ui.refreshable

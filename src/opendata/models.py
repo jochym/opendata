@@ -1,7 +1,8 @@
-from pydantic import BaseModel, Field, EmailStr, field_validator
-from typing import List, Optional, Literal, Any, Dict
-from pathlib import Path
 from enum import Enum
+from pathlib import Path
+from typing import Any, Literal
+
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class ProtocolLevel(str, Enum):
@@ -16,11 +17,11 @@ class ExtractionProtocol(BaseModel):
     name: str
     level: ProtocolLevel
     is_read_only: bool = False
-    include_patterns: List[str] = Field(default_factory=list)
-    exclude_patterns: List[str] = Field(default_factory=list)
-    extraction_prompts: List[str] = Field(default_factory=list)
-    metadata_prompts: List[str] = Field(default_factory=list)
-    curator_prompts: List[str] = Field(default_factory=list)
+    include_patterns: list[str] = Field(default_factory=list)
+    exclude_patterns: list[str] = Field(default_factory=list)
+    extraction_prompts: list[str] = Field(default_factory=list)
+    metadata_prompts: list[str] = Field(default_factory=list)
+    curator_prompts: list[str] = Field(default_factory=list)
 
 
 class PackageManifest(BaseModel):
@@ -28,11 +29,11 @@ class PackageManifest(BaseModel):
 
     project_id: str
     # Files explicitly selected by user (overrides exclusions)
-    force_include: List[str] = Field(default_factory=list)
+    force_include: list[str] = Field(default_factory=list)
     # Files explicitly excluded by user (overrides inclusions)
-    force_exclude: List[str] = Field(default_factory=list)
+    force_exclude: list[str] = Field(default_factory=list)
     # Snapshot of the file tree structure for UI
-    cached_tree: Optional[Dict[str, Any]] = None
+    cached_tree: dict[str, Any] | None = None
 
 
 class UserSettings(BaseModel):
@@ -43,7 +44,7 @@ class UserSettings(BaseModel):
     # AI Configuration
     ai_provider: Literal["google", "openai"] = "google"
     google_model: str = "gemini-3-flash-preview"  # Default Google model
-    openai_api_key: Optional[str] = None
+    openai_api_key: str | None = None
     openai_base_url: str = "https://api.openai.com/v1"
     openai_model: str = "gpt-3.5-turbo"
 
@@ -59,67 +60,67 @@ class UserSettings(BaseModel):
 
 class PersonOrOrg(BaseModel):
     name: str = Field(..., description="Surname, first name or organization name")
-    affiliation: Optional[str] = Field(None, description="Affiliation in English")
-    identifier_scheme: Optional[str] = Field(None, description="ORCID, ISNI, etc.")
-    identifier: Optional[str] = Field(None, description="ID without https:// prefix")
+    affiliation: str | None = Field(None, description="Affiliation in English")
+    identifier_scheme: str | None = Field(None, description="ORCID, ISNI, etc.")
+    identifier: str | None = Field(None, description="ID without https:// prefix")
 
 
 class Contact(BaseModel):
     person_to_contact: str = Field(..., description="Full name")
-    affiliation: Optional[str] = Field(None)
+    affiliation: str | None = Field(None)
     email: EmailStr = Field(...)
 
 
 class RelatedResource(BaseModel):
     relation_type: str = Field(..., description="e.g., 'cited by', 'supplement to'")
-    authors: Optional[str] = Field(None, description="APA style list")
+    authors: str | None = Field(None, description="APA style list")
     title: str = Field(...)
-    id_type: Optional[str] = Field(None, description="DOI, Handle, etc.")
-    id_number: Optional[str] = Field(None, description="Full URL identifier")
+    id_type: str | None = Field(None, description="DOI, Handle, etc.")
+    id_number: str | None = Field(None, description="Full URL identifier")
 
 
 class Metadata(BaseModel):
     # Field protection
-    locked_fields: List[str] = Field(
+    locked_fields: list[str] = Field(
         default_factory=list, description="Fields protected from AI updates"
     )
 
     # RODBUK Mandatory Fields (Made optional for intermediate drafting)
-    title: Optional[str] = Field(None, description="Full dataset title")
-    authors: List[PersonOrOrg] = Field(default_factory=list)
-    contacts: List[Contact] = Field(default_factory=list)
-    description: List[str] = Field(
+    title: str | None = Field(None, description="Full dataset title")
+    authors: list[PersonOrOrg] = Field(default_factory=list)
+    contacts: list[Contact] = Field(default_factory=list)
+    description: list[str] = Field(
         default_factory=list, description="Dataset summaries"
     )
-    keywords: List[str] = Field(default_factory=list)
-    science_branches_mnisw: List[str] = Field(default_factory=list)
-    science_branches_oecd: List[str] = Field(default_factory=list)
-    languages: List[str] = Field(default=["English"])
-    kind_of_data: Optional[str] = Field(
+    keywords: list[str] = Field(default_factory=list)
+    science_branches_mnisw: list[str] = Field(default_factory=list)
+    science_branches_oecd: list[str] = Field(default_factory=list)
+    languages: list[str] = Field(default=["English"])
+    kind_of_data: str | None = Field(
         None,
         description="e.g., 'Experimental', 'Simulation'",
         validation_alias="kindof_data",
     )
-    license: Optional[str] = Field(
+    license: str | None = Field(
         "CC-BY-4.0", description="Data license (e.g., CC-BY-4.0, MIT)"
     )
-    software: List[str] = Field(
+    software: list[str] = Field(
         default_factory=list,
         description="Software and versions used (e.g., VASP 6.4.1)",
     )
 
     # Persistence of session settings
-    ai_model: Optional[str] = Field(
+    ai_model: str | None = Field(
         None, description="Selected AI model for this project"
     )
 
     # Optional Fields
-    alternative_titles: List[str] = Field(default_factory=list)
-    abstract: Optional[str] = Field(None)
-    related_publications: List[RelatedResource] = Field(default_factory=list)
-    related_datasets: List[RelatedResource] = Field(default_factory=list)
-    funding: List[dict] = Field(default_factory=list)
-    notes: Optional[str] = Field(None)
+    alternative_titles: list[str] = Field(default_factory=list)
+    abstract: str | None = Field(None)
+    related_publications: list[RelatedResource] = Field(default_factory=list)
+    related_datasets: list[RelatedResource] = Field(default_factory=list)
+    funding: list[dict] = Field(default_factory=list)
+    notes: str | None = Field(None)
 
     @field_validator(
         "description",
@@ -131,7 +132,7 @@ class Metadata(BaseModel):
         mode="before",
     )
     @classmethod
-    def ensure_list_fields(cls, v: Any) -> List[str]:
+    def ensure_list_fields(cls, v: Any) -> list[str]:
         if v is None:
             return []
         if isinstance(v, str):
@@ -147,9 +148,9 @@ class ProjectFingerprint(BaseModel):
     root_path: str
     file_count: int
     total_size_bytes: int
-    extensions: List[str]
-    structure_sample: List[str] = Field(description="First 50 file paths found")
-    primary_file: Optional[str] = Field(
+    extensions: list[str]
+    structure_sample: list[str] = Field(description="First 50 file paths found")
+    primary_file: str | None = Field(
         None, description="Path to the main research paper (TeX/Docx)"
     )
 
@@ -159,8 +160,8 @@ class Question(BaseModel):
     label: str
     question: str
     type: Literal["text", "choice"]
-    options: Optional[List[str]] = None
-    value: Optional[Any] = None
+    options: list[str] | None = None
+    value: Any | None = None
 
 
 class FileSuggestion(BaseModel):
@@ -172,19 +173,19 @@ class FileSuggestion(BaseModel):
 
 class AIAnalysis(BaseModel):
     summary: str
-    missing_fields: List[str] = Field(
+    missing_fields: list[str] = Field(
         default_factory=list, validation_alias="missingfields", alias="missing_fields"
     )
-    non_compliant: List[str] = Field(
+    non_compliant: list[str] = Field(
         default_factory=list, validation_alias="noncompliant", alias="non_compliant"
     )
-    conflicting_data: List[Dict[str, Any]] = Field(
+    conflicting_data: list[dict[str, Any]] = Field(
         default_factory=list,
         validation_alias="conflictingdata",
         alias="conflicting_data",
     )
-    questions: List[Question] = Field(default_factory=list)
-    file_suggestions: List[FileSuggestion] = Field(
+    questions: list[Question] = Field(default_factory=list)
+    file_suggestions: list[FileSuggestion] = Field(
         default_factory=list,
         validation_alias="filesuggestions",
         alias="file_suggestions",

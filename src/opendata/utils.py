@@ -1,9 +1,12 @@
+import contextlib
+import os
 import re
-from pathlib import Path
 import socket
 import sys
-import os
-from typing import List, Set, Generator, Callable, Optional, Any, Tuple
+from collections.abc import Callable, Generator
+from pathlib import Path
+from typing import Any
+
 from opendata.models import ProjectFingerprint
 
 
@@ -104,7 +107,7 @@ def format_size(size_bytes: int) -> str:
     return f"{size_bytes / (1024**i):.1f} {units[i]}"
 
 
-def format_file_list(files: List[Path], root: Path) -> str:
+def format_file_list(files: list[Path], root: Path) -> str:
     """Formats a list of files with sizes for AI context."""
     lines = []
     for p in sorted(files):
@@ -117,7 +120,7 @@ def format_file_list(files: List[Path], root: Path) -> str:
     return "\n".join(lines)
 
 
-def is_path_excluded(rel_path_str: str, name: str, exclude_patterns: List[str]) -> bool:
+def is_path_excluded(rel_path_str: str, name: str, exclude_patterns: list[str]) -> bool:
     """Checks if a relative path string or filename is excluded by any pattern using robust pathlib matching."""
     if not exclude_patterns:
         return False
@@ -144,14 +147,13 @@ def is_path_excluded(rel_path_str: str, name: str, exclude_patterns: List[str]) 
 
 def walk_project_files(
     root: Path,
-    stop_event: Optional[Any] = None,
-    exclude_patterns: Optional[List[str]] = None,
-) -> Generator[Tuple[Path, Any], None, None]:
+    stop_event: Any | None = None,
+    exclude_patterns: list[str] | None = None,
+) -> Generator[tuple[Path, Any], None, None]:
     """
     Yields (Path, stat) tuples for all relevant files, skipping excluded ones.
     Optimized using os.scandir for high-performance directory traversal.
     """
-    import os
 
     skip_dirs = {".git", ".venv", "node_modules", "__pycache__", ".opendata_tool"}
     root_str = str(root.expanduser().resolve())
@@ -226,10 +228,10 @@ def walk_project_files(
 
 def scan_project_lazy(
     root: Path,
-    progress_callback: Optional[Callable[[str, str, str], None]] = None,
-    stop_event: Optional[Any] = None,
-    exclude_patterns: Optional[List[str]] = None,
-) -> Tuple[ProjectFingerprint, List[dict]]:
+    progress_callback: Callable[[str, str, str], None] | None = None,
+    stop_event: Any | None = None,
+    exclude_patterns: list[str] | None = None,
+) -> tuple[ProjectFingerprint, list[dict]]:
     """
     Scans a directory recursively. Optimized for huge datasets.
     Returns both the Fingerprint and the full file list for database indexing.
@@ -285,9 +287,9 @@ def scan_project_lazy(
 
 def list_project_files_full(
     root: Path,
-    stop_event: Optional[Any] = None,
-    exclude_patterns: Optional[List[str]] = None,
-) -> List[dict]:
+    stop_event: Any | None = None,
+    exclude_patterns: list[str] | None = None,
+) -> list[dict]:
     """
     Returns a full list of files with metadata (size, rel_path) for UI inventory.
     Skips directories, yields only files.
@@ -300,7 +302,7 @@ def list_project_files_full(
         # if stat is None, it's a directory
         if stat is not None:
             rel_path = str(p.relative_to(root))
-            try:
+            with contextlib.suppress(Exception):
                 files.append(
                     {
                         "path": rel_path,
@@ -308,8 +310,6 @@ def list_project_files_full(
                         "mtime": stat.st_mtime,
                     }
                 )
-            except Exception:
-                pass
     return files
 
 
@@ -342,7 +342,7 @@ class PromptManager:
         if not template_path.exists():
             return f"Error: Template {template_name} not found. (Searched in {self.prompts_dir})"
 
-        with open(template_path, "r", encoding="utf-8") as f:
+        with open(template_path, encoding="utf-8") as f:
             template = f.read()
 
         return template.format(**context)
@@ -365,7 +365,7 @@ class FullTextReader:
             base_dir = filepath.parent
 
             def resolve_recursive(current_path: Path):
-                with open(current_path, "r", encoding="utf-8", errors="replace") as f:
+                with open(current_path, encoding="utf-8", errors="replace") as f:
                     for line in f:
                         # Simple regex for \input{file} and \include{file}
                         match = re.search(r"\\(?:input|include)\{([^}]+)\}", line)
@@ -424,7 +424,7 @@ class FullTextReader:
         try:
             import json
 
-            with open(filepath, "r", encoding="utf-8", errors="replace") as f:
+            with open(filepath, encoding="utf-8", errors="replace") as f:
                 nb = json.load(f)
 
             content = []
@@ -451,14 +451,13 @@ class FullTextReader:
         suffix = filepath.suffix.lower()
         if suffix == ".tex":
             return FullTextReader.read_latex_full(filepath)
-        elif suffix == ".docx":
+        if suffix == ".docx":
             return FullTextReader.read_docx_full(filepath)
-        elif suffix == ".ipynb":
+        if suffix == ".ipynb":
             return FullTextReader.read_ipynb_full(filepath)
-        else:
-            # Fallback for plain text files
-            try:
-                with open(filepath, "r", encoding="utf-8", errors="replace") as f:
-                    return f.read()
-            except Exception as e:
-                return f"[Error reading text file: {e}]"
+        # Fallback for plain text files
+        try:
+            with open(filepath, encoding="utf-8", errors="replace") as f:
+                return f.read()
+        except Exception as e:
+            return f"[Error reading text file: {e}]"

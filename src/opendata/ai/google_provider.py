@@ -1,15 +1,17 @@
+import os
+import threading
+import time
+from collections.abc import Callable
+from pathlib import Path
+
 import google.generativeai as genai
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
-from pathlib import Path
-import threading
-import time
-import sys
-import os
-from typing import Optional, Callable
-from .base import BaseAIService
+
 from opendata.utils import get_resource_path
+
+from .base import BaseAIService
 
 
 class GoogleProvider(BaseAIService):
@@ -155,11 +157,10 @@ class GoogleProvider(BaseAIService):
             return False
 
     def ask_agent(
-        self, prompt: str, on_status: Optional[Callable[[str], None]] = None
+        self, prompt: str, on_status: Callable[[str], None] | None = None
     ) -> str:
-        if not self.model:
-            if not self.authenticate(silent=True):
-                return "AI not authenticated."
+        if not self.model and not self.authenticate(silent=True):
+            return "AI not authenticated."
 
         # Exponential Backoff for Rate Limits
         max_retries = 5

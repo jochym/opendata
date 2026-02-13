@@ -1,25 +1,27 @@
-import yaml
-import re
-import platform
-import sys
 import datetime
 import logging
-from typing import List, Optional, Dict, Any, Tuple, Callable
+import platform
+import re
+import sys
+from collections.abc import Callable
 from pathlib import Path
-from opendata.models import (
-    Metadata,
-    ProjectFingerprint,
-    AIAnalysis,
-    PersonOrOrg,
-    Contact,
-    FileSuggestion,
-)
+from typing import Any
 
-from opendata.extractors.base import ExtractorRegistry
-from opendata.workspace import WorkspaceManager
-from opendata.utils import scan_project_lazy, PromptManager, FullTextReader
+import yaml
+
 from opendata.agents.parsing import extract_metadata_from_ai_response
 from opendata.agents.tools import handle_external_tools
+from opendata.extractors.base import ExtractorRegistry
+from opendata.models import (
+    AIAnalysis,
+    Contact,
+    FileSuggestion,
+    Metadata,
+    PersonOrOrg,
+    ProjectFingerprint,
+)
+from opendata.utils import FullTextReader, PromptManager, scan_project_lazy
+from opendata.workspace import WorkspaceManager
 
 logger = logging.getLogger("opendata.agents.project_agent")
 
@@ -38,23 +40,23 @@ class ProjectAnalysisAgent:
         self.registry = ExtractorRegistry()
         self._setup_extractors()
         self.prompt_manager = PromptManager()
-        self.project_id: Optional[str] = None
+        self.project_id: str | None = None
 
-        self.current_fingerprint: Optional[ProjectFingerprint] = None
+        self.current_fingerprint: ProjectFingerprint | None = None
         self.current_metadata = Metadata.model_construct()
-        self.current_analysis: Optional[AIAnalysis] = None
-        self.chat_history: List[Tuple[str, str]] = []  # (Role, Message)
+        self.current_analysis: AIAnalysis | None = None
+        self.chat_history: list[tuple[str, str]] = []  # (Role, Message)
 
     def _setup_extractors(self):
-        from opendata.extractors.latex import LatexExtractor
-        from opendata.extractors.docx import DocxExtractor
-        from opendata.extractors.medical import DicomExtractor
         from opendata.extractors.citations import BibtexExtractor
+        from opendata.extractors.docx import DocxExtractor
         from opendata.extractors.hierarchical import Hdf5Extractor
+        from opendata.extractors.latex import LatexExtractor
+        from opendata.extractors.medical import DicomExtractor
         from opendata.extractors.physics import (
-            VaspExtractor,
-            LatticeDynamicsExtractor,
             ColumnarDataExtractor,
+            LatticeDynamicsExtractor,
+            VaspExtractor,
         )
 
         self.registry.register(LatexExtractor())
@@ -112,9 +114,9 @@ class ProjectAnalysisAgent:
     def start_analysis(
         self,
         project_dir: Path,
-        progress_callback: Optional[Callable[[str, str, str], None]] = None,
+        progress_callback: Callable[[str, str, str], None] | None = None,
         force_rescan: bool = False,
-        stop_event: Optional[Any] = None,
+        stop_event: Any | None = None,
     ) -> str:
         """Initial scan and heuristic extraction phase."""
         self.project_id = self.wm.get_project_id(project_dir)
@@ -137,8 +139,8 @@ class ProjectAnalysisAgent:
     def refresh_inventory(
         self,
         project_dir: Path,
-        progress_callback: Optional[Callable[[str, str, str], None]] = None,
-        stop_event: Optional[Any] = None,
+        progress_callback: Callable[[str, str, str], None] | None = None,
+        stop_event: Any | None = None,
     ) -> str:
         """
         Performs a fast file scan and updates the SQLite inventory without running heuristics or AI.
@@ -180,9 +182,9 @@ class ProjectAnalysisAgent:
             print(f"[ERROR] Failed to refresh inventory in SQLite: {e}")
 
         # Heuristics
-        heuristics_data: Dict[str, Any] = {}
+        heuristics_data: dict[str, Any] = {}
         candidate_main_files = []
-        from opendata.utils import walk_project_files, format_size
+        from opendata.utils import format_size, walk_project_files
 
         total_files = self.current_fingerprint.file_count
         current_file_idx = 0
@@ -283,9 +285,9 @@ class ProjectAnalysisAgent:
         user_text: str,
         ai_service: Any,
         skip_user_append: bool = False,
-        on_update: Optional[Callable[[], None]] = None,
+        on_update: Callable[[], None] | None = None,
         mode: str = "metadata",
-        stop_event: Optional[Any] = None,
+        stop_event: Any | None = None,
     ) -> str:
         """Main iterative loop with Context Persistence and Tool recognition."""
         if not skip_user_append:
@@ -396,7 +398,7 @@ class ProjectAnalysisAgent:
 
         # 4. CALL AI (With Tool Loop)
         max_tool_iterations = 5
-        for iteration in range(max_tool_iterations):
+        for _iteration in range(max_tool_iterations):
             if stop_event and stop_event.is_set():
                 abort_msg = "🛑 **Analysis cancelled by user.**"
                 self.chat_history.append(("agent", abort_msg))
@@ -540,10 +542,9 @@ class ProjectAnalysisAgent:
                                         )
                                     )
                                     seen_paths.add(rel_p)
-                    else:
-                        if sug.path not in seen_paths:
-                            expanded_suggestions.append(sug)
-                            seen_paths.add(sug.path)
+                    elif sug.path not in seen_paths:
+                        expanded_suggestions.append(sug)
+                        seen_paths.add(sug.path)
 
                 analysis.file_suggestions = expanded_suggestions
 
@@ -617,8 +618,8 @@ class ProjectAnalysisAgent:
     def analyze_full_text(
         self,
         ai_service: Any,
-        extra_files: Optional[List[Path]] = None,
-        on_update: Optional[Callable[[], None]] = None,
+        extra_files: list[Path] | None = None,
+        on_update: Callable[[], None] | None = None,
     ) -> str:
         """Executes the One-Shot Full Text Extraction."""
         if not self.current_fingerprint:
@@ -686,7 +687,7 @@ class ProjectAnalysisAgent:
         return clean_msg
 
     def submit_analysis_answers(
-        self, answers: Dict[str, Any], on_update: Optional[Callable[[], None]] = None
+        self, answers: dict[str, Any], on_update: Callable[[], None] | None = None
     ) -> str:
         """
         Updates metadata based on form answers and clears current analysis.
@@ -750,7 +751,7 @@ class ProjectAnalysisAgent:
             human_answers.append(f"- **{label}**: {val_str}")
 
         self.chat_history.append(
-            ("user", f"Updated fields via form:\n\n" + "\n".join(human_answers))
+            ("user", "Updated fields via form:\n\n" + "\n".join(human_answers))
         )
         msg = "Thank you! I've updated the metadata with your choices."
         self.chat_history.append(("agent", msg))

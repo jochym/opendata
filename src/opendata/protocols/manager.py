@@ -1,7 +1,7 @@
-from pathlib import Path
-from typing import List, Dict, Optional
-import yaml
 import logging
+
+import yaml
+
 from ..models import ExtractionProtocol, ProtocolLevel
 from ..workspace import WorkspaceManager
 
@@ -19,7 +19,7 @@ class ProtocolManager:
 
         self.system_protocol = self._init_system_protocol()
 
-    def _get_predefined_fields(self) -> Dict[str, ExtractionProtocol]:
+    def _get_predefined_fields(self) -> dict[str, ExtractionProtocol]:
         """Returns standard built-in field protocols."""
         return {
             "physics": ExtractionProtocol(
@@ -110,7 +110,7 @@ class ProtocolManager:
     def get_global_protocol(self) -> ExtractionProtocol:
         path = self.protocols_dir / "global.yaml"
         if path.exists():
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 try:
                     data = yaml.safe_load(f)
                     return ExtractionProtocol.model_validate(data)
@@ -128,7 +128,7 @@ class ProtocolManager:
                 protocol.model_dump(mode="json"), f, allow_unicode=True, sort_keys=False
             )
 
-    def list_fields(self) -> List[str]:
+    def list_fields(self) -> list[str]:
         """Lists available fields by merging built-ins and disk files."""
         built_ins = list(self._get_predefined_fields().keys())
         on_disk = [p.stem for p in self.fields_dir.glob("*.yaml")]
@@ -141,7 +141,7 @@ class ProtocolManager:
         # 1. Check disk (user override)
         path = self.fields_dir / f"{norm_name}.yaml"
         if path.exists():
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 try:
                     return ExtractionProtocol.model_validate(yaml.safe_load(f))
                 except Exception:
@@ -169,7 +169,7 @@ class ProtocolManager:
         project_dir = self.workspace.projects_dir / project_id
         path = project_dir / "protocol.yaml"
         if path.exists():
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 try:
                     data = yaml.safe_load(f)
                     return ExtractionProtocol.model_validate(data)
@@ -192,8 +192,8 @@ class ProtocolManager:
             )
 
     def resolve_effective_protocol(
-        self, project_id: Optional[str] = None, field_name: Optional[str] = None
-    ) -> Dict:
+        self, project_id: str | None = None, field_name: str | None = None
+    ) -> dict:
         """Merges all layers into a final instruction set."""
         layers = [self.system_protocol, self.get_global_protocol()]
 
@@ -227,9 +227,7 @@ class ProtocolManager:
         )
         effective["curator_prompts"] = list(dict.fromkeys(effective["curator_prompts"]))
 
-        import logging
 
-        import logging
 
         logger = logging.getLogger("opendata.protocols")
         msg = f"Effective Protocol for {project_id} (Field: {field_name}):\n - Exclude: {effective['exclude']}\n - Include: {effective['include']}"

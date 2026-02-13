@@ -1,6 +1,5 @@
 import sqlite3
 from pathlib import Path
-from typing import List, Dict, Optional
 
 
 class ProjectInventoryDB:
@@ -25,7 +24,7 @@ class ProjectInventoryDB:
             """)
             conn.commit()
 
-    def update_inventory(self, files: List[dict]):
+    def update_inventory(self, files: list[dict]):
         """Replaces the entire inventory with new data using an optimized transaction."""
         with sqlite3.connect(self.db_path) as conn:
             # Optimize transaction
@@ -42,7 +41,7 @@ class ProjectInventoryDB:
                 conn.rollback()
                 raise e
 
-    def get_inventory(self) -> List[dict]:
+    def get_inventory(self) -> list[dict]:
         """Returns the complete cached inventory."""
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row

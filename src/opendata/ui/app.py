@@ -1,31 +1,31 @@
-import asyncio
-import time
 import logging
-import uvicorn
+import time
 from pathlib import Path
+
+import uvicorn
 from nicegui import app, ui
-from opendata.utils import get_local_ip
-from opendata.workspace import WorkspaceManager
-from opendata.packager import PackagingService
+
 from opendata.agents.project_agent import ProjectAnalysisAgent
 from opendata.ai.service import AIService
-from opendata.protocols.manager import ProtocolManager
+from opendata.i18n.translator import _, setup_i18n
+from opendata.packager import PackagingService
 from opendata.packaging.manager import PackageManager
-from opendata.i18n.translator import setup_i18n, _
-
-from opendata.ui.state import UIState, ScanState
-from opendata.ui.context import AppContext
+from opendata.protocols.manager import ProtocolManager
 from opendata.ui.components import (
-    header_content_ui,
-    render_analysis_dashboard,
     chat_messages_ui,
+    header_content_ui,
     metadata_preview_ui,
-    render_protocols_tab,
+    render_analysis_dashboard,
     render_package_tab,
+    render_preview_and_build,
+    render_protocols_tab,
     render_settings_tab,
     render_setup_wizard,
-    render_preview_and_build,
 )
+from opendata.ui.context import AppContext
+from opendata.ui.state import ScanState, UIState
+from opendata.utils import get_local_ip
+from opendata.workspace import WorkspaceManager
 
 logger = logging.getLogger("opendata.ui")
 

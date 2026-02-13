@@ -1,10 +1,13 @@
-from pathlib import Path
-import yaml
+import contextlib
 import hashlib
-from typing import Any, Dict, List, Type, TypeVar
-from pydantic import BaseModel
-from opendata.models import UserSettings, Metadata, ProjectFingerprint, AIAnalysis
 import json
+from pathlib import Path
+from typing import TypeVar
+
+import yaml
+from pydantic import BaseModel
+
+from opendata.models import AIAnalysis, Metadata, ProjectFingerprint, UserSettings
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -13,7 +16,7 @@ class WorkspaceManager:
     """Manages the hidden workspace and YAML persistence for the tool."""
 
     def __init__(self, base_path: Path | None = None):
-        self._projects_cache: List[Dict[str, str]] | None = None
+        self._projects_cache: list[dict[str, str]] | None = None
         # Default to ~/.opendata_tool if no path provided
         self.base_path = base_path or Path.home() / ".opendata_tool"
         self.protocols_dir = self.base_path / "protocols"
@@ -54,7 +57,7 @@ class WorkspaceManager:
         self,
         project_id: str,
         metadata: Metadata,
-        chat_history: List[tuple[str, str]],
+        chat_history: list[tuple[str, str]],
         fingerprint: ProjectFingerprint | None,
         analysis: AIAnalysis | None = None,
     ):
@@ -89,7 +92,7 @@ class WorkspaceManager:
         self, project_id: str
     ) -> tuple[
         Metadata | None,
-        List[tuple[str, str]],
+        list[tuple[str, str]],
         ProjectFingerprint | None,
         AIAnalysis | None,
     ]:
@@ -104,7 +107,7 @@ class WorkspaceManager:
         history_path = pdir / "chat_history.json"
         if history_path.exists():
             try:
-                with open(history_path, "r", encoding="utf-8") as f:
+                with open(history_path, encoding="utf-8") as f:
                     history = [tuple(item) for item in json.load(f)]
             except Exception:
                 pass
@@ -113,7 +116,7 @@ class WorkspaceManager:
         fp_path = pdir / "fingerprint.json"
         if fp_path.exists():
             try:
-                with open(fp_path, "r", encoding="utf-8") as f:
+                with open(fp_path, encoding="utf-8") as f:
                     fingerprint = ProjectFingerprint.model_validate_json(f.read())
             except Exception:
                 pass
@@ -122,20 +125,20 @@ class WorkspaceManager:
         analysis_path = pdir / "analysis.json"
         if analysis_path.exists():
             try:
-                with open(analysis_path, "r", encoding="utf-8") as f:
+                with open(analysis_path, encoding="utf-8") as f:
                     analysis = AIAnalysis.model_validate_json(f.read())
             except Exception:
                 pass
 
         return metadata, history, fingerprint, analysis
 
-    async def list_projects_async(self) -> List[Dict[str, str]]:
+    async def list_projects_async(self) -> list[dict[str, str]]:
         """Asynchronously lists all projects."""
         import asyncio
 
         return await asyncio.to_thread(self.list_projects)
 
-    def list_projects(self) -> List[Dict[str, str]]:
+    def list_projects(self) -> list[dict[str, str]]:
         """Lists all projects that have a persisted state (cached)."""
         if self._projects_cache is not None:
             return self._projects_cache  # type: ignore
@@ -154,7 +157,7 @@ class WorkspaceManager:
                 fp_path = pdir / "fingerprint.json"
                 root_path = "Unknown"
                 if fp_path.exists():
-                    with open(fp_path, "r", encoding="utf-8") as f:
+                    with open(fp_path, encoding="utf-8") as f:
                         fp = json.load(f)
                         root_path = fp.get("root_path", "Unknown")
 
@@ -165,7 +168,7 @@ class WorkspaceManager:
                         "path": root_path,
                     }
                 )
-            except Exception as e:
+            except Exception:
                 projects.append(
                     {
                         "id": pdir.name,
@@ -179,9 +182,9 @@ class WorkspaceManager:
 
     def delete_project(self, project_id: str):
         """Permanently deletes a project's persisted state."""
-        import shutil
-        import os
         import gc
+        import os
+        import shutil
 
         pdir = self.projects_dir / project_id
         if pdir.exists() and pdir.is_dir():
@@ -191,19 +194,13 @@ class WorkspaceManager:
                 if pdir.exists():
                     for root, dirs, files in os.walk(str(pdir), topdown=False):
                         for name in files:
-                            try:
+                            with contextlib.suppress(BaseException):
                                 os.remove(os.path.join(root, name))
-                            except:
-                                pass
                         for name in dirs:
-                            try:
+                            with contextlib.suppress(BaseException):
                                 os.rmdir(os.path.join(root, name))
-                            except:
-                                pass
-                    try:
+                    with contextlib.suppress(BaseException):
                         os.rmdir(str(pdir))
-                    except:
-                        pass
 
                 success = not pdir.exists()
                 if success:
@@ -220,14 +217,14 @@ class WorkspaceManager:
         if not target_path.is_absolute():
             target_path = self.base_path / filename
 
-        if not target_path.suffix == ".yaml":
+        if target_path.suffix != ".yaml":
             target_path = target_path.with_suffix(".yaml")
 
         target_path.parent.mkdir(parents=True, exist_ok=True)
         with open(target_path, "w", encoding="utf-8") as f:
             yaml.dump(data.model_dump(), f, allow_unicode=True, sort_keys=False)
 
-    def load_yaml(self, model_class: Type[T], filename: str) -> T | None:
+    def load_yaml(self, model_class: type[T], filename: str) -> T | None:
         """Loads a YAML file into a Pydantic model."""
         target_path = Path(filename)
         if not target_path.is_absolute():
@@ -237,12 +234,12 @@ class WorkspaceManager:
             return None
 
         try:
-            with open(target_path, "r", encoding="utf-8") as f:
+            with open(target_path, encoding="utf-8") as f:
                 data = yaml.safe_load(f)
                 if data is None:
                     return None
                 return model_class.model_validate(data)
-        except Exception as e:
+        except Exception:
             return None
 
     def get_settings(self) -> UserSettings:

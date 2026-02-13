@@ -1,6 +1,8 @@
+from collections.abc import Callable
 from pathlib import Path
-from typing import Optional, Callable
+
 from opendata.models import UserSettings
+
 from .base import BaseAIService
 from .google_provider import GoogleProvider
 from .openai_provider import OpenAIProvider
@@ -26,8 +28,7 @@ class AIService:
     def _create_provider(self) -> BaseAIService:
         if self.settings.ai_provider == "openai":
             return OpenAIProvider(self.workspace_path, self.settings)
-        else:
-            return GoogleProvider(self.workspace_path)
+        return GoogleProvider(self.workspace_path)
 
     def reload_provider(self, settings: UserSettings):
         """Hot-swaps the provider based on new settings."""
@@ -64,7 +65,7 @@ class AIService:
         self.provider.switch_model(name)
 
     def ask_agent(
-        self, prompt: str, on_status: Optional[Callable[[str], None]] = None
+        self, prompt: str, on_status: Callable[[str], None] | None = None
     ) -> str:
         return self.provider.ask_agent(prompt, on_status=on_status)
 

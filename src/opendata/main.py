@@ -3,6 +3,7 @@ import multiprocessing
 import sys
 import time
 import webbrowser
+
 from opendata.utils import get_app_version
 
 
@@ -81,6 +82,7 @@ def main():
     # --- Anchor GUI Mode (Default) ---
     try:
         import tkinter as tk
+
         from opendata.anchor import AppAnchor
     except ImportError:
         print("[WARNING] Tkinter not found. Falling back to headless mode.")

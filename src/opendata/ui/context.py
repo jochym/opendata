@@ -1,13 +1,14 @@
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any, Callable, Dict, Optional
-from opendata.workspace import WorkspaceManager
-from opendata.packager import PackagingService
+from typing import Any
+
 from opendata.agents.project_agent import ProjectAnalysisAgent
 from opendata.ai.service import AIService
-from opendata.protocols.manager import ProtocolManager
-from opendata.packaging.manager import PackageManager
 from opendata.models import UserSettings
+from opendata.packager import PackagingService
+from opendata.packaging.manager import PackageManager
+from opendata.protocols.manager import ProtocolManager
+from opendata.workspace import WorkspaceManager
 
 
 @dataclass
@@ -32,7 +33,7 @@ class AppContext:
     refresh_all: Callable[[], None] = field(default_factory=lambda: lambda: None)
 
     # Storage for specific refreshable components
-    _refreshables: Dict[str, Any] = field(default_factory=dict)
+    _refreshables: dict[str, Any] = field(default_factory=dict)
 
     def register_refreshable(self, name: str, func: Any):
         self._refreshables[name] = func

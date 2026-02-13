@@ -1,5 +1,5 @@
 import logging
-from typing import List, Any, Dict, Optional, Literal, Set
+from typing import Any, Literal
 
 logger = logging.getLogger("opendata.ui.state")
 
@@ -9,7 +9,7 @@ class UIState:
     analysis_tab: Any = None
     package_tab: Any = None
     preview_tab: Any = None
-    inventory_cache: List[Dict[str, Any]] = []
+    inventory_cache: list[dict[str, Any]] = []
     last_inventory_project: str = ""
     is_loading_inventory: bool = False
     # Performance & Stability state
@@ -20,17 +20,17 @@ class UIState:
     is_project_loading: bool = False
     total_files_count: int = 0
     total_files_size: int = 0
-    grid_rows: List[Dict[str, Any]] = []
+    grid_rows: list[dict[str, Any]] = []
     show_only_included: bool = False
     show_suggestions_banner: bool = True
 
     # File Explorer State
     explorer_path: str = ""  # Current path being viewed (relative to project root)
-    folder_children_map: Dict[
-        str, List[Dict[str, Any]]
+    folder_children_map: dict[
+        str, list[dict[str, Any]]
     ] = {}  # Cache for folder contents
-    folder_stats: Dict[
-        str, Dict[str, int]
+    folder_stats: dict[
+        str, dict[str, int]
     ] = {}  # Stats for tri-state checkboxes (total, included, size)
 
 

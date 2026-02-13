@@ -1,8 +1,8 @@
 import re
-from typing import Optional, Any
+from typing import Any
 
 
-def handle_external_tools(user_text: str, ai_service: Any) -> Optional[str]:
+def handle_external_tools(user_text: str, ai_service: Any) -> str | None:
     """
     Recognizes arXiv, DOI, ORCID and fetches metadata to enhance input.
     Returns enhanced_input if tool was matched, else None.
@@ -20,15 +20,15 @@ def handle_external_tools(user_text: str, ai_service: Any) -> Optional[str]:
         arxiv_id = arxiv_match.group(1)
         raw_data = ai_service.fetch_arxiv_metadata(arxiv_id)
         return f"The user provided arXiv ID {arxiv_id}. Here is raw metadata: {raw_data}. USE THIS TO UPDATE METADATA."
-    elif doi_match:
+    if doi_match:
         doi_id = doi_match.group(1)
         json_data = ai_service.fetch_doi_metadata(doi_id)
         return f"The user provided DOI {doi_id}. Here is the metadata: {json_data}. USE THIS TO UPDATE METADATA."
-    elif orcid_match:
+    if orcid_match:
         orcid_id = orcid_match.group(1)
         json_data = ai_service.fetch_orcid_metadata(orcid_id)
         return f"The user provided ORCID {orcid_id}. Here is the profile: {json_data}. UPDATE AUTHOR INFO."
-    elif orcid_search_match:
+    if orcid_search_match:
         author_name = orcid_search_match.group(1).strip()
         results = ai_service.search_orcid_by_name(author_name)
         return f"User wants ORCID search for '{author_name}'. Top matches: {results}. ASK USER TO CONFIRM ONE."
