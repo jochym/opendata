@@ -1,3 +1,4 @@
+import logging
 import re
 from pathlib import Path
 import socket
@@ -5,6 +6,16 @@ import sys
 import os
 from typing import List, Set, Generator, Callable, Optional, Any, Tuple
 from opendata.models import ProjectFingerprint
+
+
+def setup_logging(level: int = logging.INFO):
+    """Configures the global logging for the application."""
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+        handlers=[logging.StreamHandler(sys.stdout)],
+    )
 
 
 def get_resource_path(relative_path: str) -> Path:
@@ -316,8 +327,7 @@ def list_project_files_full(
 def read_file_header(p: Path, max_bytes: int = 4096) -> str:
     """
     Reads only the first few KB of a file to detect metadata/headers.
-    Safe for TB-scale data files.
-    """
+    Safe for TB-scale data files."""
     try:
         with open(p, "rb") as f:
             chunk = f.read(max_bytes)

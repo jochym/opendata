@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.20.11] - 2026-02-13
+### Added
+- **Diagnostic Logging**: Implemented standard logging system with command-line switches.
+- **CLI Arguments**: Added `-v`/`--verbose` (DEBUG) and `-q`/`--quiet` (ERROR) flags to control log verbosity.
+- **Process Logging**: Ensured consistent logging configuration across the main process and the server subprocess.
+
 ## [0.20.10] - 2026-02-12
 ### Changed
 - **Binary Optimization**: Reverted to `slim` Docker container for Linux builds and removed UPX compression (which was ineffective). Maintained module exclusions to keep the bundle size manageable.

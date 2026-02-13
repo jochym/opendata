@@ -1,17 +1,19 @@
 import argparse
+import logging
 import multiprocessing
 import sys
 import time
 import webbrowser
-from opendata.utils import get_app_version
+from opendata.utils import get_app_version, setup_logging
 
 
-def run_server_process(host: str, port: int):
+def run_server_process(host: str, port: int, log_level: int):
     """
     Worker function that runs in a separate process.
     Loads heavy libraries only inside the child process.
     """
     try:
+        setup_logging(level=log_level)
         from opendata.ui.app import start_ui
 
         start_ui(host=host, port=port)
@@ -54,14 +56,28 @@ def main():
         action="store_true",
         help="Run without the Desktop Anchor window (terminal only)",
     )
+    parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Enable verbose (DEBUG) logging"
+    )
+    parser.add_argument(
+        "-q", "--quiet", action="store_true", help="Only show ERROR logs"
+    )
     args = parser.parse_args()
 
+    log_level = logging.INFO
+    if args.verbose:
+        log_level = logging.DEBUG
+    elif args.quiet:
+        log_level = logging.ERROR
+
+    setup_logging(level=log_level)
+
     version = get_app_version()
-    print(f"--- OpenData Tool v{version} ---")
+    logging.info(f"--- OpenData Tool v{version} ---")
 
     if args.headless:
-        print(
-            f"[INFO] Starting server in HEADLESS mode on http://{args.host}:{args.port}"
+        logging.info(
+            f"Starting server in HEADLESS mode on http://{args.host}:{args.port}"
         )
         # Run directly in the main process
         from opendata.ui.app import start_ui
@@ -83,18 +99,18 @@ def main():
         import tkinter as tk
         from opendata.anchor import AppAnchor
     except ImportError:
-        print("[WARNING] Tkinter not found. Falling back to headless mode.")
+        logging.warning("Tkinter not found. Falling back to headless mode.")
         from opendata.ui.app import start_ui
 
         start_ui(host=args.host, port=args.port)
         return
 
-    print(f"[INFO] Starting server process on http://{args.host}:{args.port}")
+    logging.info(f"Starting server process on http://{args.host}:{args.port}")
 
     # Create and start the server process
     server_process = multiprocessing.Process(
         target=run_server_process,
-        args=(args.host, args.port),
+        args=(args.host, args.port, log_level),
         name="OpenDataServer",
     )
     server_process.start()
@@ -111,7 +127,7 @@ def main():
     try:
         root.mainloop()
     except KeyboardInterrupt:
-        print("\n[INFO] KeyboardInterrupt received, shutting down...")
+        logging.info("KeyboardInterrupt received, shutting down...")
         app.shutdown()
 
 
