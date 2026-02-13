@@ -34,7 +34,13 @@ class WorkspaceManager:
         self.bug_reports_dir.mkdir(parents=True, exist_ok=True)
 
     def get_project_id(self, project_path: Path) -> str:
-        """Generates a unique ID for a project based on its absolute path."""
+        """Generates a unique ID for a project based on its absolute path.
+        
+        Note: Uses MD5 for non-cryptographic purposes (project directory naming).
+        This is safe as it's not used for security-sensitive operations like
+        password hashing or integrity verification. The purpose is to create
+        a consistent, filesystem-safe directory name from arbitrary paths.
+        """
         # Ensure path exists or is at least resolvable before hashing
         try:
             # Use as_posix and strip trailing slash for consistent ID generation

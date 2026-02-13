@@ -9,6 +9,11 @@ from typing import Any
 
 from opendata.models import ProjectFingerprint
 
+# Configuration constants
+UI_UPDATE_INTERVAL_SECONDS = 0.1  # Rate limit for UI progress updates during scanning
+MAX_STRUCTURE_SAMPLE_SIZE = 50  # Number of files to include in project fingerprint sample
+MAX_FILE_HEADER_BYTES = 4096  # Size of file header to read for metadata detection
+
 
 def get_resource_path(relative_path: str) -> Path:
     """
@@ -232,9 +237,35 @@ def scan_project_lazy(
     stop_event: Any | None = None,
     exclude_patterns: list[str] | None = None,
 ) -> tuple[ProjectFingerprint, list[dict]]:
-    """
-    Scans a directory recursively. Optimized for huge datasets.
-    Returns both the Fingerprint and the full file list for database indexing.
+    """Scans a directory recursively with progress reporting. Optimized for huge datasets.
+    
+    This function performs a complete directory traversal, collecting file metadata
+    and statistics. It's designed to handle massive datasets efficiently by:
+    - Using streaming directory traversal (os.scandir)
+    - Rate-limiting UI updates to prevent performance degradation
+    - Supporting cancellation via stop_event
+    - Respecting exclusion patterns
+    
+    Args:
+        root: Root directory to scan
+        progress_callback: Optional callback function called with (status, file_path, message)
+                          for UI progress updates. Called at most every 0.1 seconds.
+        stop_event: Optional threading event to signal scan cancellation
+        exclude_patterns: Optional list of glob patterns to exclude from scan
+                         (e.g., ["*.pyc", "**/__pycache__", "node_modules"])
+    
+    Returns:
+        A tuple of:
+        - ProjectFingerprint: Summary statistics (file count, total size, extensions, sample)
+        - list[dict]: Complete file inventory with path, size, and mtime for each file
+    
+    Example:
+        >>> fp, inventory = scan_project_lazy(
+        ...     Path("/path/to/project"),
+        ...     progress_callback=lambda s, f, m: print(f"Scanning: {f}"),
+        ...     exclude_patterns=["*.pyc", "**/__pycache__"]
+        ... )
+        >>> print(f"Found {fp.file_count} files, {fp.total_size_bytes} bytes")
     """
     import time
 
@@ -245,7 +276,6 @@ def scan_project_lazy(
     full_inventory = []
 
     last_ui_update = 0
-    UI_UPDATE_INTERVAL = 0.1
 
     for p, stat in walk_project_files(root, stop_event, exclude_patterns):
         if stat is None:  # It's a directory
@@ -262,11 +292,11 @@ def scan_project_lazy(
                 {"path": rel_path, "size": size, "mtime": stat.st_mtime}
             )
 
-            if len(structure_sample) < 50:
+            if len(structure_sample) < MAX_STRUCTURE_SAMPLE_SIZE:
                 structure_sample.append(rel_path)
 
         now = time.time()
-        if progress_callback and (now - last_ui_update > UI_UPDATE_INTERVAL):
+        if progress_callback and (now - last_ui_update > UI_UPDATE_INTERVAL_SECONDS):
             total_size_str = format_size(total_size)
             progress_callback(
                 f"{total_size_str} - {file_count} files",
@@ -313,10 +343,18 @@ def list_project_files_full(
     return files
 
 
-def read_file_header(p: Path, max_bytes: int = 4096) -> str:
-    """
-    Reads only the first few KB of a file to detect metadata/headers.
-    Safe for TB-scale data files.
+def read_file_header(p: Path, max_bytes: int = MAX_FILE_HEADER_BYTES) -> str:
+    """Reads only the first few KB of a file to detect metadata/headers.
+    
+    This function is safe for TB-scale data files as it only reads
+    the beginning of the file, not the entire contents.
+    
+    Args:
+        p: Path to the file to read
+        max_bytes: Maximum number of bytes to read (default: 4096)
+    
+    Returns:
+        String containing the file header, decoded as UTF-8 with errors replaced
     """
     try:
         with open(p, "rb") as f:
