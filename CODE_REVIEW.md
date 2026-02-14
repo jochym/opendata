@@ -410,58 +410,106 @@ class CachedWorkspaceManager:
 
 ## 5. Testing & Quality Assurance
 
-### 5.1 Test Coverage ⭐⭐⭐⭐
+### 5.1 Test Coverage - UPDATED ⭐⭐⭐
 
-**Current Status:**
-- 16 tests, all passing ✅
-- Key areas covered:
-  - Workspace management
-  - File scanning safety
-  - Metadata packaging
-  - Text extraction
-  - Main application launch
+**Current Status (2026-02-14):**
+- **36 tests total** (up from 16, 125% increase ✅)
+- **34 passing, 2 failing** (94% pass rate)
+- **Failures:** 2 integration tests due to hardcoded paths
+- **Detailed analysis:** See `TESTING_ANALYSIS.md`
 
 **Test Distribution:**
 ```
-test_workspace.py:      3 tests  (persistence layer)
-test_packager.py:       2 tests  (packaging logic)
-test_safety.py:         3 tests  (data integrity)
-test_utils.py:          2 tests  (utilities)
-test_full_text_*.py:    4 tests  (extraction)
-test_main.py:           2 tests  (integration)
+Integration Tests:        6 tests  (realistic projects, workspace I/O)
+  ├── test_realistic_projects.py:   2 tests (2 FAILING - path issues)
+  └── test_workspace_io.py:          4 tests (all passing)
+
+Unit Tests (Agents):      9 tests  (parsing, project agent)
+  ├── test_parsing.py:               5 tests (excellent ⭐⭐⭐⭐⭐)
+  └── test_project_agent.py:         4 tests (good)
+
+Unit Tests (Models):      5 tests  (Pydantic validation)
+  └── test_models.py:                5 tests (excellent ⭐⭐⭐⭐⭐)
+
+Functional Tests:        16 tests  (utils, safety, extraction)
+  ├── test_full_text_extraction.py:  4 tests
+  ├── test_safety.py:                3 tests (excellent ⭐⭐⭐⭐⭐)
+  ├── test_workspace.py:             3 tests
+  ├── test_packager.py:              2 tests
+  ├── test_utils.py:                 2 tests
+  └── test_main.py:                  2 tests
 ```
 
-### 5.2 Test Recommendations
+**Fixtures:**
+- ✅ Excellent realistic research project fixtures
+- `physics_project/` - LaTeX paper + VASP + Phonopy data
+- `chemistry_project/` - Markdown manuscript + CSV spectroscopy
+- `demo_project/` - Basic VASP + LaTeX
 
-**Missing Test Coverage:**
-1. **AI Provider Error Handling**
+### 5.2 Critical Test Issues ⚠️
+
+**🔴 Issue #1: Hardcoded Absolute Paths**
 ```python
-# tests/test_ai_providers.py (NEW)
-def test_google_provider_handles_expired_token():
-    """Verify graceful handling of expired OAuth tokens."""
-    
-def test_openai_provider_handles_rate_limits():
-    """Verify rate limit handling and retry logic."""
-```
+# tests/integration/test_realistic_projects.py:14
+# WRONG - hardcoded developer path
+def physics_project_path():
+    return Path("/home/jochym/Projects/OpenData/tests/fixtures/physics_project")
 
-2. **UI Component Edge Cases**
+# CORRECT - relative path
+def physics_project_path():
+    return Path(__file__).parent.parent / "fixtures" / "physics_project"
+```
+**Impact:** Blocks CI/CD, tests fail on other machines
+
+**🔴 Issue #2: Testing Implementation, Not Behavior**
 ```python
-# tests/test_ui_components.py (NEW)
-def test_chat_handles_concurrent_messages():
-    """Verify that concurrent messages don't cause race conditions."""
-    
-def test_file_picker_handles_massive_directories():
-    """Verify performance with 100k+ files."""
+# WRONG - accepts wrong behavior
+assert metadata.title is not None
+assert ("Expected Title" in metadata.title 
+        or "Wrong Title" in metadata.title)  # ❌ Accepts bugs!
+
+# CORRECT - validates expected behavior
+assert metadata.title is not None, "Should extract title from LaTeX"
+assert "Expected Title" in metadata.title, \
+    f"Should extract LaTeX title, got: {metadata.title}"
 ```
 
-3. **Protocol Learning**
-```python
-# tests/test_learning.py (NEW)
-def test_protocol_extraction_from_conversation():
-    """Verify field protocols are correctly extracted and stored."""
-```
+**Key Principle:**
+> Tests should validate **expected behavior** based on requirements, not validate that the current code produces whatever it happens to produce.
 
-### 5.3 Continuous Quality
+### 5.3 Missing Test Coverage
+
+**Critical Gaps (v0.21.0 modules - 0 tests):**
+- ❌ `agents/engine.py` - AI orchestrator with tool invocation
+- ❌ `agents/ai_heuristics.py` - File identification service
+- ❌ `agents/scanner.py` - Inventory management
+- ❌ `agents/persistence.py` - State management
+
+**Important Gaps:**
+- ❌ AI service layer (`ai/google_provider.py`, `ai/openai_provider.py`)
+- ❌ UI components (all components untested)
+- ❌ Extractor isolation tests (VASP, Phonopy, DICOM, HDF5)
+- ❌ Negative test cases (error handling, edge cases)
+
+**Recommended New Tests (Target: 24+ tests):**
+1. Engine service: 4 tests (tool invocation, glob, iteration limits)
+2. AI Heuristics: 3 tests (file identification, no files case)
+3. Scanner: 3 tests (inventory updates, cancellation)
+4. AI providers: 6 tests (token refresh, rate limits, errors)
+5. Negative cases: 8 tests (corrupted files, missing files, edge cases)
+
+### 5.4 Test Quality Assessment
+
+**Excellent Tests (Learn from these):**
+- ⭐⭐⭐⭐⭐ Parsing tests - Multiple formats, error recovery
+- ⭐⭐⭐⭐⭐ Model validation - Type coercion, error cases
+- ⭐⭐⭐⭐⭐ Safety tests - Read-only guarantees, isolation
+
+**Needs Improvement:**
+- ⚠️ Integration tests - Hardcoded paths, accepts wrong behavior
+- ⚠️ Project agent tests - Insufficient assertions, missing negatives
+
+### 5.5 Continuous Quality
 
 **Add Pre-commit Hooks:**
 ```yaml
@@ -480,6 +528,8 @@ repos:
       - id: mypy
         additional_dependencies: [pydantic]
 ```
+
+**Summary:** Test suite has grown significantly (16→36 tests) with good coverage of core functionality. However, critical issues with test correctness and missing coverage for v0.21.0 modules need immediate attention. See `TESTING_ANALYSIS.md` for detailed recommendations.
 
 ---
 
