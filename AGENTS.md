@@ -3,12 +3,13 @@
 This repository contains the OpenData Tool, designed for preparing metadata and packaging scientific projects for the RODBUK repository. This document provides essential information for AI agents to maintain consistency and quality while ensuring a **friction-free, browser-centric, multi-platform user experience** for researchers.
 
 ## Core Principles
-1. **Browser-Centric UI with Desktop Anchor:** The primary user interaction happens in the browser (NiceGUI). However, the app must launch a small, simple **Desktop Control Window** (placeholder) as a "Kill Switch".
-2. **Dashboard-First Transparency:** The Desktop Control Window should include "idiot lights" (red/green) and a button to "Open Dashboard".
-3. **Mobile-Ready (Optional/Secure):** The UI includes an "Open on Mobile" feature. **Security Note:** By default, the server must only bind to `localhost` (127.0.0.1). Remote access (0.0.0.0) must be explicitly enabled by the user when they request mobile access.
-4. **No-Terminal Experience:** When launched as an executable, **no terminal/console must be shown**.
-5. **Strictly Read-Only Analysis:** The tool must NEVER modify the contents of the user's research directory.
-6. **Domain Knowledge Accumulation:** The tool must support "Meta-Learning". As users refine analysis rules (e.g., "In this lab, .dat files are always pressure logs"), the agent should extract these as permanent **Field Protocols** (instructions). These protocols must be stored in the global workspace and transferable between projects.
+6: 1. **Browser-Centric UI with Desktop Anchor:** The primary user interaction happens in the browser (NiceGUI). However, the app must launch a small, simple **Desktop Control Window** (placeholder) as a "Kill Switch".
+7: 2. **Dashboard-First Transparency:** The Desktop Control Window should include "idiot lights" (red/green) and a button to "Open Dashboard".
+8: 3. **Mobile-Ready (Optional/Secure):** The UI includes an "Open on Mobile" feature. **Security Note:** By default, the server must only bind to `localhost` (127.0.0.1). Remote access (0.0.0.0) must be explicitly enabled by the user when they request mobile access.
+9: 4. **No-Terminal Experience:** When launched as an executable, **no terminal/console must be shown**.
+10: 5. **Strictly Read-Only Analysis:** The tool must NEVER modify the contents of the user's research directory.
+11: 6. **Domain Knowledge Accumulation:** The tool must support "Meta-Learning". As users refine analysis rules (e.g., "In this lab, .dat files are always pressure logs"), the agent should extract these as permanent **Field Protocols** (instructions). These protocols must be stored in the global workspace and transferable between projects.
+12: 7. **Comprehensive Testing (MANDATORY):** Every new functionality, structural change, or bug fix MUST be accompanied by a complete suite of unit and/or integration tests. Refer to `docs/TESTING_INFRASTRUCTURE.md` for standards.
 
 ## Project Workflow
 1. **Guided Setup (Once per user):** 

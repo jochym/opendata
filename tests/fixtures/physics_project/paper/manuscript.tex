@@ -1,0 +1,41 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{cite}
+
+\title{Phonon-mediated superconductivity in novel hydrides under high pressure: A first-principles study}
+\author{Paweł T. Jochym$^{1,*}$, Jan Kowalski$^{2}$}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+We investigate the structural and dynamical properties of the newly discovered $SH_3$ phase under pressures exceeding 200 GPa. Using density functional theory (DFT) as implemented in the VASP package, we calculate the phonon dispersion relations and the electron-phonon coupling constant $\alpha^2F(\omega)$. Our results show that the high superconducting transition temperature $T_c \approx 203$ K is primarily driven by high-frequency hydrogen vibrations. This study provides a comprehensive metadata set for reproducibility in computational materials science.
+\end{abstract}
+
+\section{Introduction}
+The discovery of high-temperature superconductivity in hydrogen-rich materials has opened a new frontier in condensed matter physics \cite{Drozdov2015}. The $SH_3$ system, in particular, has shown remarkable properties under extreme pressure.
+
+\section{Methods}
+Calculations were performed using the Projector Augmented Wave (PAW) method within the Generalized Gradient Approximation (GGA-PBE). We used a plane-wave cutoff of 500 eV and a $12 \times 12 \times 12$ Monkhorst-Pack k-point grid. Phonon calculations were carried out using the finite displacement method as implemented in the Phonopy package \cite{Togo2015}.
+
+\section{Results}
+The calculated phonon dispersion relations are shown in Fig. \ref{fig:phonons}. The absence of imaginary frequencies confirms the dynamical stability of the $Im\bar{3}m$ phase at 200 GPa.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/phonon_dispersion.png}
+    \caption{Phonon dispersion relations and density of states for $SH_3$ at 200 GPa.}
+    \label{fig:phonons}
+\end{figure}
+
+\bibliographystyle{plain}
+\begin{thebibliography}{9}
+\bibitem{Drozdov2015} A. P. Drozdov, et al., Nature 525, 73-76 (2015).
+\bibitem{Togo2015} A. Togo and I. Tanaka, Scr. Mater. 108, 1-5 (2015).
+\end{thebibliography}
+
+\end{document}

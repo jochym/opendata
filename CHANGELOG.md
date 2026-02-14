@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.20.11] - 2026-02-14
+### Added
+- **Comprehensive Testing Suite**: Implemented a structured testing infrastructure with unit and integration tests.
+- **Realistic Research Fixtures**: Added semi-legitimate physics and chemistry project fixtures for end-to-end testing of heuristic extraction.
+- **Agent Guidelines**: Added a mandatory requirement for AI agents to accompany all new features and structural changes with complete test suites.
+### Fixed
+- **Stability**: Fixed a bug in `ProjectAnalysisAgent` where it would fail to initialize the SQLite inventory database if the project directory didn't exist in the workspace.
+- **Testability**: Refactored `ProjectAnalysisAgent` to support full Dependency Injection, enabling isolated unit testing.
+
 ## [0.20.10] - 2026-02-12
 ### Changed
 - **Binary Optimization**: Reverted to `slim` Docker container for Linux builds and removed UPX compression (which was ineffective). Maintained module exclusions to keep the bundle size manageable.

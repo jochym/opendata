@@ -49,11 +49,11 @@ class UserSettings(BaseModel):
     openai_model: str = "gpt-3.5-turbo"
 
     workspace_path: str = Field(
-        default=str(Path.home() / ".opendata_tool"),
+        default_factory=lambda: str(Path.home() / ".opendata_tool"),
         description="Global workspace for metadata and packages",
     )
     field_protocols_path: str = Field(
-        default=str(Path.home() / ".opendata_tool" / "protocols"),
+        default_factory=lambda: str(Path.home() / ".opendata_tool" / "protocols"),
         description="User's custom extraction rules",
     )
 
@@ -110,9 +110,7 @@ class Metadata(BaseModel):
     )
 
     # Persistence of session settings
-    ai_model: str | None = Field(
-        None, description="Selected AI model for this project"
-    )
+    ai_model: str | None = Field(None, description="Selected AI model for this project")
 
     # Optional Fields
     alternative_titles: list[str] = Field(default_factory=list)

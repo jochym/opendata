@@ -32,14 +32,21 @@ class ProjectAnalysisAgent:
     Maintains the state of the 'Chat Loop' and uses external tools (arXiv, DOI, ORCID).
     """
 
-    def __init__(self, wm: WorkspaceManager):
+    def __init__(
+        self,
+        wm: WorkspaceManager,
+        pm: Any | None = None,
+        registry: ExtractorRegistry | None = None,
+        prompt_manager: PromptManager | None = None,
+    ):
         self.wm = wm
         from opendata.protocols.manager import ProtocolManager
 
-        self.pm = ProtocolManager(wm)
-        self.registry = ExtractorRegistry()
-        self._setup_extractors()
-        self.prompt_manager = PromptManager()
+        self.pm = pm or ProtocolManager(wm)
+        self.registry = registry or ExtractorRegistry()
+        if registry is None:
+            self._setup_extractors()
+        self.prompt_manager = prompt_manager or PromptManager()
         self.project_id: str | None = None
 
         self.current_fingerprint: ProjectFingerprint | None = None
@@ -176,7 +183,9 @@ class ProjectAnalysisAgent:
         try:
             from opendata.storage.project_db import ProjectInventoryDB
 
-            db = ProjectInventoryDB(self.wm.get_project_db_path(self.project_id))
+            db_path = self.wm.get_project_db_path(self.project_id)
+            db_path.parent.mkdir(parents=True, exist_ok=True)
+            db = ProjectInventoryDB(db_path)
             db.update_inventory(full_files)
         except Exception as e:
             print(f"[ERROR] Failed to refresh inventory in SQLite: {e}")
