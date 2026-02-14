@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.4] - 2026-02-14
+### Fixed
+- **CI/CD Build**: Fixed binary build failures on macOS and Linux by replacing `sed` with a cross-platform Python version injector and removing the `git` dependency in build containers.
+
+## [0.21.3] - 2026-02-14
+### Added
+- **Build-time Versioning**: The application version now automatically includes the git commit SHA (e.g., `0.21.3+a3ffbb6`). This is baked into binaries during the CI/CD process and detected dynamically in development mode.
+
 ## [0.21.2] - 2026-02-14
 ### Fixed
 - **Metadata Aliases**: Fixed critical issue where aliased fields (e.g., `kindof_data`) were not correctly populated during metadata updates.
