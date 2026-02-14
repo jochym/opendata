@@ -1,0 +1,8 @@
+# SH3 high pressure phase
+SYSTEM = SH3
+PREC = Accurate
+ENCUT = 500
+ISMEAR = 1
+SIGMA = 0.2
+EDIFF = 1E-7
+IBRION = -1

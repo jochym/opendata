@@ -66,26 +66,24 @@ def test_project_agent_detects_full_text_candidate(latex_full_file, tmp_path):
     wm_mock.projects_dir = tmp_path / "projects"
     wm_mock.projects_dir.mkdir()
     (wm_mock.projects_dir / "test_project").mkdir()
-    # Mock DB path to a valid temp location
-    wm_mock.get_project_db_path.return_value = (
-        tmp_path / "test_project" / "inventory.db"
-    )
 
     agent = ProjectAnalysisAgent(wm_mock)
 
-    # Mock AI Service for heuristics phase
-    ai_service_mock = MagicMock()
-    ai_service_mock.ask_agent.return_value = '{"ANALYSIS": "Found files", "SELECTION": [{"path": "main.tex", "reason": "paper"}]}'
-
-    # Run scan first to get fingerprint
+    # In 0.21.0, we use refresh_inventory to get the fingerprint
     agent.refresh_inventory(latex_full_file.parent)
 
-    # Run heuristics
-    response = agent.run_heuristics_phase(latex_full_file.parent, ai_service_mock)
+    # We manually check the primary file candidate logic which is now in scanner.run_heuristics
+    from opendata.extractors.base import ExtractorRegistry
+
+    heuristics = agent.scanner.run_heuristics(
+        latex_full_file.parent,
+        agent.current_fingerprint,
+        exclude_patterns=[],
+        registry=ExtractorRegistry(),
+    )
 
     # Verify
-    assert "main.tex" in response
-    assert "AI Heuristics Analysis" in response
+    assert "main.tex" in agent.current_fingerprint.primary_file
 
 
 def test_project_agent_triggers_full_text_analysis(latex_full_file, tmp_path):

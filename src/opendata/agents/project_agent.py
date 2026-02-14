@@ -37,14 +37,21 @@ class ProjectAnalysisAgent:
     Maintains the state of the 'Chat Loop' and uses external tools (arXiv, DOI, ORCID).
     """
 
-    def __init__(self, wm: WorkspaceManager):
+    def __init__(
+        self,
+        wm: WorkspaceManager,
+        pm: Any | None = None,
+        registry: ExtractorRegistry | None = None,
+        prompt_manager: PromptManager | None = None,
+    ):
         self.wm = wm
         from opendata.protocols.manager import ProtocolManager
 
-        self.pm = ProtocolManager(wm)
-        self.registry = ExtractorRegistry()
-        self._setup_extractors()
-        self.prompt_manager = PromptManager()
+        self.pm = pm or ProtocolManager(wm)
+        self.registry = registry or ExtractorRegistry()
+        if registry is None:
+            self._setup_extractors()
+        self.prompt_manager = prompt_manager or PromptManager()
         self.project_id: Optional[str] = None
 
         self.current_fingerprint: Optional[ProjectFingerprint] = None
@@ -96,7 +103,7 @@ class ProjectAnalysisAgent:
 
     def _normalize_metadata(self):
         """Ensures all metadata fields are properly typed as Pydantic objects."""
-        from opendata.models import SoftwareInfo, RelatedResource
+        from opendata.models import RelatedResource
 
         if self.current_metadata.authors:
             self.current_metadata.authors = [
@@ -107,11 +114,6 @@ class ProjectAnalysisAgent:
             self.current_metadata.contacts = [
                 c if isinstance(c, Contact) else Contact.model_validate(c)
                 for c in self.current_metadata.contacts
-            ]
-        if self.current_metadata.software:
-            self.current_metadata.software = [
-                s if isinstance(s, SoftwareInfo) else SoftwareInfo.model_validate(s)
-                for s in self.current_metadata.software
             ]
         if self.current_metadata.related_publications:
             self.current_metadata.related_publications = [
@@ -126,11 +128,6 @@ class ProjectAnalysisAgent:
                 if isinstance(d, RelatedResource)
                 else RelatedResource.model_validate(d)
                 for d in self.current_metadata.related_datasets
-            ]
-        if self.current_metadata.contacts:
-            self.current_metadata.contacts = [
-                c if isinstance(c, Contact) else Contact.model_validate(c)
-                for c in self.current_metadata.contacts
             ]
 
     def save_state(self):

@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.1] - 2026-02-14
+### Added
+- **Comprehensive Testing Suite**: Implemented a structured testing infrastructure with unit and integration tests.
+- **Realistic Research Fixtures**: Added semi-legitimate physics and chemistry project fixtures for end-to-end testing of heuristic extraction.
+- **Agent Mandate**: Updated `AGENTS.md` to strictly require that every new functionality and structural change must be accompanied by a complete testing suite.
+### Fixed
+- **Testability**: Refactored `ProjectAnalysisAgent` to support full Dependency Injection, enabling isolated unit testing.
+
 ## [0.21.0] - 2026-02-13
 ### Added
 - **AI-Driven Heuristics**: Replaced traditional local parsers with a purely AI-driven file identification phase. The AI now analyzes the project structure to find the most significant files for metadata extraction.
