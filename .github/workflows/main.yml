@@ -42,8 +42,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Inject Version
         run: |
+          SHA=$(git rev-parse --short HEAD)
           VERSION=$(cat src/opendata/VERSION)
-          sed -i "s/{{VERSION}}/$VERSION/g" website/index.html
+          FULL_VERSION="${VERSION}+${SHA}"
+          sed -i "s/{{VERSION}}/$FULL_VERSION/g" website/index.html
       - name: Setup Pages
         uses: actions/configure-pages@v4
       - name: Upload artifact
@@ -83,6 +85,10 @@ jobs:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         run: |
+          # Bake SHA into VERSION file for the binary
+          SHA=$(git rev-parse --short HEAD)
+          sed -i "s/$/+${SHA}/" src/opendata/VERSION
+
           if [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ]; then
             echo "{\"installed\":{\"client_id\":\"$GOOGLE_CLIENT_ID\",\"project_id\":\"opendata-tool\",\"auth_uri\":\"https://accounts.google.com/o/oauth2/auth\",\"token_uri\":\"https://oauth2.googleapis.com/token\",\"auth_provider_x509_cert_url\":\"https://www.googleapis.com/oauth2/v1/certs\",\"client_secret\":\"$GOOGLE_CLIENT_SECRET\",\"redirect_uris\":[\"http://localhost\"]}}" > client_secrets.json
           fi
@@ -126,6 +132,10 @@ jobs:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         run: |
+          # Bake SHA into VERSION file for the binary
+          SHA=$(git rev-parse --short HEAD)
+          sed -i "s/$/+${SHA}/" src/opendata/VERSION
+
           if [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ]; then
             echo "{\"installed\":{\"client_id\":\"$GOOGLE_CLIENT_ID\",\"project_id\":\"opendata-tool\",\"auth_uri\":\"https://accounts.google.com/o/oauth2/auth\",\"token_uri\":\"https://oauth2.googleapis.com/token\",\"auth_provider_x509_cert_url\":\"https://www.googleapis.com/oauth2/v1/certs\",\"client_secret\":\"$GOOGLE_CLIENT_SECRET\",\"redirect_uris\":[\"http://localhost\"]}}" > client_secrets.json
           fi

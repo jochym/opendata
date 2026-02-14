@@ -64,23 +64,40 @@ def get_resource_path(relative_path: str) -> Path:
 
 def get_app_version() -> str:
     """Reads the application version from the VERSION file or package metadata."""
+    version_str = "0.0.0"
+
     # 1. Try to find VERSION file using get_resource_path (works in dev and bundle)
     try:
         version_file = get_resource_path("VERSION")
         if version_file.exists():
-            return version_file.read_text(encoding="utf-8").strip()
+            version_str = version_file.read_text(encoding="utf-8").strip()
     except Exception:
-        pass
+        # 2. Try package metadata (installed mode)
+        try:
+            from importlib.metadata import version
 
-    # 2. Try package metadata (installed mode)
-    try:
-        from importlib.metadata import version
+            version_str = version("opendata-tool")
+        except Exception:
+            pass
 
-        return version("opendata-tool")
-    except Exception:
-        pass
+    # 3. Append git SHA if in development mode (not bundled and .git exists)
+    import sys
 
-    return "0.0.0"
+    if not getattr(sys, "frozen", False):
+        try:
+            import subprocess
+
+            sha = subprocess.check_output(
+                ["git", "rev-parse", "--short", "HEAD"],
+                stderr=subprocess.DEVNULL,
+                text=True,
+            ).strip()
+            if sha and "+" not in version_str:
+                version_str = f"{version_str}+{sha}"
+        except Exception:
+            pass
+
+    return version_str
 
 
 def get_local_ip() -> str:
