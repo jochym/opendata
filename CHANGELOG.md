@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.2] - 2026-02-14
+### Fixed
+- **Metadata Aliases**: Fixed critical issue where aliased fields (e.g., `kindof_data`) were not correctly populated during metadata updates.
+- **Project State Integrity**: Added `significant_files` field to `ProjectFingerprint` model to prevent data loss during persistence.
+- **Context Injection**: Fixed a bug where files matching glob patterns (e.g., `@src/*.py`) were listed in chat but not actually injected into the AI context.
+- **Robustness**: Improved metadata validation to prevent complex objects (authors, contacts) from being overwritten by simple strings from UI forms.
+- **Testing**: Expanded test suite to cover hierarchical protocol resolution, AI prompt generation, and edge cases in AI response parsing.
+
 ## [0.21.1] - 2026-02-14
 ### Added
 - **Comprehensive Testing Suite**: Implemented a structured testing infrastructure with unit and integration tests.

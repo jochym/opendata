@@ -80,6 +80,8 @@ class RelatedResource(BaseModel):
 
 
 class Metadata(BaseModel):
+    model_config = {"populate_by_name": True}
+
     # Field protection
     locked_fields: list[str] = Field(
         default_factory=list, description="Fields protected from AI updates"
@@ -150,6 +152,9 @@ class ProjectFingerprint(BaseModel):
     structure_sample: list[str] = Field(description="First 50 file paths found")
     primary_file: str | None = Field(
         None, description="Path to the main research paper (TeX/Docx)"
+    )
+    significant_files: list[str] = Field(
+        default_factory=list, description="Files identified by AI as important"
     )
 
 

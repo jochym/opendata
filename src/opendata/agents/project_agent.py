@@ -377,6 +377,8 @@ class ProjectAnalysisAgent:
                             )
                         )
                         patterns_found.append(fname)
+                        # Add found files to extra_files so they are read into context
+                        extra_files.extend(found)
                         continue
 
                 # Standard file handling
