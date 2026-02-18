@@ -10,7 +10,10 @@ on:
 jobs:
   test:
     name: Run Tests
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -19,9 +22,10 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
       - name: Install System Dependencies (Linux)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb
+          sudo apt-get install -y xvfb python3-tk
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -29,36 +33,92 @@ jobs:
       - name: Run tests
         run: pytest
 
-  website:
-    name: Deploy Website
-    needs: test
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
+  gui-smoke-test:
+    name: GUI Smoke Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
-      - name: Inject Version
-        run: |
-          SHA=$(echo ${{ github.sha }} | cut -c1-7)
-          VERSION=$(cat src/opendata/VERSION)
-          FULL_VERSION="${VERSION}+${SHA}"
-          sed -i "s/{{VERSION}}/$FULL_VERSION/g" website/index.html
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          path: './website'
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install System Dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb python3-tk
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install . playwright
+          playwright install chromium
+      - name: Test GUI Launch (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          # Start app with Xvfb
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1280x1024x24 &
+          sleep 2
+          
+          # Start app in background
+          python src/opendata/main.py --headless --port 8080 &
+          APP_PID=$!
+          sleep 10
+          
+          # Test if server responds
+          if curl -s http://127.0.0.1:8080 > /dev/null; then
+            echo "✅ Server is responding on Linux"
+            kill $APP_PID
+            exit 0
+          else
+            echo "❌ Server not responding on Linux"
+            kill $APP_PID
+            exit 1
+          fi
+      - name: Test GUI Launch (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # Start app in background
+          Start-Process python -ArgumentList "src/opendata/main.py","--headless","--port","8080" -WindowStyle Hidden
+          Start-Sleep -Seconds 15
+          
+          # Test if server responds
+          try {
+            $response = Invoke-WebRequest -Uri "http://127.0.0.1:8080" -TimeoutSec 5 -UseBasicParsing
+            Write-Host "✅ Server is responding on Windows"
+            Stop-Process -Name python -Force -ErrorAction SilentlyContinue
+          } catch {
+            Write-Host "❌ Server not responding on Windows"
+            Stop-Process -Name python -Force -ErrorAction SilentlyContinue
+            exit 1
+          }
+      - name: Test GUI Launch (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          # Start app in background
+          python src/opendata/main.py --headless --port 8080 &
+          APP_PID=$!
+          sleep 15
+          
+          # Test if server responds
+          if curl -s http://127.0.0.1:8080 > /dev/null; then
+            echo "✅ Server is responding on macOS"
+            kill $APP_PID
+            exit 0
+          else
+            echo "❌ Server not responding on macOS"
+            kill $APP_PID
+            exit 1
+          fi
 
   build-windows-macos:
     name: Build Binary (${{ matrix.os }})
-    needs: test
+    needs: [test, gui-smoke-test]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ${{ matrix.os }}
     strategy:
@@ -104,15 +164,37 @@ jobs:
             --add-data "client_secrets.json${SEP}." \
             --exclude-module matplotlib --exclude-module PyQt5 --exclude-module PyQt6 --exclude-module PySide2 --exclude-module PySide6 --exclude-module IPython --exclude-module PIL \
             src/opendata/main.py
+      - name: Test Binary Launch
+        shell: bash
+        run: |
+          # Test the built binary
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            ./dist/${{ matrix.artifact_name }}.exe --headless --port 8080 &
+            BINARY_PID=$!
+          else
+            ./dist/${{ matrix.artifact_name }} --headless --port 8080 &
+            BINARY_PID=$!
+          fi
+          sleep 15
+          
+          # Test if server responds
+          if curl -s http://127.0.0.1:8080 > /dev/null; then
+            echo "✅ Binary is working on ${{ runner.os }}"
+            kill $BINARY_PID 2>/dev/null || true
+          else
+            echo "❌ Binary not responding on ${{ runner.os }}"
+            kill $BINARY_PID 2>/dev/null || true
+            exit 1
+          fi
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: dist/${{ matrix.artifact_name }}
+          path: dist/${{ matrix.artifact_name }}${{ runner.os == 'Windows' && '.exe' || '' }}
 
   build-linux:
     name: Build Binary (Linux Container)
-    needs: test
+    needs: [test, gui-smoke-test]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     container: python:3.11-slim-bookworm
@@ -121,7 +203,7 @@ jobs:
       - name: Install System Dependencies
         run: |
           apt-get update
-          apt-get install -y binutils python3-tk
+          apt-get install -y binutils python3-tk libxcb-xinerama0 libxcb-cursor0
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -147,7 +229,28 @@ jobs:
             --add-data "src/opendata/VERSION:." \
             --add-data "client_secrets.json:." \
             --exclude-module matplotlib --exclude-module PyQt5 --exclude-module PyQt6 --exclude-module PySide2 --exclude-module PySide6 --exclude-module IPython --exclude-module PIL \
+            --exclude-binary '**/libstdc++.so*' --exclude-binary '**/libgcc_s.so*' --exclude-binary '**/libm.so*' --exclude-binary '**/libc.so*' \
             src/opendata/main.py
+      - name: Test Binary Launch
+        run: |
+          # Test the built binary with Xvfb
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1280x1024x24 &
+          sleep 2
+          
+          ./dist/opendata-linux --headless --port 8080 &
+          BINARY_PID=$!
+          sleep 15
+          
+          # Test if server responds
+          if curl -s http://127.0.0.1:8080 > /dev/null; then
+            echo "✅ Linux binary is working"
+            kill $BINARY_PID 2>/dev/null || true
+          else
+            echo "❌ Linux binary not responding"
+            kill $BINARY_PID 2>/dev/null || true
+            exit 1
+          fi
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
