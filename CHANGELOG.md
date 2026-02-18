@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.1] - 2026-02-18
+### Changed
+- **CI/CD**: Simplified Linux distribution from 5 binaries to 2 universal builds (Ubuntu 20.04 and Rocky Linux 8)
+- **CI/CD**: Added comprehensive GUI smoke tests on all supported platforms before build
+- **CI/CD**: Added binary verification tests - each binary must launch and respond before release
+- **CI/CD**: Build on oldest supported systems (Ubuntu 20.04, Rocky 8) for maximum compatibility
+### Added
+- **Documentation**: Added SUPPORTED_PLATFORMS.md with clear guidance on binary selection
+- **Testing**: Test matrix now covers Ubuntu 22.04/24.04, Debian 12/13, Rocky Linux 8/9, Windows 10/11, macOS Intel/ARM
+
 ## [0.22.0] - 2026-02-18
 ### Added
 - **Modern Google GenAI Provider**: Introduced a new AI provider based on the `google-genai` SDK, offering better performance and stability.
