@@ -9,7 +9,7 @@ from opendata.utils import get_app_version, setup_logging
 logger = logging.getLogger("opendata.main")
 
 
-def run_server_process(host: str, port: int, log_level: int):
+def run_server_process(host: str, port: int, log_level: int, enable_api: bool = False):
     """
     Worker function that runs in a separate process.
     Loads heavy libraries only inside the child process.
@@ -18,7 +18,7 @@ def run_server_process(host: str, port: int, log_level: int):
         setup_logging(level=log_level)
         from opendata.ui.app import start_ui
 
-        start_ui(host=host, port=port)
+        start_ui(host=host, port=port, enable_api=enable_api)
     except Exception as e:
         logger.error(f"Server process failed: {e}", exc_info=True)
         sys.exit(1)
@@ -64,6 +64,11 @@ def main():
     parser.add_argument(
         "-q", "--quiet", action="store_true", help="Only show ERROR logs"
     )
+    parser.add_argument(
+        "--api",
+        action="store_true",
+        help="Enable REST API endpoints for test automation (localhost only)",
+    )
     args = parser.parse_args()
 
     log_level = logging.INFO
@@ -93,7 +98,7 @@ def main():
 
             threading.Thread(target=open_browser, daemon=True).start()
 
-        start_ui(host=args.host, port=args.port)
+        start_ui(host=args.host, port=args.port, enable_api=args.api)
         return
 
     # --- Anchor GUI Mode (Default) ---
@@ -104,7 +109,7 @@ def main():
         logging.warning("Tkinter not found. Falling back to headless mode.")
         from opendata.ui.app import start_ui
 
-        start_ui(host=args.host, port=args.port)
+        start_ui(host=args.host, port=args.port, enable_api=args.api)
         return
 
     logging.info(f"Starting server process on http://{args.host}:{args.port}")
@@ -112,7 +117,7 @@ def main():
     # Create and start the server process
     server_process = multiprocessing.Process(
         target=run_server_process,
-        args=(args.host, args.port, log_level),
+        args=(args.host, args.port, log_level, args.api),
         name="OpenDataServer",
     )
     server_process.start()
