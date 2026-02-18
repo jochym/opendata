@@ -53,6 +53,53 @@ class WorkspaceManager:
         """Returns the path to the project's SQLite database."""
         return self.get_project_dir(project_id) / "inventory.db"
 
+    def get_project_config_path(self, project_id: str) -> Path:
+        """Returns the path to the project's config file."""
+        return self.get_project_dir(project_id) / "project_config.json"
+
+    def load_project_config(self, project_id: str) -> Dict[str, Any]:
+        """Loads project-specific configuration (field protocol, UI preferences, etc.)."""
+        config_path = self.get_project_config_path(project_id)
+        if config_path.exists():
+            try:
+                with open(config_path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception as e:
+                logger.warning(f"Failed to load project config: {e}")
+        return {}
+
+    def save_project_config(self, project_id: str, config: Dict[str, Any]):
+        """Saves project-specific configuration."""
+        config_path = self.get_project_config_path(project_id)
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=2)
+
+    def update_inventory(self, project_id: str, inventory: List[Dict[str, Any]]):
+        """Updates the project's inventory database."""
+        import sqlite3
+
+        db_path = self.get_project_db_path(project_id)
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute(
+                "CREATE TABLE IF NOT EXISTS file_inventory (path TEXT PRIMARY KEY, size INTEGER, mtime REAL)"
+            )
+            cursor.executemany(
+                "INSERT OR REPLACE INTO file_inventory (path, size, mtime) VALUES (:path, :size, :mtime)",
+                inventory,
+            )
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            logger.error(
+                f"Failed to update inventory for {project_id}: {e}", exc_info=True
+            )
+            raise
+
     def save_project_state(
         self,
         project_id: str,

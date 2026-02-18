@@ -29,6 +29,7 @@ class ProtocolManager:
                 name="Physics",
                 level=ProtocolLevel.FIELD,
                 exclude_patterns=[
+                    # VASP output files
                     "**/WAVECAR*",
                     "**/CHG*",
                     "**/PROCAR*",
@@ -36,6 +37,50 @@ class ProtocolManager:
                     "**/DOSCAR*",
                     "**/LOCPOT*",
                     "**/XDATCAR*",
+                    # General computational output (large binary/text logs)
+                    "**/*.out",
+                    "**/*.log",
+                    "**/*.in",
+                    "**/kappa_*",
+                    "**/*.evec",
+                    "**/*.fcs",
+                    "**/*.kappa",
+                    "**/*.tau",
+                    "**/*.bands",
+                    "**/DFSET*",
+                    "**/FORCES_*",
+                    "**/BORN",
+                ],
+                extraction_prompts=[
+                    "Check for VASP, Phonopy, and ALAMODE software versions."
+                ],
+            ),
+            "physical_sciences": ExtractionProtocol(
+                id="field_physical_sciences",
+                name="Physical Sciences",
+                level=ProtocolLevel.FIELD,
+                exclude_patterns=[
+                    # VASP output files
+                    "**/WAVECAR*",
+                    "**/CHG*",
+                    "**/PROCAR*",
+                    "**/EIGENVAL*",
+                    "**/DOSCAR*",
+                    "**/LOCPOT*",
+                    "**/XDATCAR*",
+                    # General computational output
+                    "**/*.out",
+                    "**/*.log",
+                    "**/*.in",
+                    "**/kappa_*",
+                    "**/*.evec",
+                    "**/*.fcs",
+                    "**/*.kappa",
+                    "**/*.tau",
+                    "**/*.bands",
+                    "**/DFSET*",
+                    "**/FORCES_*",
+                    "**/BORN",
                 ],
                 extraction_prompts=[
                     "Check for VASP, Phonopy, and ALAMODE software versions."
@@ -53,6 +98,9 @@ class ProtocolManager:
                     "**/DOSCAR*",
                     "**/LOCPOT*",
                     "**/XDATCAR*",
+                    "**/*.out",
+                    "**/*.log",
+                    "**/*.in",
                 ],
                 extraction_prompts=[
                     "Identify specific calculation parameters (ENECUT, ISMEAR, etc)."
@@ -70,6 +118,9 @@ class ProtocolManager:
                     "**/DOSCAR*",
                     "**/LOCPOT*",
                     "**/XDATCAR*",
+                    "**/*.out",
+                    "**/*.log",
+                    "**/*.in",
                 ],
                 extraction_prompts=[
                     "Sprawdź wersje oprogramowania VASP, Phonopy i ALAMODE."
@@ -253,12 +304,12 @@ class ProtocolManager:
         )
         effective["curator_prompts"] = list(dict.fromkeys(effective["curator_prompts"]))
 
-        import logging
-
-        import logging
-
-        logger = logging.getLogger("opendata.protocols")
-        msg = f"Effective Protocol for {project_id} (Field: {field_name}):\n - Exclude: {effective['exclude']}\n - Include: {effective['include']}"
-        logger.debug(msg)
+        logger.debug(
+            f"Effective Protocol for {project_id} (Field: {field_name}):\n"
+            f" - Layers combined: {len(layers)} (System, User, {f'Field({field_name})' if field_name else 'No Field'}, {f'Project({project_id})' if project_id else 'No Project'})\n"
+            f" - Exclude ({len(effective['exclude'])}): {effective['exclude']}\n"
+            f" - Include ({len(effective['include'])}): {effective['include']}\n"
+            f" - Prompts ({len(effective['prompts'])}): {effective['prompts'][:2]}..."
+        )
 
         return effective

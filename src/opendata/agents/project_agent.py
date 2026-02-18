@@ -161,6 +161,28 @@ class ProjectAnalysisAgent:
         self.current_fingerprint = None
         self.project_id = None
 
+    def _get_effective_field(self) -> Optional[str]:
+        """Gets the user-selected field protocol from project config.
+
+        NO HEURISTICS - Returns ONLY what user explicitly selected.
+        """
+        # Check project config (user's explicit selection)
+        if self.project_id:
+            config = self.wm.load_project_config(self.project_id)
+            if config.get("field_name"):
+                return config["field_name"]
+
+        # No user selection = no field protocol
+        return None
+
+    def set_field_protocol(self, field_name: str):
+        """User explicitly selects a field protocol."""
+        if self.project_id:
+            config = self.wm.load_project_config(self.project_id)
+            config["field_name"] = field_name
+            self.wm.save_project_config(self.project_id, config)
+            logger.info(f"Field protocol set to: {field_name}")
+
     def refresh_inventory(
         self,
         project_dir: Path,
@@ -176,32 +198,41 @@ class ProjectAnalysisAgent:
         if force:
             self.current_fingerprint = None
 
-        # Get field from metadata if exists
-        field_name = (
-            self.current_metadata.science_branches_mnisw[0]
-            if self.current_metadata.science_branches_mnisw
-            else None
-        )
+        # 1. Determine field first to have exclusions ready for scanning
+        field_name = self._get_effective_field()
         effective = self.pm.resolve_effective_protocol(self.project_id, field_name)
         exclude_patterns = effective.get("exclude", [])
 
-        fingerprint, unused_files = self.scanner.refresh_inventory(
-            self.project_id,
-            project_dir,
-            exclude_patterns,
-            progress_callback,
-            stop_event,
+        if not self.current_fingerprint:
+            if progress_callback:
+                progress_callback(_("Scanning project structure..."), "", "")
+
+            try:
+                fp, inventory = scan_project_lazy(
+                    project_dir, progress_callback, stop_event, exclude_patterns
+                )
+                self.current_fingerprint = fp
+                self.wm.update_inventory(self.project_id, inventory)
+            except Exception as e:
+                logger.error(
+                    f"Scan failed for project {self.project_id}: {e}", exc_info=True
+                )
+                return _("Scan failed: {error}").format(error=str(e))
+
+        # 2. Re-check field after scan (heuristics might have improved)
+        new_field = self._get_effective_field()
+        if new_field != field_name:
+            field_name = new_field
+            effective = self.pm.resolve_effective_protocol(self.project_id, field_name)
+
+        # 3. DO NOT update metadata - field protocol is separate from RODBUK classification
+        #    science_branches_mnisw is for RODBUK repository classification only
+        #    Field protocol is stored in project_config.json
+
+        self.save_state()
+        return _("Inventory refreshed. Project contains {count} files.").format(
+            count=self.current_fingerprint.file_count
         )
-
-        if stop_event and stop_event.is_set():
-            return _("Scan cancelled by user.")
-
-        if fingerprint:
-            self.current_fingerprint = fingerprint
-            self.save_state()
-            return _("Inventory refreshed.")
-        else:
-            return _("Scan failed or was interrupted.")
 
     def run_heuristics_phase(
         self,
@@ -223,6 +254,14 @@ class ProjectAnalysisAgent:
         significant_files, ai_analysis = self.ai_heuristics.identify_significant_files(
             self.project_id, ai_service
         )
+
+        # DEBUG: Log if AI failed
+        if not significant_files:
+            logger.warning(
+                f"AI Heuristics returned no files for project {self.project_id}"
+            )
+            if ai_analysis:
+                logger.debug(f"AI Analysis summary: {ai_analysis.summary}")
 
         if stop_event and stop_event.is_set():
             return _("Heuristics analysis cancelled by user.")
@@ -292,11 +331,7 @@ class ProjectAnalysisAgent:
                     extra_context.append(f"--- FILE CONTENT: {rel_path} ---\n{content}")
 
         # 2. Prepare Prompt
-        field_name = (
-            self.current_metadata.science_branches_mnisw[0]
-            if self.current_metadata.science_branches_mnisw
-            else None
-        )
+        field_name = self._get_effective_field()
         effective = self.pm.resolve_effective_protocol(self.project_id, field_name)
 
         initial_prompt = _(
@@ -448,11 +483,7 @@ class ProjectAnalysisAgent:
                 )
 
         # 4. CALL ENGINE
-        field_name = (
-            self.current_metadata.science_branches_mnisw[0]
-            if self.current_metadata.science_branches_mnisw
-            else None
-        )
+        field_name = self._get_effective_field()
         effective = self.pm.resolve_effective_protocol(self.project_id, field_name)
 
         def on_system_msg(msg: str):
@@ -630,6 +661,10 @@ class ProjectAnalysisAgent:
             if not v:
                 continue
 
+            # Skip fields that are just user commentary or don't match model structure
+            if k == "authors" and isinstance(v, str) and "names" in v.lower():
+                continue  # User answered a choice question about authorship policy
+
             # Special handling for complex list fields - don't overwrite with strings from form
             if k in complex_list_fields:
                 # If the value from the form is a string (e.g. choice),
@@ -681,11 +716,7 @@ class ProjectAnalysisAgent:
 
     def generate_ai_prompt(self, mode: str = "metadata") -> str:
         """Delegates prompt generation to AnalysisEngine."""
-        field_name = (
-            self.current_metadata.science_branches_mnisw[0]
-            if self.current_metadata.science_branches_mnisw
-            else None
-        )
+        field_name = self._get_effective_field()
         effective = self.pm.resolve_effective_protocol(self.project_id, field_name)
         return self.engine.generate_ai_prompt(
             mode, self.current_metadata, self.current_fingerprint, effective
