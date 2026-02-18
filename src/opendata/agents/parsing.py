@@ -2,9 +2,11 @@ import json
 import re
 import yaml
 import logging
+from pathlib import Path
 from typing import Tuple, Optional, Any
 from opendata.models import Metadata, AIAnalysis
 from opendata.i18n.translator import _
+from opendata.ai.telemetry import AITelemetry
 
 logger = logging.getLogger("opendata.agents.parsing")
 
@@ -17,9 +19,36 @@ def extract_metadata_from_ai_response(
     Handles both legacy and new (ANALYSIS + METADATA) structures.
     Returns: (clean_text_for_chat, ai_analysis_object, updated_metadata_object)
     """
+    # 0. Extract Telemetry ID if present
+    interaction_id = AITelemetry.extract_id(response_text)
+    if interaction_id:
+        logger.info(f"Processing AI Response ID: {interaction_id}")
+        response_text = AITelemetry.strip_id_tag(response_text)
+
     clean_text = response_text
     current_analysis = None
     updated_metadata = current_metadata
+
+    def save_failed_response(text: str, error: str):
+        """Helper to collect problematic AI responses for test development."""
+        try:
+            from datetime import datetime
+            import os
+
+            # Use workspace from metadata if available, else fallback
+            ws_path = Path.home() / ".opendata_tool"
+            debug_dir = ws_path / "debug" / "failed_responses"
+            debug_dir.mkdir(parents=True, exist_ok=True)
+
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            safe_id = interaction_id or "no_id"
+            filename = f"failed_{ts}_{safe_id}.txt"
+
+            with open(debug_dir / filename, "w", encoding="utf-8") as f:
+                f.write(f"ERROR: {error}\n\nRAW RESPONSE:\n{text}")
+            logger.info(f"Saved failed AI response to {debug_dir / filename}")
+        except Exception as e:
+            logger.error(f"Failed to save debug response: {e}")
 
     if "METADATA:" not in response_text:
         # Check if the response is an error message
@@ -95,6 +124,19 @@ def extract_metadata_from_ai_response(
                     }
                     for k, v in analysis_data.items():
                         target_key = mapping.get(k, k)
+
+                        # Normalization of non_compliant (AI often sends objects instead of strings)
+                        if target_key == "noncompliant" and isinstance(v, list):
+                            normalized_v = []
+                            for item in v:
+                                if isinstance(item, dict):
+                                    f = item.get("field", "unknown")
+                                    r = item.get("reason", "")
+                                    normalized_v.append(f"{f}: {r}" if r else f)
+                                else:
+                                    normalized_v.append(str(item))
+                            v = normalized_v
+
                         normalized_analysis[target_key] = v
 
                     current_analysis = AIAnalysis.model_validate(normalized_analysis)
@@ -112,16 +154,82 @@ def extract_metadata_from_ai_response(
                 if key in locked:
                     del updates[key]
 
+        # Normalization of Software (AI often sends objects instead of strings)
+        if "software" in updates and isinstance(updates["software"], list):
+            normalized_software = []
+            for item in updates["software"]:
+                if isinstance(item, dict):
+                    name = item.get("name", "Unknown")
+                    version = item.get("version")
+                    normalized_software.append(f"{name} {version}" if version else name)
+                else:
+                    normalized_software.append(str(item))
+            updates["software"] = normalized_software
+
         if "abstract" in updates:
             updates["abstract"] = str(updates["abstract"])
         if "description" in updates and isinstance(updates["description"], str):
             updates["description"] = [updates["description"]]
         if "keywords" in updates and isinstance(updates["keywords"], str):
             updates["keywords"] = [updates["keywords"]]
-        if "kind_of_data" in updates and isinstance(updates["kind_of_data"], list):
-            updates["kind_of_data"] = (
-                str(updates["kind_of_data"][0]) if updates["kind_of_data"] else None
-            )
+
+        # Kind of Data normalization (single string expected)
+        if "kind_of_data" in updates:
+            if isinstance(updates["kind_of_data"], list):
+                updates["kind_of_data"] = (
+                    str(updates["kind_of_data"][0]) if updates["kind_of_data"] else None
+                )
+            else:
+                updates["kind_of_data"] = (
+                    str(updates["kind_of_data"]) if updates["kind_of_data"] else None
+                )
+
+        # Contacts normalization
+        if "contacts" in updates and isinstance(updates["contacts"], list):
+            processed_contacts = []
+            for contact in updates["contacts"]:
+                if isinstance(contact, dict):
+                    # Map 'name' to 'person_to_contact' if missing
+                    if "name" in contact and "person_to_contact" not in contact:
+                        contact["person_to_contact"] = contact.pop("name")
+
+                    if "person_to_contact" in contact and "email" not in contact:
+                        contact["email"] = "missing@example.com"
+
+                    # Handle multiple affiliations (model expects single string)
+                    if "affiliations" in contact and isinstance(
+                        contact["affiliations"], list
+                    ):
+                        contact["affiliation"] = ", ".join(contact.pop("affiliations"))
+                    elif "affiliation" in contact and isinstance(
+                        contact["affiliation"], list
+                    ):
+                        contact["affiliation"] = ", ".join(contact["affiliation"])
+
+                    processed_contacts.append(contact)
+            updates["contacts"] = processed_contacts
+        elif "contact_email" in updates and updates["contact_email"]:
+            # Handle flat contact_email field from AI
+            email = updates.pop("contact_email")
+            name = updates.pop("contact_name", "Primary Contact")
+            updates["contacts"] = [{"person_to_contact": name, "email": email}]
+
+        # Related publications normalization
+        if "related_publications" in updates and isinstance(
+            updates["related_publications"], list
+        ):
+            processed_pubs = []
+            for pub in updates["related_publications"]:
+                if isinstance(pub, dict) and pub.get("title"):
+                    if not pub.get("relation_type"):
+                        pub["relation_type"] = "isSupplementTo"
+
+                    # Handle authors as list (model expects string)
+                    if "authors" in pub and isinstance(pub["authors"], list):
+                        pub["authors"] = ", ".join(pub["authors"])
+
+                    processed_pubs.append(pub)
+            updates["related_publications"] = processed_pubs
 
         # Authors normalization
         if "authors" in updates and isinstance(updates["authors"], list):
@@ -130,35 +238,81 @@ def extract_metadata_from_ai_response(
                 if isinstance(author, dict):
                     if author.get("identifier") and not author.get("identifier_scheme"):
                         author["identifier_scheme"] = "ORCID"
+                    # Handle ORCID in 'orcid' field instead of 'identifier'
+                    if author.get("orcid") and not author.get("identifier"):
+                        author["identifier"] = author.pop("orcid")
+                        author["identifier_scheme"] = "ORCID"
+
+                    # Handle multiple affiliations (model expects single string)
+                    if "affiliations" in author and isinstance(
+                        author["affiliations"], list
+                    ):
+                        author["affiliation"] = ", ".join(author.pop("affiliations"))
+                    elif "affiliation" in author and isinstance(
+                        author["affiliation"], list
+                    ):
+                        author["affiliation"] = ", ".join(author["affiliation"])
+
                     processed_authors.append(author)
                 elif isinstance(author, str):
                     processed_authors.append({"name": author})
             updates["authors"] = processed_authors
 
-        # Contacts normalization
-        if "contacts" in updates and isinstance(updates["contacts"], list):
-            processed_contacts = []
-            for contact in updates["contacts"]:
-                if isinstance(contact, dict):
-                    if "name" in contact and "person_to_contact" not in contact:
-                        contact["person_to_contact"] = contact.pop("name")
-                    if "person_to_contact" in contact and "email" not in contact:
-                        contact["email"] = "missing@example.com"
-                    processed_contacts.append(contact)
-            updates["contacts"] = processed_contacts
+        # Alternative titles mapping
+        if "short_title" in updates and updates["short_title"]:
+            if "alternative_titles" not in updates:
+                updates["alternative_titles"] = []
+            if updates["short_title"] not in updates["alternative_titles"]:
+                updates["alternative_titles"].append(updates.pop("short_title"))
 
-        # Related publications normalization
-        if "related_publications" in updates and isinstance(
-            updates["related_publications"], list
-        ):
-            updates["related_publications"] = [
-                pub
-                for pub in updates["related_publications"]
-                if isinstance(pub, dict) and pub.get("title")
-            ]
+        # Funding normalization (handle grant_number vs grantnumber and string entries)
+        if "funding" in updates and isinstance(updates["funding"], list):
+            processed_funding = []
+            for fund in updates["funding"]:
+                if isinstance(fund, dict):
+                    # Create a new dict to avoid modifying the original in-place if needed
+                    new_fund = dict(fund)
+                    if "grant_number" in new_fund and "grantnumber" not in new_fund:
+                        new_fund["grantnumber"] = new_fund.pop("grant_number")
+                    processed_funding.append(new_fund)
+                elif isinstance(fund, str):
+                    # If AI sends a string, wrap it in a dict
+                    processed_funding.append({"agency": fund, "grantnumber": ""})
+            updates["funding"] = processed_funding
 
-        current_dict.update(updates)
-        updated_metadata = Metadata.model_validate(current_dict)
+        # Contributors mapping (move to notes if field doesn't exist in model)
+        if "contributors" in updates and isinstance(updates["contributors"], list):
+            contrib_str = "Contributors: " + ", ".join(
+                [str(c) for c in updates["contributors"]]
+            )
+            if "notes" not in updates or not updates["notes"]:
+                updates["notes"] = contrib_str
+            elif contrib_str not in updates["notes"]:
+                updates["notes"] = str(updates["notes"]) + "\n\n" + contrib_str
+            del updates["contributors"]
+
+        # Merge strategy: avoid overwriting rich data with placeholders or empty values
+        for key, value in updates.items():
+            if value is None or value == "":
+                continue
+
+            # If we have a long string (like abstract) and AI sends a very short one,
+            # it might be a placeholder or a mistake.
+            current_val = getattr(updated_metadata, key, None)
+            if isinstance(value, str) and isinstance(current_val, str):
+                if len(current_val) > 100 and len(value) < 50 and "..." in value:
+                    logger.warning(
+                        f"Ignoring suspicious update for {key}: '{value}' seems like a placeholder."
+                    )
+                    continue
+
+            current_dict[key] = value
+
+        try:
+            updated_metadata = Metadata.model_validate(current_dict)
+        except Exception as e:
+            save_failed_response(response_text, f"Metadata validation failed: {e}")
+            raise
 
         if current_analysis:
             if current_analysis.file_suggestions:
