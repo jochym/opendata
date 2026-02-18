@@ -1,129 +1,125 @@
 # Supported Platforms
 
-OpenData Tool is tested and built for the following operating systems and versions.
+OpenData Tool is tested and built for the following operating systems.
 
-## Officially Supported Systems
+## Binary Distribution Strategy
 
-### Linux Distributions
+### Linux - Universal Binaries
 
-| Distribution | Version | Codename | Support Status |
-|-------------|---------|----------|----------------|
-| **Ubuntu** | 22.04 LTS | Jammy Jellyfish | ✅ Supported |
-| **Ubuntu** | 24.04 LTS | Noble Numbat | ✅ Supported |
-| **Debian** | 12 | Bookworm | ✅ Supported |
-| **Debian** | 13 | Trixie | ✅ Supported |
-| **RHEL** | 9 | Plow | ✅ Supported (via Rocky Linux) |
-| **Rocky Linux** | 9 | | ✅ Supported |
+We build Linux binaries on **older, stable distributions** to ensure maximum compatibility across newer systems. This follows the best practice of "build on oldest supported target."
 
-**Note:** For Linux, we provide separate binaries for each distribution to ensure maximum compatibility. If your distribution is not listed, try the binary for the closest related distribution (e.g., use Ubuntu 22.04 binary for Linux Mint 21.x).
+| Binary | Built On | Compatible With | glibc Version |
+|--------|----------|-----------------|---------------|
+| **opendata-linux** | Ubuntu 20.04 | Ubuntu 20.04+, Debian 11+, Linux Mint 20+, Pop!_OS 20.04+ | ≥ 2.31 |
+| **opendata-rhel** | Rocky Linux 8 | RHEL 8+, Rocky Linux 8+, AlmaLinux 8+, CentOS Stream 8+ | ≥ 2.28 |
+
+**Which binary to choose?**
+- **Most users:** Use `opendata-linux` (Ubuntu 20.04 build)
+- **RHEL/CentOS/Rocky users:** Use `opendata-rhel` for best compatibility
+
+### Windows & macOS
+
+| Platform | Binary | Architecture |
+|----------|--------|-------------|
+| **Windows** | `opendata-win.exe` | x86_64 (universal) |
+| **macOS Intel** | `opendata-macos-intel` | x86_64 |
+| **macOS Apple Silicon** | `opendata-macos-arm` | ARM64 (M1/M2/M3) |
+
+## Officially Tested Systems
+
+Every release is tested on:
+
+### Linux (Test Matrix)
+- ✅ Ubuntu 22.04 LTS, 24.04 LTS
+- ✅ Debian 12 (Bookworm), 13 (Trixie)
+- ✅ Rocky Linux 8, 9 (RHEL-compatible)
 
 ### Windows
-
-| Version | Architecture | Support Status |
-|---------|-------------|----------------|
-| **Windows 10** | x86_64 | ✅ Supported |
-| **Windows 11** | x86_64 | ✅ Supported |
-| **Windows Server 2019+** | x86_64 | ✅ Supported |
-
-**Note:** A single universal binary is provided for all Windows versions.
+- ✅ Windows 10 (x86_64)
+- ✅ Windows 11 (x86_64)
 
 ### macOS
-
-| macOS Version | Architecture | Support Status |
-|--------------|-------------|----------------|
-| **macOS 13** (Ventura) | Intel (x86_64) | ✅ Supported |
-| **macOS 14** (Sonoma) | Apple Silicon (ARM64) | ✅ Supported |
-| **macOS 15** (Sequoia) | Apple Silicon (ARM64) | ✅ Supported |
-
-**Note:** We provide separate binaries for Intel and Apple Silicon Macs. Choose the appropriate binary for your hardware:
-- **Intel Macs (2019 and earlier):** Use `opendata-macos-intel`
-- **Apple Silicon Macs (M1/M2/M3, 2020+):** Use `opendata-macos-arm`
+- ✅ macOS 13 Ventura (Intel)
+- ✅ macOS 14/15 Sonoma/Sequoia (Apple Silicon)
 
 ## System Requirements
 
 ### Minimum Requirements
-
-- **Python:** 3.11 or higher (included in binaries)
-- **RAM:** 2 GB minimum, 4 GB recommended
-- **Disk Space:** 500 MB for application + space for projects
-- **Display:** 1280x720 resolution or higher
+- **RAM:** 2 GB (4 GB recommended)
+- **Disk:** 500 MB for app + project space
+- **Display:** 1280×720 or higher
+- **Python:** Not required (bundled in binaries)
 
 ### Linux Dependencies
 
-Most modern Linux distributions include the required libraries by default. If you encounter errors, install these packages:
+Most modern distributions include required libraries. If you encounter GUI errors:
 
-**Ubuntu/Debian:**
+**Ubuntu/Debian/Mint:**
 ```bash
 sudo apt-get install -y python3-tk libxcb-xinerama0 libxcb-cursor0
 ```
 
-**RHEL/Rocky Linux:**
+**RHEL/Rocky/AlmaLinux:**
 ```bash
 sudo dnf install -y python3-tk libxcb-xinerama0 libxcb-cursor0
 ```
 
-### Windows Dependencies
-
-No additional dependencies required. The binary includes all necessary components.
-
-### macOS Dependencies
-
-No additional dependencies required. The binary includes all necessary components.
-
-## Testing Matrix
-
-Every release is tested on all supported platforms using GitHub Actions:
-
-- ✅ Unit tests (all platforms)
-- ✅ GUI smoke tests (all platforms)
-- ✅ Binary launch verification (all platforms)
-- ✅ Server responsiveness check (all platforms)
+### Windows & macOS
+No additional dependencies required.
 
 ## Unsupported Systems
 
-The following systems are **not officially supported**:
-
+The following are **not officially supported** (but may work):
 - ❌ Windows 7/8/8.1 (end of life)
-- ❌ macOS 12 and earlier (end of life)
-- ❌ Ubuntu 20.04 and earlier (end of life)
-- ❌ Debian 11 and earlier (oldoldstable)
-- ❌ 32-bit systems (no longer tested)
-
-However, the application may still work on these systems. If you encounter issues, please try building from source.
+- ❌ macOS 12 and earlier
+- ❌ Ubuntu 18.04 and earlier
+- ❌ Debian 10 and earlier
+- ❌ 32-bit systems
 
 ## Building from Source
 
-If your system is not supported by our pre-built binaries, you can build from source:
+If your system isn't supported by our binaries:
 
 ```bash
+# Install from source
 pip install -e ".[dev]"
 python src/opendata/main.py
-```
 
-For creating a binary on your system:
-
-```bash
+# Or create custom binary
 pip install pyinstaller
 pyinstaller --onefile --name opendata-custom src/opendata/main.py
 ```
 
-## Reporting Issues
+## Support Policy
 
-If you encounter platform-specific issues, please report them on GitHub with:
-- Your operating system and version
-- The binary you're using
-- Error messages from the terminal/logs
+We follow LTS (Long Term Support) timelines:
+- **Ubuntu LTS:** 5 years from release
+- **Debian Stable:** Until next stable release
+- **RHEL/Rocky:** 10 years from release
+- **Windows:** While Microsoft provides security updates
+- **macOS:** 3 most recent versions
 
-## Support Timeline
+## Troubleshooting
 
-We follow the LTS (Long Term Support) model for our supported platforms:
+### Binary won't start on Linux?
+1. Try the RHEL binary (`opendata-rhel`) for better glibc compatibility
+2. Install missing dependencies (see above)
+3. Check terminal for error messages
 
-- **Ubuntu LTS:** Supported for 5 years from release
-- **Debian Stable:** Supported until next stable release
-- **RHEL/Rocky:** Supported for 10 years from release
-- **Windows:** Supported while Microsoft provides security updates
-- **macOS:** Supported for the 3 most recent versions
+### GUI doesn't appear?
+```bash
+# Run in headless mode to test
+./opendata-linux --headless --port 8080
+# Then open browser: http://127.0.0.1:8080
+```
 
-## Questions?
+### Still having issues?
+Please open a GitHub issue with:
+- Your OS and version
+- Which binary you're using
+- Error messages from terminal
 
-If you have questions about platform support, please open an issue on GitHub.
+---
+
+**Last Updated:** 2026-02-18  
+**Current Version:** 0.22.0

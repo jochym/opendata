@@ -61,60 +61,44 @@ jobs:
       - name: Test GUI Launch (Linux)
         if: runner.os == 'Linux'
         run: |
-          # Start app with Xvfb
           export DISPLAY=:99
           Xvfb :99 -screen 0 1280x1024x24 &
           sleep 2
-          
-          # Start app in background
           python src/opendata/main.py --headless --port 8080 &
           APP_PID=$!
           sleep 10
-          
-          # Test if server responds
           if curl -s http://127.0.0.1:8080 > /dev/null; then
-            echo "✅ Server is responding on Linux (${{ matrix.os }})"
-            kill $APP_PID
-            exit 0
+            echo "✅ Server responding on ${{ matrix.os }}"
+            kill $APP_PID; exit 0
           else
-            echo "❌ Server not responding on Linux (${{ matrix.os }})"
-            kill $APP_PID
-            exit 1
+            echo "❌ Server not responding on ${{ matrix.os }}"
+            kill $APP_PID; exit 1
           fi
       - name: Test GUI Launch (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          # Start app in background
           Start-Process python -ArgumentList "src/opendata/main.py","--headless","--port","8080" -WindowStyle Hidden
           Start-Sleep -Seconds 15
-          
-          # Test if server responds
           try {
-            $response = Invoke-WebRequest -Uri "http://127.0.0.1:8080" -TimeoutSec 5 -UseBasicParsing
-            Write-Host "✅ Server is responding on Windows (${{ matrix.os }})"
+            Invoke-WebRequest -Uri "http://127.0.0.1:8080" -TimeoutSec 5 -UseBasicParsing
+            Write-Host "✅ Server responding on Windows"
             Stop-Process -Name python -Force -ErrorAction SilentlyContinue
           } catch {
-            Write-Host "❌ Server not responding on Windows (${{ matrix.os }})"
+            Write-Host "❌ Server not responding on Windows"
             Stop-Process -Name python -Force -ErrorAction SilentlyContinue
             exit 1
           }
       - name: Test GUI Launch (macOS)
         if: runner.os == 'macOS'
         run: |
-          # Start app in background
           python src/opendata/main.py --headless --port 8080 &
-          APP_PID=$!
           sleep 15
-          
-          # Test if server responds
           if curl -s http://127.0.0.1:8080 > /dev/null; then
-            echo "✅ Server is responding on macOS (${{ matrix.os }})"
-            kill $APP_PID
+            echo "✅ Server responding on macOS"
             exit 0
           else
-            echo "❌ Server not responding on macOS (${{ matrix.os }})"
-            kill $APP_PID
+            echo "❌ Server not responding on macOS"
             exit 1
           fi
 
@@ -125,7 +109,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        container: [debian:12, debian:13, rockylinux:8, rockylinux:9]
+        container: [debian:12, rockylinux:8]
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python (Debian)
@@ -137,13 +121,12 @@ jobs:
         if: contains(matrix.container, 'rockylinux')
         run: |
           dnf install -y python3.11 python3-pip xvfb python3-tk libxcb-xinerama0 libxcb-cursor0 || \
-          yum install -y python3.11 python3-pip xvfb python3-tk libxcb-xinerama0 libxcb-cursor0 || \
           (dnf install -y epel-release && dnf install -y python3.11 python3-pip xvfb python3-tk libxcb-xinerama0 libxcb-cursor0)
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
           python3 -m pip install -e ".[dev]"
-      - name: Run tests (with Xvfb for GUI deps)
+      - name: Run tests
         run: |
           export DISPLAY=:99
           Xvfb :99 -screen 0 1280x1024x24 &
@@ -156,7 +139,6 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false
       matrix:
         include:
           - os: windows-latest
@@ -183,9 +165,7 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           SHA: ${{ github.sha }}
         run: |
-          # Bake SHA into VERSION file for the binary
           python -c "import os; v=open('src/opendata/VERSION').read().strip(); open('src/opendata/VERSION', 'w').write(f'{v}+{os.environ[\"SHA\"][:7]}')"
-          
           if [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ]; then
             echo "{\"installed\":{\"client_id\":\"$GOOGLE_CLIENT_ID\",\"project_id\":\"opendata-tool\",\"auth_uri\":\"https://accounts.google.com/o/oauth2/auth\",\"token_uri\":\"https://oauth2.googleapis.com/token\",\"auth_provider_x509_cert_url\":\"https://www.googleapis.com/oauth2/v1/certs\",\"client_secret\":\"$GOOGLE_CLIENT_SECRET\",\"redirect_uris\":[\"http://localhost\"]}}" > client_secrets.json
           fi
@@ -193,7 +173,7 @@ jobs:
         shell: bash
         run: |
           SEP=":"
-          if [[ "${{ runner.os }}" == "Windows" ]]; then SEP=";"; fi
+          [[ "${{ runner.os }}" == "Windows" ]] && SEP=";"
           pyinstaller --noconsole --onefile --name "${{ matrix.artifact_name }}" \
             --add-data "src/opendata/ui${SEP}opendata/ui" \
             --add-data "src/opendata/prompts${SEP}opendata/prompts" \
@@ -201,66 +181,80 @@ jobs:
             --add-data "client_secrets.json${SEP}." \
             --exclude-module matplotlib --exclude-module PyQt5 --exclude-module PyQt6 --exclude-module PySide2 --exclude-module PySide6 --exclude-module IPython --exclude-module PIL \
             src/opendata/main.py
-      - name: Test Binary Launch
+      - name: Test Binary
         shell: bash
         run: |
-          # Test the built binary
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            ./dist/${{ matrix.artifact_name }}.exe --headless --port 8080 &
-            BINARY_PID=$!
-          else
-            ./dist/${{ matrix.artifact_name }} --headless --port 8080 &
-            BINARY_PID=$!
-          fi
+          [[ "${{ runner.os }}" == "Windows" ]] && ./dist/${{ matrix.artifact_name }}.exe --headless --port 8080 & || ./dist/${{ matrix.artifact_name }} --headless --port 8080 &
           sleep 15
-          
-          # Test if server responds
-          if curl -s http://127.0.0.1:8080 > /dev/null; then
-            echo "✅ Binary is working on ${{ matrix.os }}"
-            kill $BINARY_PID 2>/dev/null || true
-          else
-            echo "❌ Binary not responding on ${{ matrix.os }}"
-            kill $BINARY_PID 2>/dev/null || true
-            exit 1
-          fi
+          curl -s http://127.0.0.1:8080 > /dev/null && echo "✅ Binary works on ${{ matrix.os }}" || (echo "❌ Binary failed"; exit 1)
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
           path: dist/${{ matrix.artifact_name }}${{ runner.os == 'Windows' && '.exe' || '' }}
 
-  build-linux-matrix:
-    name: Build Linux Binary (${{ matrix.container }})
+  build-linux-universal:
+    name: Build Linux Binary (Universal)
     needs: [test, gui-smoke-test, test-debian-rhel]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
-    container: ${{ matrix.container }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - container: ubuntu:22.04
-            artifact_name: opendata-ubuntu22
-          - container: ubuntu:24.04
-            artifact_name: opendata-ubuntu24
-          - container: debian:12
-            artifact_name: opendata-debian12
-          - container: debian:13
-            artifact_name: opendata-debian13
-          - container: rockylinux:9
-            artifact_name: opendata-rhel9
+    container: ubuntu:20.04
     steps:
       - uses: actions/checkout@v4
-      - name: Install System Dependencies (Ubuntu/Debian)
-        if: contains(matrix.container, 'ubuntu') || contains(matrix.container, 'debian')
+      - name: Install System Dependencies
         run: |
           apt-get update
           apt-get install -y binutils python3-tk libxcb-xinerama0 libxcb-cursor0
-      - name: Install System Dependencies (RHEL/Rocky)
-        if: contains(matrix.container, 'rockylinux')
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install . pyinstaller
+      - name: Prepare client_secrets.json
+        shell: bash
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          SHA: ${{ github.sha }}
+        run: |
+          python3 -c "import os; v=open('src/opendata/VERSION').read().strip(); open('src/opendata/VERSION', 'w').write(f'{v}+{os.environ[\"SHA\"][:7]}')"
+          if [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ]; then
+            echo "{\"installed\":{\"client_id\":\"$GOOGLE_CLIENT_ID\",\"project_id\":\"opendata-tool\",\"auth_uri\":\"https://accounts.google.com/o/oauth2/auth\",\"token_uri\":\"https://oauth2.googleapis.com/token\",\"auth_provider_x509_cert_url\":\"https://www.googleapis.com/oauth2/v1/certs\",\"client_secret\":\"$GOOGLE_CLIENT_SECRET\",\"redirect_uris\":[\"http://localhost\"]}}" > client_secrets.json
+          fi
+      - name: Build Universal Binary
+        run: |
+          pyinstaller --onefile --name opendata-linux \
+            --add-data "src/opendata/ui:opendata/ui" \
+            --add-data "src/opendata/prompts:opendata/prompts" \
+            --add-data "src/opendata/VERSION:." \
+            --add-data "client_secrets.json:." \
+            --exclude-module matplotlib --exclude-module PyQt5 --exclude-module PyQt6 --exclude-module PySide2 --exclude-module PySide6 --exclude-module IPython --exclude-module PIL \
+            --exclude-binary '**/libstdc++.so*' --exclude-binary '**/libgcc_s.so*' --exclude-binary '**/libm.so*' --exclude-binary '**/libc.so*' \
+            src/opendata/main.py
+      - name: Test Binary
+        run: |
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1280x1024x24 &
+          sleep 2
+          ./dist/opendata-linux --headless --port 8080 &
+          sleep 15
+          curl -s http://127.0.0.1:8080 > /dev/null && echo "✅ Universal Linux binary works" || (echo "❌ Binary failed"; exit 1)
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: opendata-linux
+          path: dist/opendata-linux
+
+  build-linux-rhel:
+    name: Build Linux Binary (RHEL 8 Compatible)
+    needs: [test, gui-smoke-test, test-debian-rhel]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    container: rockylinux:8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install System Dependencies
         run: |
           dnf install -y binutils python3-tk libxcb-xinerama0 libxcb-cursor0 || \
-          yum install -y binutils python3-tk libxcb-xinerama0 libxcb-cursor0 || \
           (dnf install -y epel-release && dnf install -y binutils python3-tk libxcb-xinerama0 libxcb-cursor0)
       - name: Install dependencies
         run: |
@@ -273,15 +267,13 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           SHA: ${{ github.sha }}
         run: |
-          # Bake SHA into VERSION file for the binary
           python3 -c "import os; v=open('src/opendata/VERSION').read().strip(); open('src/opendata/VERSION', 'w').write(f'{v}+{os.environ[\"SHA\"][:7]}')"
-          
           if [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ]; then
             echo "{\"installed\":{\"client_id\":\"$GOOGLE_CLIENT_ID\",\"project_id\":\"opendata-tool\",\"auth_uri\":\"https://accounts.google.com/o/oauth2/auth\",\"token_uri\":\"https://oauth2.googleapis.com/token\",\"auth_provider_x509_cert_url\":\"https://www.googleapis.com/oauth2/v1/certs\",\"client_secret\":\"$GOOGLE_CLIENT_SECRET\",\"redirect_uris\":[\"http://localhost\"]}}" > client_secrets.json
           fi
-      - name: Build with PyInstaller
+      - name: Build RHEL-Compatible Binary
         run: |
-          pyinstaller --onefile --name "${{ matrix.artifact_name }}" \
+          pyinstaller --onefile --name opendata-rhel \
             --add-data "src/opendata/ui:opendata/ui" \
             --add-data "src/opendata/prompts:opendata/prompts" \
             --add-data "src/opendata/VERSION:." \
@@ -289,35 +281,23 @@ jobs:
             --exclude-module matplotlib --exclude-module PyQt5 --exclude-module PyQt6 --exclude-module PySide2 --exclude-module PySide6 --exclude-module IPython --exclude-module PIL \
             --exclude-binary '**/libstdc++.so*' --exclude-binary '**/libgcc_s.so*' --exclude-binary '**/libm.so*' --exclude-binary '**/libc.so*' \
             src/opendata/main.py
-      - name: Test Binary Launch
+      - name: Test Binary
         run: |
-          # Test the built binary with Xvfb
           export DISPLAY=:99
           Xvfb :99 -screen 0 1280x1024x24 &
           sleep 2
-          
-          ./dist/${{ matrix.artifact_name }} --headless --port 8080 &
-          BINARY_PID=$!
+          ./dist/opendata-rhel --headless --port 8080 &
           sleep 15
-          
-          # Test if server responds
-          if curl -s http://127.0.0.1:8080 > /dev/null; then
-            echo "✅ Binary is working on ${{ matrix.container }}"
-            kill $BINARY_PID 2>/dev/null || true
-          else
-            echo "❌ Binary not responding on ${{ matrix.container }}"
-            kill $BINARY_PID 2>/dev/null || true
-            exit 1
-          fi
+          curl -s http://127.0.0.1:8080 > /dev/null && echo "✅ RHEL binary works" || (echo "❌ Binary failed"; exit 1)
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact_name }}
-          path: dist/${{ matrix.artifact_name }}
+          name: opendata-rhel
+          path: dist/opendata-rhel
 
   release:
     name: Create GitHub Release
-    needs: [build-windows-macos, build-linux-matrix]
+    needs: [build-windows-macos, build-linux-universal, build-linux-rhel]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
@@ -333,11 +313,8 @@ jobs:
         with:
           files: |
             artifacts/opendata-win.exe/opendata-win.exe
-            artifacts/opendata-ubuntu22/opendata-ubuntu22
-            artifacts/opendata-ubuntu24/opendata-ubuntu24
-            artifacts/opendata-debian12/opendata-debian12
-            artifacts/opendata-debian13/opendata-debian13
-            artifacts/opendata-rhel9/opendata-rhel9
+            artifacts/opendata-linux/opendata-linux
+            artifacts/opendata-rhel/opendata-rhel
             artifacts/opendata-macos-intel/opendata-macos-intel
             artifacts/opendata-macos-arm/opendata-macos-arm
           generate_release_notes: true
