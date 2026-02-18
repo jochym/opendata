@@ -109,7 +109,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        container: [debian:12, rockylinux:8]
+        container: [debian:12, debian:13, rockylinux:8, rockylinux:9]
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python (Debian)
@@ -194,17 +194,17 @@ jobs:
           path: dist/${{ matrix.artifact_name }}${{ runner.os == 'Windows' && '.exe' || '' }}
 
   build-linux-universal:
-    name: Build Linux Binary (Universal)
+    name: Build Linux Binary (Universal - Rocky 8)
     needs: [test, gui-smoke-test, test-debian-rhel]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
-    container: ubuntu:20.04
+    container: rockylinux:8
     steps:
       - uses: actions/checkout@v4
       - name: Install System Dependencies
         run: |
-          apt-get update
-          apt-get install -y binutils python3-tk libxcb-xinerama0 libxcb-cursor0
+          dnf install -y binutils python3-tk libxcb-xinerama0 libxcb-cursor0 || \
+          (dnf install -y epel-release && dnf install -y binutils python3-tk libxcb-xinerama0 libxcb-cursor0)
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
@@ -237,67 +237,16 @@ jobs:
           sleep 2
           ./dist/opendata-linux --headless --port 8080 &
           sleep 15
-          curl -s http://127.0.0.1:8080 > /dev/null && echo "✅ Universal Linux binary works" || (echo "❌ Binary failed"; exit 1)
+          curl -s http://127.0.0.1:8080 > /dev/null && echo "✅ Universal Linux binary works (Rocky 8 build)" || (echo "❌ Binary failed"; exit 1)
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: opendata-linux
           path: dist/opendata-linux
 
-  build-linux-rhel:
-    name: Build Linux Binary (RHEL 8 Compatible)
-    needs: [test, gui-smoke-test, test-debian-rhel]
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    container: rockylinux:8
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install System Dependencies
-        run: |
-          dnf install -y binutils python3-tk libxcb-xinerama0 libxcb-cursor0 || \
-          (dnf install -y epel-release && dnf install -y binutils python3-tk libxcb-xinerama0 libxcb-cursor0)
-      - name: Install dependencies
-        run: |
-          python3 -m pip install --upgrade pip
-          pip3 install . pyinstaller
-      - name: Prepare client_secrets.json
-        shell: bash
-        env:
-          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-          SHA: ${{ github.sha }}
-        run: |
-          python3 -c "import os; v=open('src/opendata/VERSION').read().strip(); open('src/opendata/VERSION', 'w').write(f'{v}+{os.environ[\"SHA\"][:7]}')"
-          if [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ]; then
-            echo "{\"installed\":{\"client_id\":\"$GOOGLE_CLIENT_ID\",\"project_id\":\"opendata-tool\",\"auth_uri\":\"https://accounts.google.com/o/oauth2/auth\",\"token_uri\":\"https://oauth2.googleapis.com/token\",\"auth_provider_x509_cert_url\":\"https://www.googleapis.com/oauth2/v1/certs\",\"client_secret\":\"$GOOGLE_CLIENT_SECRET\",\"redirect_uris\":[\"http://localhost\"]}}" > client_secrets.json
-          fi
-      - name: Build RHEL-Compatible Binary
-        run: |
-          pyinstaller --onefile --name opendata-rhel \
-            --add-data "src/opendata/ui:opendata/ui" \
-            --add-data "src/opendata/prompts:opendata/prompts" \
-            --add-data "src/opendata/VERSION:." \
-            --add-data "client_secrets.json:." \
-            --exclude-module matplotlib --exclude-module PyQt5 --exclude-module PyQt6 --exclude-module PySide2 --exclude-module PySide6 --exclude-module IPython --exclude-module PIL \
-            --exclude-binary '**/libstdc++.so*' --exclude-binary '**/libgcc_s.so*' --exclude-binary '**/libm.so*' --exclude-binary '**/libc.so*' \
-            src/opendata/main.py
-      - name: Test Binary
-        run: |
-          export DISPLAY=:99
-          Xvfb :99 -screen 0 1280x1024x24 &
-          sleep 2
-          ./dist/opendata-rhel --headless --port 8080 &
-          sleep 15
-          curl -s http://127.0.0.1:8080 > /dev/null && echo "✅ RHEL binary works" || (echo "❌ Binary failed"; exit 1)
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: opendata-rhel
-          path: dist/opendata-rhel
-
   release:
     name: Create GitHub Release
-    needs: [build-windows-macos, build-linux-universal, build-linux-rhel]
+    needs: [build-windows-macos, build-linux-universal]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
@@ -314,7 +263,6 @@ jobs:
           files: |
             artifacts/opendata-win.exe/opendata-win.exe
             artifacts/opendata-linux/opendata-linux
-            artifacts/opendata-rhel/opendata-rhel
             artifacts/opendata-macos-intel/opendata-macos-intel
             artifacts/opendata-macos-arm/opendata-macos-arm
           generate_release_notes: true

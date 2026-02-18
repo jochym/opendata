@@ -4,18 +4,18 @@ OpenData Tool is tested and built for the following operating systems.
 
 ## Binary Distribution Strategy
 
-### Linux - Universal Binaries
+### Linux - Single Universal Binary
 
-We build Linux binaries on **older, stable distributions** to ensure maximum compatibility across newer systems. This follows the best practice of "build on oldest supported target."
+We build **one universal Linux binary** on **Rocky Linux 8** (glibc 2.28) to ensure maximum compatibility across all distributions. This follows the Linux best practice of "build on oldest supported target."
 
 | Binary | Built On | Compatible With | glibc Version |
 |--------|----------|-----------------|---------------|
-| **opendata-linux** | Ubuntu 20.04 | Ubuntu 20.04+, Debian 11+, Linux Mint 20+, Pop!_OS 20.04+ | ≥ 2.31 |
-| **opendata-rhel** | Rocky Linux 8 | RHEL 8+, Rocky Linux 8+, AlmaLinux 8+, CentOS Stream 8+ | ≥ 2.28 |
+| **opendata-linux** | Rocky Linux 8 | **All modern Linux:** Ubuntu 20.04+, Debian 11+, RHEL 8+, Rocky 8+, AlmaLinux 8+, Fedora 33+, Linux Mint 20+, Pop!_OS 20.04+ | ≥ 2.28 |
 
-**Which binary to choose?**
-- **Most users:** Use `opendata-linux` (Ubuntu 20.04 build)
-- **RHEL/CentOS/Rocky users:** Use `opendata-rhel` for best compatibility
+**Why Rocky Linux 8?**
+- Oldest still-supported enterprise Linux (glibc 2.28)
+- Binary built here works on ALL newer systems (Ubuntu 24.04, Debian 13, Fedora 40, etc.)
+- Industry standard (used by AppImage, Steam, JetBrains IDEs)
 
 ### Windows & macOS
 
@@ -27,7 +27,7 @@ We build Linux binaries on **older, stable distributions** to ensure maximum com
 
 ## Officially Tested Systems
 
-Every release is tested on:
+Every release is **tested** on:
 
 ### Linux (Test Matrix)
 - ✅ Ubuntu 22.04 LTS, 24.04 LTS
@@ -49,17 +49,18 @@ Every release is tested on:
 - **Disk:** 500 MB for app + project space
 - **Display:** 1280×720 or higher
 - **Python:** Not required (bundled in binaries)
+- **glibc:** ≥ 2.28 (all modern Linux have this)
 
 ### Linux Dependencies
 
 Most modern distributions include required libraries. If you encounter GUI errors:
 
-**Ubuntu/Debian/Mint:**
+**Ubuntu/Debian/Mint/Pop!_OS:**
 ```bash
 sudo apt-get install -y python3-tk libxcb-xinerama0 libxcb-cursor0
 ```
 
-**RHEL/Rocky/AlmaLinux:**
+**RHEL/Rocky/AlmaLinux/Fedora:**
 ```bash
 sudo dnf install -y python3-tk libxcb-xinerama0 libxcb-cursor0
 ```
@@ -71,10 +72,11 @@ No additional dependencies required.
 
 The following are **not officially supported** (but may work):
 - ❌ Windows 7/8/8.1 (end of life)
-- ❌ macOS 12 and earlier
-- ❌ Ubuntu 18.04 and earlier
-- ❌ Debian 10 and earlier
-- ❌ 32-bit systems
+- ❌ macOS 12 and earlier (end of life)
+- ❌ Ubuntu 18.04 and earlier (end of life)
+- ❌ Debian 10 and earlier (oldoldstable)
+- ❌ RHEL/CentOS 7 and earlier (end of life)
+- ❌ 32-bit systems (no longer tested)
 
 ## Building from Source
 
@@ -95,16 +97,17 @@ pyinstaller --onefile --name opendata-custom src/opendata/main.py
 We follow LTS (Long Term Support) timelines:
 - **Ubuntu LTS:** 5 years from release
 - **Debian Stable:** Until next stable release
-- **RHEL/Rocky:** 10 years from release
+- **RHEL/Rocky/AlmaLinux:** 10 years from release
 - **Windows:** While Microsoft provides security updates
 - **macOS:** 3 most recent versions
 
 ## Troubleshooting
 
 ### Binary won't start on Linux?
-1. Try the RHEL binary (`opendata-rhel`) for better glibc compatibility
+1. Check glibc version: `ldd --version` (must be ≥ 2.28)
 2. Install missing dependencies (see above)
 3. Check terminal for error messages
+4. Try running in headless mode: `./opendata-linux --headless --port 8080`
 
 ### GUI doesn't appear?
 ```bash
@@ -113,13 +116,18 @@ We follow LTS (Long Term Support) timelines:
 # Then open browser: http://127.0.0.1:8080
 ```
 
+### "version 'GLIBC_2.XX' not found"
+Your system is too old. Minimum required: glibc 2.28 (Rocky Linux 8, Ubuntu 20.04, Debian 11).
+
 ### Still having issues?
 Please open a GitHub issue with:
 - Your OS and version
 - Which binary you're using
 - Error messages from terminal
+- Output of `ldd --version`
 
 ---
 
 **Last Updated:** 2026-02-18  
-**Current Version:** 0.22.0
+**Current Version:** 0.22.1  
+**Universal Linux Binary:** Built on Rocky Linux 8 (glibc 2.28)
