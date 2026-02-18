@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.0] - 2026-02-18
+### Added
+- **Modern Google GenAI Provider**: Introduced a new AI provider based on the `google-genai` SDK, offering better performance and stability.
+- **Structured AI Telemetry**: Implemented a comprehensive logging system for AI interactions with unique UUID tracking and automated prompt sanitization (blob truncation) for privacy and readability.
+- **Project Management API**: Added a REST API (localhost-only, opt-in via `--api`) for programmatic project loading and configuration, enabling full test automation.
+- **Automated E2E Testing**: Established a robust testing infrastructure using Playwright and Xvfb for fully automated GUI and workflow verification.
+- **Enhanced Documentation**: Reorganized and consolidated documentation into dedicated User (`docs/`) and Developer (`docs/dev/`) sections.
+
+### Fixed
+- **Field Protocol Persistence**: Resolved a long-standing bug where field protocol selections were lost during rescans or tab switches. Settings are now reliably stored in `project_config.json`.
+- **Protocol Decoupling**: Completely separated tool configuration (field protocols) from RODBUK repository metadata, preventing interference between classification and tool behavior.
+- **Parser Robustness**: Improved AI response parsing to handle varied data structures (funding strings, contributor lists, affiliations) and prevent metadata corruption.
+- **UI Event Handling**: Fixed a critical `AttributeError` in NiceGUI event processing during field protocol selection.
+
+### Changed
+- **User-Centric Protocols**: Removed automatic heuristics for field protocol detection to give users 100% control over exclusion patterns and prompts.
+- **Large Dataset Optimization**: Improved test performance on multi-gigabyte datasets by automatically trimming file lists for AI analysis.
 ## [0.21.4] - 2026-02-14
 ### Fixed
 - **CI/CD Build**: Fixed binary build failures on macOS and Linux by replacing `sed` with a cross-platform Python version injector and removing the `git` dependency in build containers.
