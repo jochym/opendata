@@ -108,3 +108,107 @@ Strictly adhere to **Semantic Versioning** (major.minor.patch) and the following
 
 ---
 *This file is intended for AI agents. Please update it as the project evolves.*
+
+---
+
+## Testing Philosophy & Principles
+
+### Core Testing Principles
+
+1. **Tests Define CORRECT Behavior**
+   - Tests specify what SHOULD happen, not what currently happens
+   - Tests are written BEFORE implementation (TDD)
+   - Tests verify meaningful, user-facing behavior
+   - Tests are independent of current implementation details
+
+2. **Bug Fixes Include Tests**
+   - Every bug fix has a corresponding test
+   - Tests target the ROOT CAUSE, not symptoms
+   - Tests prevent regression
+   - Tests are added BEFORE the fix (to verify the bug exists)
+
+3. **Test Categories**
+   - **Unit tests**: Test individual components in isolation
+   - **Integration tests**: Test component interactions
+   - **E2E tests**: Test complete user workflows
+   - **AI tests**: Marked with `@pytest.mark.ai_interaction`, excluded from CI/CD
+   - **Local tests**: Marked with `@pytest.mark.local_only`, excluded from CI/CD
+
+4. **Test Quality Requirements**
+   - Tests must verify CORRECT behavior, not current behavior
+   - Tests must be independent and isolated
+   - Tests must be fast (< 1 second for unit tests)
+   - Tests must be deterministic (no flaky tests)
+   - Tests must have clear docstrings explaining what they test
+
+### Test Structure
+
+```python
+def test_correct_behavior():
+    """Test description should specify CORRECT behavior, not implementation."""
+    # Arrange: Set up the scenario
+    # Act: Perform the action
+    # Assert: Verify CORRECT outcome (not implementation details)
+```
+
+### Example: Good vs Bad Tests
+
+**Good Test (Tests CORRECT Behavior):**
+```python
+def test_field_protocol_no_heuristics_fully_user_controlled():
+    """NO automatic heuristics - field protocol is 100% user controlled."""
+    # Arrange: Create fingerprint with obvious physics files
+    agent.current_fingerprint = ProjectFingerprint(
+        extensions=[".tex", ".born", ".kappa"],  # Physics indicators
+    )
+    
+    # Act: Get effective field (no user selection)
+    field = agent._get_effective_field()
+    
+    # Assert: Returns None - NO automatic detection
+    assert field is None
+```
+
+**Bad Test (Tests Current Implementation):**
+```python
+def test_field_protocol_returns_none():
+    """Test that _get_effective_field returns None."""
+    # This is bad - it just tests what the code does now,
+    # not what it SHOULD do
+    field = agent._get_effective_field()
+    assert field is None  # Why should it be None? What's the requirement?
+```
+
+### Running Tests
+
+```bash
+# CI/CD safe (default - excludes AI and local tests)
+pytest
+# Result: 79 tests, ~4 seconds
+
+# All tests (local with AI configured)
+pytest -m ""
+# Result: 116 tests (requires app running)
+
+# Only AI tests (local only)
+pytest -m ai_interaction
+# Result: 16 tests (uses your OpenAI endpoint)
+
+# Only local tests (requires app running)
+pytest -m local_only
+# Result: 20 tests
+```
+
+### Test Files
+
+- `tests/unit/` - Unit tests (fast, isolated)
+- `tests/integration/` - Integration tests (component interactions)
+- `tests/e2e/` - End-to-end tests (complete workflows)
+- `tests/end_to_end/` - Full workflow tests (with AI)
+
+### Documentation
+
+- `docs/TEST_INFRASTRUCTURE_REVIEW.md` - Complete test review
+- `docs/AI_TESTING_GUIDE.md` - AI testing instructions
+- `docs/OPENAI_TESTING_COMPLETE.md` - OpenAI endpoint configuration
+

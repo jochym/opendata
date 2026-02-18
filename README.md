@@ -33,3 +33,43 @@ The tool uses a modular **Agentic Backend** and a component-based **NiceGUI Fron
 ## Contributing
 See `AGENTS.md` for detailed coding standards and the agentic workflow.
 See `docs/` for comprehensive manuals.
+
+## Testing
+
+### Quick Start
+```bash
+# Run all tests (automated)
+./tests/run_all_tests.sh
+
+# Or run specific categories
+pytest                          # CI/CD safe tests (78 tests, ~4s)
+pytest -m ai_interaction        # AI tests (needs app running)
+./tests/run_e2e_tests.sh        # Full E2E suite (needs Xvfb)
+```
+
+### Documentation
+- `docs/TESTING_QUICKSTART.md` - Quick start guide
+- `docs/TESTING_GUIDE.md` - Complete testing guide
+- `docs/AI_TESTING_GUIDE.md` - AI testing specifics
+
+### Test Coverage
+- **Unit Tests:** 53 tests (~2s)
+- **Integration Tests:** 8 tests (~2s)
+- **AI Tests:** 10 tests (~3s)
+- **E2E Tests:** 30 tests (~90s)
+
+**Total:** 101 tests, all automated
+
+## Documentation
+
+**For Users:**
+- `docs/TESTING.md` - Complete testing guide
+
+**For Developers:**
+- `docs/TEST_INFRASTRUCTURE.md` - Technical implementation details
+- `docs/TEST_RESULTS.md` - Test results and coverage
+
+**Other Documentation:**
+- `docs/ACCOMPLISHMENTS.md` - Historical development log
+- `docs/DEVELOPER_MANUAL.md` - Developer guide
+- `docs/TESTER_MANUAL.md` - Tester guide
