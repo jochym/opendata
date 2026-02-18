@@ -3,6 +3,9 @@ from opendata.i18n.translator import _
 from opendata.models import ExtractionProtocol
 from opendata.ui.state import ScanState
 from opendata.ui.context import AppContext
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @ui.refreshable
@@ -43,11 +46,23 @@ def render_protocols_tab(ctx: AppContext):
                     with ui.row().classes(
                         "w-full items-center gap-4 p-4 border-b bg-slate-50 shrink-0"
                     ):
+                        # Get current field from project config (not metadata!)
+                        saved_field = None
+                        if ctx.agent and ctx.agent.project_id:
+                            saved_field = ctx.agent._get_effective_field()
+
+                        # Use saved field if available, otherwise first in list
+                        initial_value = (
+                            saved_field
+                            if saved_field and saved_field in current_fields
+                            else (current_fields[0] if current_fields else None)
+                        )
+
                         field_select = (
                             ui.select(
                                 options=current_fields,
                                 label=_("Field Domain"),
-                                value=current_fields[0] if current_fields else None,
+                                value=initial_value,
                             )
                             .classes("w-64")
                             .props("dense outlined")
@@ -94,6 +109,18 @@ def render_protocols_tab(ctx: AppContext):
                     with field_container:
                         render_field_content()
 
+                    def on_field_changed(e):
+                        """User selected a new field protocol - save to project config."""
+                        # In NiceGUI, e.args is the new value for update:model-value
+                        new_value = e.args
+                        if ctx.agent.project_id and new_value:
+                            ctx.agent.set_field_protocol(new_value)
+                            logger.info(f"Field protocol changed to: {new_value}")
+                            # Refresh inventory with new exclusions
+                            if hasattr(ctx, "refresh"):
+                                ctx.refresh("inventory")
+
+                    field_select.on("update:model-value", on_field_changed)
                     field_select.on("update:model-value", render_field_content.refresh)
 
             with ui.tab_panel(proj_tab).classes("p-0 h-full"):

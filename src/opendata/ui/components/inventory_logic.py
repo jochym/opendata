@@ -139,14 +139,8 @@ async def load_inventory_background(ctx: AppContext):
         logger.info(f"Loading inventory for {ctx.agent.project_id}...")
         manifest = ctx.pkg_mgr.get_manifest(ctx.agent.project_id)
 
-        field_name = None
-        if ctx.agent.current_metadata.science_branches_mnisw:
-            # Normalize for protocol lookup
-            field_name = (
-                ctx.agent.current_metadata.science_branches_mnisw[0]
-                .lower()
-                .replace(" ", "_")
-            )
+        # Get field protocol from agent (reads from project config, not metadata)
+        field_name = ctx.agent._get_effective_field()
 
         effective = ctx.pm.resolve_effective_protocol(ctx.agent.project_id, field_name)
         protocol_excludes = effective.get("exclude", [])

@@ -40,6 +40,8 @@ def render_settings_tab(ctx: AppContext):
                         ctx.ai.switch_model(e.value)
                         if ctx.settings.ai_provider == "google":
                             ctx.settings.google_model = e.value
+                        elif ctx.settings.ai_provider == "genai":
+                            ctx.settings.google_model = e.value
                         else:
                             ctx.settings.openai_model = e.value
                         ctx.wm.save_yaml(ctx.settings, "settings.yaml")
@@ -101,18 +103,23 @@ def render_setup_wizard(ctx: AppContext):
     with ui.card().classes("w-full max-w-xl p-8 shadow-xl border-t-4 border-primary"):
         ui.label(_("AI Configuration")).classes("text-h4 q-mb-md font-bold")
         with ui.tabs().classes("w-full") as tabs:
-            google_tab = ui.tab("Google Gemini").classes("w-1/2")
-            openai_tab = ui.tab("OpenAI / Ollama").classes("w-1/2")
+            google_tab = ui.tab("Google Gemini").classes("w-1/3")
+            genai_tab = ui.tab("Google GenAI (Modern)").classes("w-1/3")
+            openai_tab = ui.tab("OpenAI / Ollama").classes("w-1/3")
         with ui.tab_panels(
             tabs,
             value="Google Gemini"
             if ctx.settings.ai_provider == "google"
-            else "OpenAI / Ollama",
+            else (
+                "Google GenAI (Modern)"
+                if ctx.settings.ai_provider == "genai"
+                else "OpenAI / Ollama"
+            ),
         ).classes("w-full"):
             with ui.tab_panel(google_tab):
                 ui.markdown(
                     _(
-                        "Uses **Google Gemini** (Recommended). No API keys needed—just sign in."
+                        "Uses **Google Gemini** (Legacy). No API keys needed—just sign in."
                     )
                 )
                 with ui.expansion(_("Security & Privacy FAQ"), icon="security").classes(
@@ -131,6 +138,19 @@ def render_setup_wizard(ctx: AppContext):
                     icon="login",
                     on_click=lambda: handle_auth_provider(ctx, "google"),
                 ).classes("w-full py-4 bg-primary text-white font-bold rounded-lg")
+
+            with ui.tab_panel(genai_tab):
+                ui.markdown(
+                    _(
+                        "Uses **Google GenAI** (New SDK + Telemetry). Recommended for testing."
+                    )
+                )
+                ui.button(
+                    _("Sign in with Google (Modern)"),
+                    icon="login",
+                    on_click=lambda: handle_auth_provider(ctx, "genai"),
+                ).classes("w-full py-4 bg-green-600 text-white font-bold rounded-lg")
+
             with ui.tab_panel(openai_tab):
                 ui.markdown(
                     _("Connect to **OpenAI**, **Ollama**, or compatible local APIs.")

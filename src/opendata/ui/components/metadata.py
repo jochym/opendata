@@ -405,9 +405,13 @@ def metadata_preview_ui(ctx: AppContext):
 
                     for f in value:
                         if isinstance(f, dict):
-                            agency = f.get("funder_name", "")
+                            # Handle different key naming conventions (RODBUK vs Dataverse vs AI)
+                            agency = f.get("funder_name", f.get("agency", ""))
                             award = f.get("award_title", "")
-                            grant_id = f.get("grant_id", "")
+                            grant_id = f.get(
+                                "grant_id",
+                                f.get("grantnumber", f.get("grant_number", "")),
+                            )
 
                             agency_name = agency if agency else award
                             if not agency_name:

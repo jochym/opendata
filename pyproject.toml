@@ -51,6 +51,19 @@ pythonpath = ["src"]
 testpaths = ["tests"]
 python_files = "test_*.py"
 
+# Markers for test categorization
+markers = [
+    "ai_interaction: Tests that use AI services (local only, not in CI/CD)",
+    "local_only: Tests that require local environment (not in CI/CD)",
+    "e2e: End-to-end tests",
+    "unit: Unit tests",
+    "integration: Integration tests",
+]
+
+# Default: exclude AI interaction tests (for CI/CD safety)
+# For local dev with AI: use 'pytest -m ""' to run ALL tests
+addopts = "-m 'not ai_interaction and not local_only'"
+
 [tool.ruff]
 line-length = 88
 target-version = "py310"

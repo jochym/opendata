@@ -26,6 +26,10 @@ class AIService:
     def _create_provider(self) -> BaseAIService:
         if self.settings.ai_provider == "openai":
             return OpenAIProvider(self.workspace_path, self.settings)
+        elif self.settings.ai_provider == "genai":
+            from .genai_provider import GenAIProvider
+
+            return GenAIProvider(self.workspace_path)
         else:
             return GoogleProvider(self.workspace_path)
 

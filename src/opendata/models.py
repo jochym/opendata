@@ -42,7 +42,7 @@ class UserSettings(BaseModel):
     splitter_value: float = 70.0  # Percentage for the chat/metadata split
 
     # AI Configuration
-    ai_provider: Literal["google", "openai"] = "google"
+    ai_provider: Literal["google", "openai", "genai"] = "google"
     google_model: str = "gemini-3-flash-preview"  # Default Google model
     openai_api_key: str | None = None
     openai_base_url: str = "https://api.openai.com/v1"

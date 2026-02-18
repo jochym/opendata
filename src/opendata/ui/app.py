@@ -30,7 +30,7 @@ from opendata.ui.components import (
 logger = logging.getLogger("opendata.ui")
 
 
-def start_ui(host: str = "127.0.0.1", port: int = 8080):
+def start_ui(host: str = "127.0.0.1", port: int = 8080, enable_api: bool = False):
     """Start the NiceGUI application server.
 
     Note: When running in a multiprocessing child process, NiceGUI's ui.run()
@@ -40,6 +40,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
     Args:
         host: Host address to bind the server to (default: 127.0.0.1)
         port: Port number to bind the server to (default: 8080)
+        enable_api: Enable REST API endpoints for test automation (default: False)
     """
     # 1. Initialize Backend
     wm = WorkspaceManager()
@@ -64,7 +65,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
     )
 
     # Initialize model from global settings
-    if settings.ai_provider == "google" and settings.google_model:
+    if settings.ai_provider in ["google", "genai"] and settings.google_model:
         ai.switch_model(settings.google_model)
     elif settings.ai_provider == "openai" and settings.openai_model:
         ai.switch_model(settings.openai_model)
@@ -100,6 +101,17 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080):
     ctx.refresh_all = refresh_all
 
     ctx.refresh_all = refresh_all
+
+    # Register API endpoints for test automation (only if enabled)
+    if enable_api:
+        from opendata.api import register_project_api
+
+        register_project_api(ctx)
+        logger.info(
+            f"✅ API endpoints ENABLED (localhost:{port}) - For test automation"
+        )
+    else:
+        logger.info(f"🔒 API endpoints DISABLED (use --api flag to enable)")
 
     @ui.page("/")
     def index():

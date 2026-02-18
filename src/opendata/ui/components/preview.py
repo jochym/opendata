@@ -106,11 +106,8 @@ async def handle_build_package(ctx: AppContext, mode: str = "metadata"):
             )
         else:
             manifest = ctx.pkg_mgr.get_manifest(project_id)
-            field_name = (
-                ctx.agent.current_metadata.science_branches_mnisw[0]
-                if ctx.agent.current_metadata.science_branches_mnisw
-                else None
-            )
+            # Get field protocol from agent (reads from project config, not metadata)
+            field_name = ctx.agent._get_effective_field()
             effective = ctx.pm.resolve_effective_protocol(project_id, field_name)
             protocol_excludes = effective.get("exclude", [])
 
