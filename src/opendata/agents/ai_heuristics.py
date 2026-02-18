@@ -77,10 +77,23 @@ Return ONLY the JSON block.
 
         try:
             response = ai_service.ask_agent(prompt)
-            # Find JSON block
-            match = re.search(r"\{.*\}", response, re.DOTALL)
-            if match:
-                data = json.loads(match.group(0))
+            print(f"\nDEBUG: AI Heuristics Raw Response:\n{response}\n")
+
+            # Find JSON block (more robust regex)
+            # Look for the first opening brace and the last closing brace
+            start = response.find("{")
+            end = response.rfind("}")
+
+            if start != -1 and end != -1:
+                json_str = response[start : end + 1]
+                try:
+                    data = json.loads(json_str)
+                except json.JSONDecodeError as e:
+                    logger.error(
+                        f"AI Heuristics: JSON decode error: {e}. String: {json_str}"
+                    )
+                    return [], None
+
                 selection = data.get("SELECTION", [])
                 analysis_text = data.get("ANALYSIS", "AI identified significant files.")
 
@@ -108,7 +121,9 @@ Return ONLY the JSON block.
 
                 return paths, analysis
             else:
-                logger.warning("AI Heuristics: No JSON block found in response.")
+                logger.warning(
+                    f"AI Heuristics: No JSON block found in response: {response}"
+                )
                 return [], None
 
         except Exception as e:
