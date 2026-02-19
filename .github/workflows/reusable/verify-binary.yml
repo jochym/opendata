@@ -1,0 +1,100 @@
+name: Verify Binary
+
+on:
+  workflow_call:
+    inputs:
+      os:
+        required: true
+        type: string
+      artifact_name:
+        required: true
+        type: string
+      is_linux_distro_test:
+        required: false
+        type: boolean
+        default: false
+      distro_image:
+        required: false
+        type: string
+      distro_name:
+        required: false
+        type: string
+
+jobs:
+  verify:
+    name: Verify ${{ inputs.distro_name || inputs.os }}
+    runs-on: ${{ inputs.os }}
+    container: ${{ inputs.distro_image || null }}
+    steps:
+      - name: Download Binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: /tmp/verify-bin
+      
+      - name: Install Test Dependencies
+        shell: bash
+        run: |
+          if command -v apt-get &> /dev/null; then
+            apt-get update && apt-get install -y curl wget || true
+          elif command -v dnf &> /dev/null; then
+            dnf install -y curl wget || true
+          fi
+
+      - name: Run Binary and Verify API
+        shell: bash
+        run: |
+          BIN_PATH="/tmp/verify-bin/${{ inputs.artifact_name }}"
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            BIN_PATH="${BIN_PATH}.exe"
+          fi
+          chmod +x "$BIN_PATH" || true
+          
+          # Start binary in headless mode
+          "$BIN_PATH" --headless --port 8080 &
+          BIN_PID=$!
+          
+          # Wait for startup
+          sleep 15
+          
+          # Determine HTTP tool
+          if command -v curl &> /dev/null; then
+            HTTP_GET="curl -s"
+          elif command -v wget &> /dev/null; then
+            HTTP_GET="wget -qO-"
+          else
+            echo "❌ No HTTP tool found (curl or wget)"
+            exit 1
+          fi
+          
+          # Test 1: Basic HTTP response
+          echo "Testing basic HTTP response..."
+          if $HTTP_GET http://127.0.0.1:8080 > /dev/null; then
+            echo "✅ Server is up"
+          else
+            echo "❌ Server failed to respond"
+            kill $BIN_PID 2>/dev/null || true
+            exit 1
+          fi
+          
+          # Test 2: API endpoint - projects list
+          echo "Testing API endpoint: /api/projects..."
+          # Note: API might be disabled by default, but the endpoint should still exist or return 403
+          # If we want to test API, we should have started with --api flag
+          # Let's restart with --api for verification
+          kill $BIN_PID 2>/dev/null || true
+          "$BIN_PATH" --headless --port 8081 --api &
+          BIN_PID=$!
+          sleep 10
+          
+          API_URL="http://127.0.0.1:8081/api/projects"
+          if $HTTP_GET "$API_URL" | grep -q "projects"; then
+            echo "✅ API /api/projects is working"
+          else
+            echo "❌ API /api/projects failed"
+            kill $BIN_PID 2>/dev/null || true
+            exit 1
+          fi
+          
+          echo "✅ All verification tests passed"
+          kill $BIN_PID 2>/dev/null || true
