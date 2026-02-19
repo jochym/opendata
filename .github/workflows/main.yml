@@ -8,35 +8,47 @@ on:
     branches: [ main ]
 
 jobs:
+  # Dummy job to ensure workflow always has at least one job
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "CI/CD workflow triggered"
+
   # Unit tests - always run
   run-unit-tests:
+    needs: [check]
+    if: github.event_name == 'pull_request' || !startsWith(github.ref, 'refs/tags/v')
     uses: ./.github/workflows/test-unit.yml
 
   # GUI tests - always run
   run-gui-tests:
+    needs: [check]
+    if: github.event_name == 'pull_request' || !startsWith(github.ref, 'refs/tags/v')
     uses: ./.github/workflows/test-gui.yml
 
   # Linux build - only on tags
   build-linux:
+    needs: [check]
     if: startsWith(github.ref, 'refs/tags/v')
     uses: ./.github/workflows/build-linux.yml
     secrets: inherit
 
   # Windows/macOS build - only on tags
   build-windows-macos:
+    needs: [check]
     if: startsWith(github.ref, 'refs/tags/v')
     uses: ./.github/workflows/build-windows-macos.yml
     secrets: inherit
 
   # Test Linux binary on distributions - only on tags
   test-linux-binary:
+    needs: [check, build-linux]
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build-linux]
     uses: ./.github/workflows/test-linux-binary.yml
 
   # Release and publish - only on tags
   release:
+    needs: [check, build-linux, build-windows-macos, test-linux-binary]
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build-linux, build-windows-macos, test-linux-binary]
     uses: ./.github/workflows/release.yml
     secrets: inherit
