@@ -153,9 +153,18 @@ jobs:
       - name: Test Binary
         shell: bash
         run: |
-          [[ "${{ runner.os }}" == "Windows" ]] && ./dist/${{ matrix.artifact_name }}.exe --headless --port 8080 & || ./dist/${{ matrix.artifact_name }} --headless --port 8080 &
+          if [ "${{ runner.os }}" == "Windows" ]; then
+            ./dist/${{ matrix.artifact_name }}.exe --headless --port 8080 &
+          else
+            ./dist/${{ matrix.artifact_name }} --headless --port 8080 &
+          fi
           sleep 15
-          curl -s http://127.0.0.1:8080 > /dev/null && echo "✅ Binary works on ${{ matrix.os }}" || (echo "❌ Binary failed"; exit 1)
+          if curl -s http://127.0.0.1:8080 > /dev/null; then
+            echo "✅ Binary works on ${{ matrix.os }}"
+          else
+            echo "❌ Binary failed on ${{ matrix.os }}"
+            exit 1
+          fi
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
