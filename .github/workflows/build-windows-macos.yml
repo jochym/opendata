@@ -1,6 +1,7 @@
 name: Build Windows & macOS Binaries
 
 on:
+  workflow_call:
   push:
     branches: [ main ]
     tags: [ 'v*' ]

@@ -1,6 +1,7 @@
 name: Release and Publish
 
 on:
+  workflow_call:
     tags: [ 'v*' ]
 
 jobs:
