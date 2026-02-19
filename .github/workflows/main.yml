@@ -8,7 +8,7 @@ on:
     branches: [ main ]
 
 jobs:
-  # 1. Logic Tests (Unit/Integration)
+  # 1. Logic Tests (Unit/Integration) - Core Platforms
   logic-tests:
     name: Logic
     strategy:
@@ -21,13 +21,11 @@ jobs:
             name: Windows
           - os: macos-latest
             name: macOS ARM
-          - os: macos-12
-            name: macOS Intel
     uses: ./.github/workflows/reusable-test-logic.yml
     with:
       os: ${{ matrix.os }}
 
-  # 2. GUI Smoke Tests
+  # 2. GUI Smoke Tests - Core Platforms
   gui-tests:
     name: GUI
     needs: logic-tests
@@ -41,13 +39,11 @@ jobs:
             name: Windows
           - os: macos-latest
             name: macOS ARM
-          - os: macos-12
-            name: macOS Intel
     uses: ./.github/workflows/reusable-test-gui.yml
     with:
       os: ${{ matrix.os }}
 
-  # 3. Build Binaries (only on tags)
+  # 3. Build Binaries (only on tags) - All Platforms
   build-binaries:
     name: Build
     needs: gui-tests
@@ -74,7 +70,7 @@ jobs:
       artifact_name: ${{ matrix.artifact_name }}
     secrets: inherit
 
-  # 4. Verify Binaries (Native OS)
+  # 4. Verify Binaries (Native OS) - All Platforms
   verify-binaries-native:
     name: Verify Native
     needs: build-binaries
