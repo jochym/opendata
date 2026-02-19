@@ -14,7 +14,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, windows-latest, macos-latest, macos-12]
+        include:
+          - os: ubuntu-22.04
+            name: Linux
+          - os: windows-latest
+            name: Windows
+          - os: macos-latest
+            name: macOS ARM
+          - os: macos-13
+            name: macOS Intel
     uses: ./.github/workflows/reusable-test-logic.yml
     with:
       os: ${{ matrix.os }}
@@ -26,7 +34,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, windows-latest, macos-latest, macos-12]
+        include:
+          - os: ubuntu-22.04
+            name: Linux
+          - os: windows-latest
+            name: Windows
+          - os: macos-latest
+            name: macOS ARM
+          - os: macos-13
+            name: macOS Intel
     uses: ./.github/workflows/reusable-test-gui.yml
     with:
       os: ${{ matrix.os }}
@@ -45,7 +61,7 @@ jobs:
             artifact_name: opendata-win
           - os: macos-latest
             artifact_name: opendata-macos-arm
-          - os: macos-12
+          - os: macos-13
             artifact_name: opendata-macos-intel
     uses: ./.github/workflows/reusable-build-binary.yml
     with:
@@ -68,7 +84,7 @@ jobs:
             artifact_name: opendata-win
           - os: macos-latest
             artifact_name: opendata-macos-arm
-          - os: macos-12
+          - os: macos-13
             artifact_name: opendata-macos-intel
     uses: ./.github/workflows/reusable-verify-binary.yml
     with:
@@ -110,7 +126,13 @@ jobs:
           BIN_PID=$!
           sleep 15
           
-          if curl -s http://127.0.0.1:8080/api/projects | grep -q "projects"; then
+          # Use curl if available, otherwise wget
+          HTTP_GET="curl -s"
+          if ! command -v curl &> /dev/null; then
+            HTTP_GET="wget -qO-"
+          fi
+          
+          if $HTTP_GET http://127.0.0.1:8080/api/projects | grep -q "projects"; then
             echo "✅ API is working on ${{ matrix.distro.name }}"
             kill $BIN_PID
             exit 0
