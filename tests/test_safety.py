@@ -4,6 +4,8 @@ import tempfile
 from opendata.workspace import WorkspaceManager
 from opendata.models import UserSettings
 
+pytestmark = [pytest.mark.local_only]
+
 
 @pytest.fixture
 def mock_workspace():

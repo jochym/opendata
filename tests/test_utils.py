@@ -1,7 +1,10 @@
+import pytest
 from pathlib import Path
 from opendata.utils import scan_project_lazy, read_file_header
 import tempfile
 import shutil
+
+pytestmark = [pytest.mark.local_only]
 
 
 def test_lazy_scanner_no_reads():
