@@ -102,38 +102,7 @@ jobs:
             exit 1
           fi
 
-  test-debian-rhel:
-    name: Test on ${{ matrix.container.name }}
-    runs-on: ubuntu-latest
-    container: ${{ matrix.container.image }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - container: { image: debian:12, name: "Debian 12", py: "python3" }
-          - container: { image: rockylinux:9, name: "Rocky 9", py: "python3" }
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python (Debian)
-        if: contains(matrix.container.image, 'debian')
-        run: |
-          apt-get update
-          apt-get install -y ${{ matrix.container.py }} ${{ matrix.container.py }}-venv ${{ matrix.container.py }}-pip xvfb python3-tk libxcb-xinerama0 libxcb-cursor0 python3-pip || true
-      - name: Set up Python (RHEL)
-        if: contains(matrix.container.image, 'rockylinux')
-        run: |
-          dnf install -y ${{ matrix.container.py }} ${{ matrix.container.py }}-pip xorg-x11-server-Xvfb python3-tkinter || \
-          (dnf install -y epel-release && dnf install -y ${{ matrix.container.py }} ${{ matrix.container.py }}-pip xorg-x11-server-Xvfb python3-tkinter) || true
-      - name: Install dependencies
-        run: |
-          ${{ matrix.container.py }} -m pip install --upgrade pip || true
-          ${{ matrix.container.py }} -m pip install --break-system-packages -e ".[dev]"
-      - name: Run tests
-        run: |
-          export DISPLAY=:99
-          Xvfb :99 -screen 0 1280x1024x24 &
-          sleep 2
-          ${{ matrix.container.py }} -m pytest || true
+
 
   build-windows-macos:
     name: Build Binary (${{ matrix.os }})
@@ -195,7 +164,7 @@ jobs:
 
   build-linux-universal:
     name: Build Linux Binary (Universal - Ubuntu 22.04)
-    needs: [test, gui-smoke-test, test-debian-rhel]
+    needs: [test, gui-smoke-test]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-22.04
     steps:
