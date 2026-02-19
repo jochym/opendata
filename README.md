@@ -11,17 +11,73 @@ A browser-centric, AI-assisted tool for preparing scientific metadata and packag
 - **Secure & Read-Only:** Strictly analyzes project directories without modification.
 - **Frictionless AI:** Uses OAuth2 (Sign-in with Google) for Gemini access; no manual API keys required.
 
-## Quick Start (For Developers)
-1. **Clone and Setup:**
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   pip install -e ".[dev]"
-   ```
-2. **Run the Dashboard:**
-   ```bash
-   python src/opendata/main.py
-   ```
+## Installation
+
+### Option 1: Download Pre-built Binaries (Recommended for Users)
+
+Visit the [Releases page](https://github.com/jochym/opendata/releases) and download the binary for your platform:
+- **Linux**: `opendata-linux`
+- **Windows**: `opendata-win.exe`
+- **macOS** (Apple Silicon): `opendata-macos-arm`
+
+Simply run the binary - no installation required!
+
+### Option 2: Install from PyPI (Lightweight, for Developers)
+
+**Prerequisites:** Python 3.11+
+
+#### Using `uvx` (Recommended - Fastest, Cross-Platform)
+
+[`uv`](https://github.com/astral-sh/uv) is an extremely fast Python package manager written in Rust. It works on **Windows, macOS, and Linux**.
+
+```bash
+# Install uv (one-time setup)
+curl -LsSf https://astral.sh/uv/install.sh | sh  # macOS/Linux
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"  # Windows
+
+# Run OpenData Tool instantly (no manual installation needed)
+uvx opendata-tool
+
+# Or install permanently
+uv tool install opendata-tool
+uvx opendata-tool
+```
+
+#### Using `pipx` (Alternative - Cross-Platform)
+
+```bash
+# Install pipx (one-time setup)
+python -m pip install --user pipx
+python -m pipx ensurepath
+
+# Install and run OpenData Tool
+pipx install opendata-tool
+opendata-tool
+```
+
+#### Using `pip` (Traditional)
+
+```bash
+# Create virtual environment (recommended)
+python -m venv venv
+source venv/bin/activate  # Linux/macOS
+venv\Scripts\activate     # Windows
+
+# Install
+pip install opendata-tool
+
+# Run
+opendata-tool
+```
+
+### Option 3: Development Installation
+
+```bash
+git clone https://github.com/jochym/opendata.git
+cd opendata
+pip install -e ".[dev]"
+python src/opendata/main.py
+```
 
 ## Architecture
 The tool uses a modular **Agentic Backend** and a component-based **NiceGUI Frontend**.

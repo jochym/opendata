@@ -42,8 +42,6 @@ jobs:
             artifact_name: opendata-win
           - os: macos-latest
             artifact_name: opendata-macos-arm
-          - os: macos-15-large
-            artifact_name: opendata-macos-intel
     uses: ./.github/workflows/reusable-build-binary.yml
     with:
       os: ${{ matrix.os }}
@@ -64,8 +62,6 @@ jobs:
             artifact_name: opendata-win
           - os: macos-latest
             artifact_name: opendata-macos-arm
-          - os: macos-15-large
-            artifact_name: opendata-macos-intel
     uses: ./.github/workflows/reusable-verify-binary.yml
     with:
       os: ${{ matrix.os }}
@@ -81,6 +77,7 @@ jobs:
         distro:
           - { name: "Ubuntu 24.04", image: "ubuntu:24.04" }
           - { name: "Debian 12", image: "debian:12" }
+          - { name: "Debian 13", image: "debian:13" }
           - { name: "Debian 13", image: "debian:13" }
     runs-on: ubuntu-latest
     container: ${{ matrix.distro.image }}
@@ -152,7 +149,6 @@ jobs:
             artifacts/opendata-win/opendata-win.exe
             artifacts/opendata-linux/opendata-linux
             artifacts/opendata-macos-arm/opendata-macos-arm
-            artifacts/opendata-macos-intel/opendata-macos-intel
           generate_release_notes: true
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
