@@ -90,6 +90,59 @@ Every substantial step must have an accompanying automated test. Before completi
 - **Testing:** Include a "minimal viable project" fixture in `tests/fixtures/`.
 - **Transparency:** Every background step should have a corresponding UI status update.
 
+## Git Workflow & Branch Strategy (CRITICAL)
+
+### Iron Rule: Feature Branches for ALL Changes
+
+**Every new feature or bug fix MUST be developed on a separate branch.** The `main` branch is reserved ONLY for preparing releases.
+
+#### Workflow:
+
+1. **Create Feature Branch:**
+   ```bash
+   git checkout -b feature/short-description
+   # or for bug fixes:
+   git checkout -b fix/bug-description
+   ```
+
+2. **Develop and Test:**
+   - Make commits on the feature branch
+   - Run tests to verify changes (`pytest`)
+   - Ensure CI/CD passes
+
+3. **Merge via Pull Request (Preferred):**
+   - Create PR from feature branch to `main`
+   - Review changes
+   - Merge after approval and passing CI/CD
+
+4. **Local Merge (Alternative):**
+   ```bash
+   git checkout main
+   git merge feature/short-description
+   git push origin main
+   ```
+
+5. **Release Preparation (main branch ONLY):**
+   - Update `src/opendata/VERSION`
+   - Update `CHANGELOG.md`
+   - Update documentation
+   - Create release tag: `git tag v0.22.20`
+   - Push: `git push origin main --tags`
+
+#### Branch Naming Conventions:
+- `feature/description` - New features
+- `fix/description` - Bug fixes
+- `docs/description` - Documentation updates
+- `refactor/description` - Code refactoring
+- `test/description` - Test additions/updates
+
+#### NEVER:
+- ❌ Commit directly to `main` (except for release preparation)
+- ❌ Push to `main` without testing
+- ❌ Skip PR review for significant changes
+
+---
+
 ## Release & Versioning Procedure (CRITICAL)
 Strictly adhere to **Semantic Versioning** (major.minor.patch) and the following release sequence:
 
