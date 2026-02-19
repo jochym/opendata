@@ -8,27 +8,30 @@ on:
     branches: [ main ]
 
 jobs:
+  # 1. Logic Tests (Unit/Integration)
   logic-tests:
     name: Logic
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, windows-latest, macos-latest]
+        os: [ubuntu-22.04, windows-latest, macos-latest, macos-13]
     uses: ./.github/workflows/reusable-test-logic.yml
     with:
       os: ${{ matrix.os }}
 
+  # 2. GUI Smoke Tests
   gui-tests:
     name: GUI
     needs: logic-tests
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, windows-latest, macos-latest]
+        os: [ubuntu-22.04, windows-latest, macos-latest, macos-13]
     uses: ./.github/workflows/reusable-test-gui.yml
     with:
       os: ${{ matrix.os }}
 
+  # 3. Build Binaries (only on tags)
   build-binaries:
     name: Build
     needs: gui-tests
@@ -42,12 +45,15 @@ jobs:
             artifact_name: opendata-win
           - os: macos-latest
             artifact_name: opendata-macos-arm
+          - os: macos-13
+            artifact_name: opendata-macos-intel
     uses: ./.github/workflows/reusable-build-binary.yml
     with:
       os: ${{ matrix.os }}
       artifact_name: ${{ matrix.artifact_name }}
     secrets: inherit
 
+  # 4. Verify Binaries (Native OS)
   verify-binaries-native:
     name: Verify Native
     needs: build-binaries
@@ -62,11 +68,14 @@ jobs:
             artifact_name: opendata-win
           - os: macos-latest
             artifact_name: opendata-macos-arm
+          - os: macos-13
+            artifact_name: opendata-macos-intel
     uses: ./.github/workflows/reusable-verify-binary.yml
     with:
       os: ${{ matrix.os }}
       artifact_name: ${{ matrix.artifact_name }}
 
+  # 5. Verify Linux Binary (Cross-Distro)
   verify-linux-distros:
     name: Verify Linux
     needs: build-binaries
@@ -77,6 +86,7 @@ jobs:
         distro:
           - { name: "Ubuntu 24.04", image: "ubuntu:24.04" }
           - { name: "Debian 12", image: "debian:12" }
+          - { name: "Debian 13", image: "debian:13" }
     runs-on: ubuntu-latest
     container: ${{ matrix.distro.image }}
     steps:
@@ -85,16 +95,21 @@ jobs:
         with:
           name: opendata-linux
           path: /tmp/verify-bin
+      
       - name: Install Test Dependencies
         run: |
           apt-get update && apt-get install -y curl wget || true
+
       - name: Run Binary and Verify API
         shell: bash
         run: |
           chmod +x /tmp/verify-bin/opendata-linux
+          
+          # Start binary in headless mode with API enabled
           /tmp/verify-bin/opendata-linux --headless --port 8080 --api &
           BIN_PID=$!
           sleep 15
+          
           if curl -s http://127.0.0.1:8080/api/projects | grep -q "projects"; then
             echo "✅ API is working on ${{ matrix.distro.name }}"
             kill $BIN_PID
@@ -105,6 +120,7 @@ jobs:
             exit 1
           fi
 
+  # 6. Build PyPI Package (only on tags)
   build-pypi:
     name: PyPI Package
     needs: gui-tests
@@ -126,6 +142,7 @@ jobs:
           name: pypi-package
           path: dist/*
 
+  # 7. Release (only on tags, after all verifications)
   release:
     name: Create Release
     needs: [verify-binaries-native, verify-linux-distros, build-pypi]
@@ -147,6 +164,7 @@ jobs:
             artifacts/opendata-win/opendata-win.exe
             artifacts/opendata-linux/opendata-linux
             artifacts/opendata-macos-arm/opendata-macos-arm
+            artifacts/opendata-macos-intel/opendata-macos-intel
           generate_release_notes: true
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
