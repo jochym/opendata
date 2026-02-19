@@ -113,7 +113,7 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            artifact_name: opendata-win.exe
+            artifact_name: opendata-win
           - os: macos-latest
             artifact_name: opendata-macos-arm
     steps:
