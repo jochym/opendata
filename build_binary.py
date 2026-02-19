@@ -142,8 +142,11 @@ def build_binary(platform_name, output_name=None, test_binary=False):
     secrets_path = create_client_secrets(root)
 
     # Build PyInstaller command
+    # Use sys.executable -m PyInstaller for maximum reliability in CI
     cmd = [
-        "pyinstaller",
+        sys.executable,
+        "-m",
+        "PyInstaller",
         "--onefile",
         "--name",
         binary_name,
@@ -193,18 +196,7 @@ def build_binary(platform_name, output_name=None, test_binary=False):
 
     # Run PyInstaller
     try:
-        # Try running pyinstaller directly first, then as a module
-        try:
-            result = subprocess.run(cmd, check=True, cwd=root)
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            print(
-                "⚠️  Direct 'pyinstaller' call failed, trying 'python -m PyInstaller'..."
-            )
-            # Note: we need to replace 'pyinstaller' with [sys.executable, '-m', 'PyInstaller']
-            result = subprocess.run(
-                [sys.executable, "-m", "PyInstaller"] + cmd[1:], check=True, cwd=root
-            )
-
+        result = subprocess.run(cmd, check=True, cwd=root)
         print(f"\n✅ Build completed successfully!")
 
         # Get binary path
