@@ -53,29 +53,17 @@ jobs:
       GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
       GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
 
-  # 4. Verify Binaries (including cross-distro Linux)
-  verify-binaries:
-    name: Verify
+  # 4. Verify Binaries (Native OS)
+  verify-binaries-native:
+    name: Verify Native
     needs: build-binaries
     if: startsWith(github.ref, 'refs/tags/v')
     strategy:
       fail-fast: false
       matrix:
         include:
-          # Cross-distro Linux tests for the universal binary
-          - os: ubuntu-latest
-            distro_name: "Ubuntu 22.04"
-            distro_image: "ubuntu:22.04"
+          - os: ubuntu-22.04
             artifact_name: opendata-linux
-          - os: ubuntu-latest
-            distro_name: "Ubuntu 24.04"
-            distro_image: "ubuntu:24.04"
-            artifact_name: opendata-linux
-          - os: ubuntu-latest
-            distro_name: "Debian 12"
-            distro_image: "debian:12"
-            artifact_name: opendata-linux
-          # Native OS tests
           - os: windows-latest
             artifact_name: opendata-win
           - os: macos-latest
@@ -84,10 +72,52 @@ jobs:
     with:
       os: ${{ matrix.os }}
       artifact_name: ${{ matrix.artifact_name }}
-      distro_name: ${{ matrix.distro_name }}
-      distro_image: ${{ matrix.distro_image }}
 
-  # 5. Build PyPI Package (only on tags)
+  # 5. Verify Linux Binary (Cross-Distro)
+  verify-linux-distros:
+    name: Verify Linux
+    needs: build-binaries
+    if: startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      fail-fast: false
+      matrix:
+        distro:
+          - { name: "Ubuntu 24.04", image: "ubuntu:24.04" }
+          - { name: "Debian 12", image: "debian:12" }
+    runs-on: ubuntu-latest
+    container: ${{ matrix.distro.image }}
+    steps:
+      - name: Download Binary
+        uses: actions/download-artifact@v4
+        with:
+          name: opendata-linux
+          path: /tmp/verify-bin
+      
+      - name: Install Test Dependencies
+        run: |
+          apt-get update && apt-get install -y curl wget || true
+
+      - name: Run Binary and Verify API
+        shell: bash
+        run: |
+          chmod +x /tmp/verify-bin/opendata-linux
+          
+          # Test API
+          /tmp/verify-bin/opendata-linux --headless --port 8080 --api &
+          BIN_PID=$!
+          sleep 15
+          
+          if curl -s http://127.0.0.1:8080/api/projects | grep -q "projects"; then
+            echo "✅ API is working on ${{ matrix.distro.name }}"
+            kill $BIN_PID
+            exit 0
+          else
+            echo "❌ API failed on ${{ matrix.distro.name }}"
+            kill $BIN_PID
+            exit 1
+          fi
+
+  # 6. Build PyPI Package (only on tags)
   build-pypi:
     name: PyPI Package
     needs: gui-tests
@@ -109,10 +139,10 @@ jobs:
           name: pypi-package
           path: dist/*
 
-  # 6. Release (only on tags, after all verifications)
+  # 7. Release (only on tags, after all verifications)
   release:
     name: Create Release
-    needs: [verify-binaries, build-pypi]
+    needs: [verify-binaries-native, verify-linux-distros, build-pypi]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
@@ -133,7 +163,6 @@ jobs:
             artifacts/opendata-macos-arm/opendata-macos-arm
           generate_release_notes: true
       - name: Publish to PyPI
-        # Note: This requires Trusted Publisher configuration on PyPI for 'opendata-tool'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: artifacts/pypi-package/
