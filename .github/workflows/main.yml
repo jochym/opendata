@@ -127,8 +127,8 @@ jobs:
           (dnf install -y epel-release && dnf install -y xorg-x11-server-Xvfb python3-tkinter libxcb-xinerama libxcb-cursor) || true
       - name: Install dependencies
         run: |
-          ${{ matrix.container.py }} -m pip install --upgrade pip
-          ${{ matrix.container.py }} -m pip install -e ".[dev]" || ${{ matrix.container.py }} -m pip install --break-system-packages -e ".[dev]"
+          ${{ matrix.container.py }} -m pip install --upgrade pip || true
+          ${{ matrix.container.py }} -m pip install --break-system-packages -e ".[dev]"
       - name: Run tests
         run: |
           export DISPLAY=:99

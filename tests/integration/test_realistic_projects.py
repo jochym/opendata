@@ -3,6 +3,8 @@ from pathlib import Path
 from opendata.agents.project_agent import ProjectAnalysisAgent
 from opendata.workspace import WorkspaceManager
 
+pytestmark = [pytest.mark.local_only, pytest.mark.integration]
+
 
 @pytest.fixture
 def wm(tmp_path):
