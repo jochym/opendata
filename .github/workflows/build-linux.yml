@@ -1,7 +1,6 @@
 name: Build Linux Binary
 
 on:
-  workflow_call:
     outputs:
       artifact_name:
         description: "Name of the Linux binary artifact"

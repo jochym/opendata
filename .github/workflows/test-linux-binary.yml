@@ -1,7 +1,6 @@
 name: Test Linux Binary on Distributions
 
 on:
-  workflow_call:
     needs: [build-linux]
   push:
     branches: [ main ]
