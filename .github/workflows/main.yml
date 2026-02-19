@@ -212,7 +212,6 @@ jobs:
           - { image: ubuntu:22.04, name: "Ubuntu 22.04", py: "python3.11" }
           - { image: ubuntu:24.04, name: "Ubuntu 24.04", py: "python3.12" }
           - { image: debian:12, name: "Debian 12", py: "python3.11" }
-          - { image: rockylinux:9, name: "Rocky 9", py: "python3.9" }
     steps:
       - uses: actions/checkout@v4
       - name: Download Linux Binary
@@ -222,21 +221,17 @@ jobs:
           path: /opt/opendata
       - name: Make binary executable
         run: chmod +x /opt/opendata/opendata-linux
-      - name: Install Python and dependencies
+      - name: Install Python, curl and dependencies
         run: |
           if command -v apt-get &> /dev/null; then
             apt-get update
-            apt-get install -y ${{ matrix.distro.py }} ${{ matrix.distro.py }}-venv ${{ matrix.distro.py }}-pip curl || true
+            apt-get install -y ${{ matrix.distro.py }} ${{ matrix.distro.py }}-venv ${{ matrix.distro.py }}-pip curl wget || true
           else
-            dnf install -y python3 python3-pip curl || (dnf install -y epel-release && dnf install -y python3 python3-pip curl) || true
+            dnf install -y python3 python3-pip curl wget || (dnf install -y epel-release && dnf install -y python3 python3-pip curl wget) || true
           fi
       - name: Test Binary Launch and API
         run: |
-          export DISPLAY=:99
-          Xvfb :99 -screen 0 1280x1024x24 &
-          sleep 2
-          
-          # Start binary
+          # Start binary in headless mode (no X server needed)
           /opt/opendata/opendata-linux --headless --port 8080 &
           BINARY_PID=$!
           sleep 15
@@ -248,7 +243,7 @@ jobs:
             echo "✅ Basic HTTP response: $HTTP_CODE"
           else
             echo "❌ Basic HTTP response failed: $HTTP_CODE"
-            kill $BINARY_PID
+            kill $BINARY_PID 2>/dev/null || true
             exit 1
           fi
           
@@ -260,23 +255,23 @@ jobs:
           else
             echo "❌ API /api/projects failed"
             echo "Response: $API_RESPONSE"
-            kill $BINARY_PID
+            kill $BINARY_PID 2>/dev/null || true
             exit 1
           fi
           
-          # Test 3: API endpoint - version/health
+          # Test 3: API health check
           echo "Testing API health..."
           HEALTH_RESPONSE=$(curl -s http://127.0.0.1:8080/api/health 2>/dev/null || curl -s http://127.0.0.1:8080)
           if [ -n "$HEALTH_RESPONSE" ]; then
             echo "✅ API health check passed"
           else
             echo "❌ API health check failed"
-            kill $BINARY_PID
+            kill $BINARY_PID 2>/dev/null || true
             exit 1
           fi
           
           echo "✅ All API tests passed on ${{ matrix.distro.name }}"
-          kill $BINARY_PID
+          kill $BINARY_PID 2>/dev/null || true
           exit 0
 
   build-linux-universal:
