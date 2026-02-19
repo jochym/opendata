@@ -11,6 +11,7 @@ jobs:
   run-tests:
     name: Run Logic Tests (${{ inputs.os }})
     runs-on: ${{ inputs.os }}
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -28,4 +29,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
       - name: Run pytest
-        run: pytest -m "not ai_interaction and not local_only"
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" == "Linux" ]; then
+            export DISPLAY=:99
+            Xvfb :99 -screen 0 1280x1024x24 &
+            sleep 2
+          fi
+          pytest -m "not ai_interaction and not local_only"
