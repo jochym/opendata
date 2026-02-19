@@ -42,8 +42,6 @@ jobs:
             artifact_name: opendata-win
           - os: macos-latest
             artifact_name: opendata-macos-arm
-          - os: macos-13
-            artifact_name: opendata-macos-x86
     uses: ./.github/workflows/reusable-build-binary.yml
     with:
       os: ${{ matrix.os }}
@@ -64,8 +62,6 @@ jobs:
             artifact_name: opendata-win
           - os: macos-latest
             artifact_name: opendata-macos-arm
-          - os: macos-13
-            artifact_name: opendata-macos-x86
     uses: ./.github/workflows/reusable-verify-binary.yml
     with:
       os: ${{ matrix.os }}
@@ -152,7 +148,6 @@ jobs:
             artifacts/opendata-win/opendata-win.exe
             artifacts/opendata-linux/opendata-linux
             artifacts/opendata-macos-arm/opendata-macos-arm
-            artifacts/opendata-macos-x86/opendata-macos-x86
           generate_release_notes: true
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
