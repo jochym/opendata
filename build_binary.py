@@ -6,7 +6,7 @@ This script handles binary building for Windows, macOS, and Linux using PyInstal
 It ensures consistent builds across all platforms with proper resource inclusion.
 
 Usage:
-    python build.py [--platform PLATFORM] [--name NAME]
+    python build_binary.py [--platform PLATFORM] [--name NAME]
 
 Arguments:
     --platform: Target platform (auto-detected if not specified)
@@ -178,7 +178,6 @@ def build_binary(platform_name, output_name=None, test_binary=False):
         "PySide6",
         "IPython",
         "PIL",
-        "tkinter",
         "test",
         "unittest",
     ]
@@ -194,7 +193,18 @@ def build_binary(platform_name, output_name=None, test_binary=False):
 
     # Run PyInstaller
     try:
-        result = subprocess.run(cmd, check=True, cwd=root)
+        # Try running pyinstaller directly first, then as a module
+        try:
+            result = subprocess.run(cmd, check=True, cwd=root)
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            print(
+                "⚠️  Direct 'pyinstaller' call failed, trying 'python -m PyInstaller'..."
+            )
+            # Note: we need to replace 'pyinstaller' with [sys.executable, '-m', 'PyInstaller']
+            result = subprocess.run(
+                [sys.executable, "-m", "PyInstaller"] + cmd[1:], check=True, cwd=root
+            )
+
         print(f"\n✅ Build completed successfully!")
 
         # Get binary path

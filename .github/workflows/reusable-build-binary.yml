@@ -37,13 +37,15 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install . pyinstaller
+          python -m pip install . pyinstaller
       - name: Build with Unified Script
         shell: bash
         env:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         run: |
+          # Ensure pyinstaller is in PATH
+          export PATH=$PATH:$(python -c "import site; import os; print(site.getuserbase() + os.sep + 'bin')")
           python build_binary.py --platform ${{ inputs.platform }} --name ${{ inputs.artifact_name }}
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
