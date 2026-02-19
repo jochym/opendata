@@ -44,7 +44,7 @@ jobs:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         run: |
-          python build.py --platform ${{ inputs.platform }} --name ${{ inputs.artifact_name }}
+          python build_binary.py --platform ${{ inputs.platform }} --name ${{ inputs.artifact_name }}
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
