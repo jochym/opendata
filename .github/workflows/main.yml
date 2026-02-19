@@ -8,31 +8,33 @@ on:
     branches: [ main ]
 
 jobs:
-  # For PRs and branch pushes: run tests directly
+  # Unit tests - always run
   run-unit-tests:
-    if: github.event_name == 'pull_request' || !startsWith(github.ref, 'refs/tags/')
     uses: ./.github/workflows/test-unit.yml
 
+  # GUI tests - always run
   run-gui-tests:
-    if: github.event_name == 'pull_request' || !startsWith(github.ref, 'refs/tags/')
     uses: ./.github/workflows/test-gui.yml
 
-  # For tags: run full release pipeline
+  # Linux build - only on tags
   build-linux:
     if: startsWith(github.ref, 'refs/tags/v')
     uses: ./.github/workflows/build-linux.yml
     secrets: inherit
 
+  # Windows/macOS build - only on tags
   build-windows-macos:
     if: startsWith(github.ref, 'refs/tags/v')
     uses: ./.github/workflows/build-windows-macos.yml
     secrets: inherit
 
+  # Test Linux binary on distributions - only on tags
   test-linux-binary:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [build-linux]
     uses: ./.github/workflows/test-linux-binary.yml
 
+  # Release and publish - only on tags
   release:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [build-linux, build-windows-macos, test-linux-binary]
