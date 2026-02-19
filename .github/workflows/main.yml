@@ -122,8 +122,9 @@ jobs:
       - name: Set up Python (RHEL)
         if: contains(matrix.container.image, 'rockylinux')
         run: |
-          dnf install -y ${{ matrix.container.py }} ${{ matrix.container.py }}-pip xvfb python3-tk libxcb-xinerama0 libxcb-cursor0 || \
-          (dnf install -y epel-release && dnf install -y ${{ matrix.container.py }} ${{ matrix.container.py }}-pip xvfb python3-tk libxcb-xinerama0 libxcb-cursor0) || true
+          dnf install -y ${{ matrix.container.py }} ${{ matrix.container.py }}-pip || true
+          dnf install -y xorg-x11-server-Xvfb python3-tkinter libxcb-xinerama libxcb-cursor || \
+          (dnf install -y epel-release && dnf install -y xorg-x11-server-Xvfb python3-tkinter libxcb-xinerama libxcb-cursor) || true
       - name: Install dependencies
         run: |
           ${{ matrix.container.py }} -m pip install --upgrade pip
