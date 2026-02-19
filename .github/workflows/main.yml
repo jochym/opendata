@@ -150,7 +150,7 @@ jobs:
             --add-data "client_secrets.json${SEP}." \
             --exclude-module matplotlib --exclude-module PyQt5 --exclude-module PyQt6 --exclude-module PySide2 --exclude-module PySide6 --exclude-module IPython --exclude-module PIL \
             src/opendata/main.py
-      - name: Test Binary
+      - name: Test Binary with API Verification
         shell: bash
         run: |
           if [ "${{ runner.os }}" == "Windows" ]; then
@@ -159,17 +159,125 @@ jobs:
             ./dist/${{ matrix.artifact_name }} --headless --port 8080 &
           fi
           sleep 15
-          if curl -s http://127.0.0.1:8080 > /dev/null; then
-            echo "✅ Binary works on ${{ matrix.os }}"
+          
+          # Test 1: Basic HTTP response
+          echo "Testing basic HTTP response..."
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080)
+          if [ "$HTTP_CODE" -eq 200 ]; then
+            echo "✅ Basic HTTP response: $HTTP_CODE"
           else
-            echo "❌ Binary failed on ${{ matrix.os }}"
+            echo "❌ Basic HTTP response failed: $HTTP_CODE"
             exit 1
           fi
+          
+          # Test 2: API endpoint - projects list
+          echo "Testing API endpoint: /api/projects..."
+          API_RESPONSE=$(curl -s http://127.0.0.1:8080/api/projects)
+          if echo "$API_RESPONSE" | grep -q "projects"; then
+            echo "✅ API /api/projects responding correctly"
+          else
+            echo "❌ API /api/projects failed"
+            echo "Response: $API_RESPONSE"
+            exit 1
+          fi
+          
+          # Test 3: API health check
+          echo "Testing API health..."
+          HEALTH_RESPONSE=$(curl -s http://127.0.0.1:8080/api/health 2>/dev/null || curl -s http://127.0.0.1:8080)
+          if [ -n "$HEALTH_RESPONSE" ]; then
+            echo "✅ API health check passed"
+          else
+            echo "❌ API health check failed"
+            exit 1
+          fi
+          
+          echo "✅ All API tests passed on ${{ matrix.os }}"
+          exit 0
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
           path: dist/${{ matrix.artifact_name }}${{ runner.os == 'Windows' && '.exe' || '' }}
+
+  test-linux-binary:
+    name: Test Linux Binary on ${{ matrix.distro.name }}
+    needs: [build-linux-universal]
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    container: ${{ matrix.distro.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        distro:
+          - { image: ubuntu:22.04, name: "Ubuntu 22.04", py: "python3.11" }
+          - { image: ubuntu:24.04, name: "Ubuntu 24.04", py: "python3.12" }
+          - { image: debian:12, name: "Debian 12", py: "python3.11" }
+          - { image: rockylinux:9, name: "Rocky 9", py: "python3.9" }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Linux Binary
+        uses: actions/download-artifact@v4
+        with:
+          name: opendata-linux
+          path: /opt/opendata
+      - name: Make binary executable
+        run: chmod +x /opt/opendata/opendata-linux
+      - name: Install Python and dependencies
+        run: |
+          if command -v apt-get &> /dev/null; then
+            apt-get update
+            apt-get install -y ${{ matrix.distro.py }} ${{ matrix.distro.py }}-venv ${{ matrix.distro.py }}-pip curl || true
+          else
+            dnf install -y python3 python3-pip curl || (dnf install -y epel-release && dnf install -y python3 python3-pip curl) || true
+          fi
+      - name: Test Binary Launch and API
+        run: |
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1280x1024x24 &
+          sleep 2
+          
+          # Start binary
+          /opt/opendata/opendata-linux --headless --port 8080 &
+          BINARY_PID=$!
+          sleep 15
+          
+          # Test 1: Basic HTTP response
+          echo "Testing basic HTTP response..."
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080)
+          if [ "$HTTP_CODE" -eq 200 ]; then
+            echo "✅ Basic HTTP response: $HTTP_CODE"
+          else
+            echo "❌ Basic HTTP response failed: $HTTP_CODE"
+            kill $BINARY_PID
+            exit 1
+          fi
+          
+          # Test 2: API endpoint - projects list
+          echo "Testing API endpoint: /api/projects..."
+          API_RESPONSE=$(curl -s http://127.0.0.1:8080/api/projects)
+          if echo "$API_RESPONSE" | grep -q "projects"; then
+            echo "✅ API /api/projects responding correctly"
+          else
+            echo "❌ API /api/projects failed"
+            echo "Response: $API_RESPONSE"
+            kill $BINARY_PID
+            exit 1
+          fi
+          
+          # Test 3: API endpoint - version/health
+          echo "Testing API health..."
+          HEALTH_RESPONSE=$(curl -s http://127.0.0.1:8080/api/health 2>/dev/null || curl -s http://127.0.0.1:8080)
+          if [ -n "$HEALTH_RESPONSE" ]; then
+            echo "✅ API health check passed"
+          else
+            echo "❌ API health check failed"
+            kill $BINARY_PID
+            exit 1
+          fi
+          
+          echo "✅ All API tests passed on ${{ matrix.distro.name }}"
+          kill $BINARY_PID
+          exit 0
 
   build-linux-universal:
     name: Build Linux Binary (Universal - Ubuntu 22.04)
@@ -254,7 +362,7 @@ jobs:
 
   release:
     name: Create GitHub Release and Publish to PyPI
-    needs: [build-windows-macos, build-linux-universal, build-pypi-package]
+    needs: [build-windows-macos, build-linux-universal, test-linux-binary, build-pypi-package]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
