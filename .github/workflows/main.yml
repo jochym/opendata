@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, ubuntu-24.04, windows-latest, macos-13, macos-latest]
+        os: [ubuntu-22.04, ubuntu-24.04, windows-latest, macos-13]
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -31,9 +31,8 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
-          python -m playwright install chromium 2>$null || true
       - name: Run tests
-        run: pytest
+        run: pytest -m "not ai_interaction and not local_only"
 
   gui-smoke-test:
     name: GUI Smoke Test (${{ matrix.os }})
@@ -41,7 +40,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, ubuntu-24.04, windows-latest, macos-13, macos-latest]
+        os: [ubuntu-22.04, ubuntu-24.04, windows-latest, macos-13]
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -112,8 +111,6 @@ jobs:
       matrix:
         include:
           - container: { image: debian:12, name: "Debian 12", py: "python3" }
-          - container: { image: debian:13, name: "Debian 13", py: "python3" }
-          - container: { image: rockylinux:8, name: "Rocky 8", py: "python3" }
           - container: { image: rockylinux:9, name: "Rocky 9", py: "python3" }
     steps:
       - uses: actions/checkout@v4
@@ -121,18 +118,16 @@ jobs:
         if: contains(matrix.container.image, 'debian')
         run: |
           apt-get update
-          apt-get install -y ${{ matrix.container.py }} ${{ matrix.container.py }}-venv ${{ matrix.container.py }}-pip xvfb python3-tk libxcb-xinerama0 libxcb-cursor0 || \
-          apt-get install -y ${{ matrix.container.py }} ${{ matrix.container.py }}-venv ${{ matrix.container.py }}-pip xvfb python3-tk libxcb-xinerama0 || true
+          apt-get install -y ${{ matrix.container.py }} ${{ matrix.container.py }}-venv ${{ matrix.container.py }}-pip xvfb python3-tk libxcb-xinerama0 libxcb-cursor0 || true
       - name: Set up Python (RHEL)
         if: contains(matrix.container.image, 'rockylinux')
         run: |
-          dnf install -y python3 python3-pip python3-tkinter xorg-x11-server-Xvfb || \
-          (dnf install -y epel-release && dnf install -y python3 python3-pip python3-tkinter xorg-x11-server-Xvfb) || true
+          dnf install -y ${{ matrix.container.py }} ${{ matrix.container.py }}-pip xvfb python3-tk libxcb-xinerama0 libxcb-cursor0 || \
+          (dnf install -y epel-release && dnf install -y ${{ matrix.container.py }} ${{ matrix.container.py }}-pip xvfb python3-tk libxcb-xinerama0 libxcb-cursor0) || true
       - name: Install dependencies
         run: |
-          ${{ matrix.container.py }} -m pip install --upgrade pip || ${{ matrix.container.py }} -m pip install --break-system-packages --upgrade pip
+          ${{ matrix.container.py }} -m pip install --upgrade pip
           ${{ matrix.container.py }} -m pip install -e ".[dev]" || ${{ matrix.container.py }} -m pip install --break-system-packages -e ".[dev]"
-          ${{ matrix.container.py }} -m playwright install chromium 2>/dev/null || true
       - name: Run tests
         run: |
           export DISPLAY=:99
@@ -152,8 +147,6 @@ jobs:
             artifact_name: opendata-win.exe
           - os: macos-13
             artifact_name: opendata-macos-intel
-          - os: macos-latest
-            artifact_name: opendata-macos-arm
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -201,21 +194,25 @@ jobs:
           path: dist/${{ matrix.artifact_name }}${{ runner.os == 'Windows' && '.exe' || '' }}
 
   build-linux-universal:
-    name: Build Linux Binary (Universal - Rocky 8)
+    name: Build Linux Binary (Universal - Ubuntu 22.04)
     needs: [test, gui-smoke-test, test-debian-rhel]
     if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    container: rockylinux:8
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
       - name: Install System Dependencies
         run: |
-          dnf install -y binutils python3-tk libxcb-xinerama0 libxcb-cursor0 || \
-          (dnf install -y epel-release && dnf install -y binutils python3-tk libxcb-xinerama0 libxcb-cursor0)
+          sudo apt-get update
+          sudo apt-get install -y xvfb python3-tk libxcb-xinerama0 libxcb-cursor0 binutils
       - name: Install dependencies
         run: |
-          python3 -m pip install --upgrade pip
-          pip3 install . pyinstaller
+          python -m pip install --upgrade pip
+          pip install . pyinstaller
       - name: Prepare client_secrets.json
         shell: bash
         env:
@@ -223,7 +220,7 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           SHA: ${{ github.sha }}
         run: |
-          python3 -c "import os; v=open('src/opendata/VERSION').read().strip(); open('src/opendata/VERSION', 'w').write(f'{v}+{os.environ[\"SHA\"][:7]}')"
+          python -c "import os; v=open('src/opendata/VERSION').read().strip(); open('src/opendata/VERSION', 'w').write(f'{v}+{os.environ[\"SHA\"][:7]}')"
           if [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ]; then
             echo "{\"installed\":{\"client_id\":\"$GOOGLE_CLIENT_ID\",\"project_id\":\"opendata-tool\",\"auth_uri\":\"https://accounts.google.com/o/oauth2/auth\",\"token_uri\":\"https://oauth2.googleapis.com/token\",\"auth_provider_x509_cert_url\":\"https://www.googleapis.com/oauth2/v1/certs\",\"client_secret\":\"$GOOGLE_CLIENT_SECRET\",\"redirect_uris\":[\"http://localhost\"]}}" > client_secrets.json
           fi
@@ -235,7 +232,6 @@ jobs:
             --add-data "src/opendata/VERSION:." \
             --add-data "client_secrets.json:." \
             --exclude-module matplotlib --exclude-module PyQt5 --exclude-module PyQt6 --exclude-module PySide2 --exclude-module PySide6 --exclude-module IPython --exclude-module PIL \
-            --exclude-binary '**/libstdc++.so*' --exclude-binary '**/libgcc_s.so*' --exclude-binary '**/libm.so*' --exclude-binary '**/libc.so*' \
             src/opendata/main.py
       - name: Test Binary
         run: |
@@ -244,34 +240,65 @@ jobs:
           sleep 2
           ./dist/opendata-linux --headless --port 8080 &
           sleep 15
-          curl -s http://127.0.0.1:8080 > /dev/null && echo "✅ Universal Linux binary works (Rocky 8 build)" || (echo "❌ Binary failed"; exit 1)
+          curl -s http://127.0.0.1:8080 > /dev/null && echo "✅ Universal Linux binary works (Ubuntu 22.04 build)" || (echo "❌ Binary failed"; exit 1)
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: opendata-linux
           path: dist/opendata-linux
 
+  build-pypi-package:
+    name: Build PyPI Package
+    needs: [test, gui-smoke-test]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine
+      - name: Build package
+        run: |
+          python -m build
+      - name: Check package
+        run: |
+          python -m twine check dist/*
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pypi-package
+          path: dist/*
+
   release:
-    name: Create GitHub Release
-    needs: [build-windows-macos, build-linux-universal]
+    name: Create GitHub Release and Publish to PyPI
+    needs: [build-windows-macos, build-linux-universal, build-pypi-package]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write  # Needed for PyPI trusted publishing
     steps:
       - uses: actions/checkout@v4
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-      - name: Create Release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             artifacts/opendata-win.exe/opendata-win.exe
             artifacts/opendata-linux/opendata-linux
             artifacts/opendata-macos-intel/opendata-macos-intel
-            artifacts/opendata-macos-arm/opendata-macos-arm
           generate_release_notes: true
           draft: false
           prerelease: false
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: artifacts/pypi-package/

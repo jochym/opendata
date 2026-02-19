@@ -1,291 +1,158 @@
-# OpenData Tool - Testing Guide
+# Testing Infrastructure for OpenData Tool
 
-**For:** Users and Developers  
-**Last Updated:** February 18, 2026
+## Overview
 
----
-
-## Quick Start
-
-### Run All Tests
-```bash
-./tests/run_all_tests.sh
-```
-
-This automatically:
-1. Starts the app with API enabled
-2. Runs all tests (60 tests, ~67 seconds)
-3. Cleans up automatically
-
-### Run CI/CD Safe Tests
-```bash
-pytest
-# 55 tests, ~2 seconds
-# No AI, no GUI, no app needed
-```
-
----
+The OpenData Tool testing infrastructure consists of multiple layers to ensure reliability across all supported platforms and use cases. The testing philosophy centers on verifying CORRECT behavior rather than just current implementation.
 
 ## Test Categories
 
-### 1. Unit Tests (55 tests, ~2s)
-**Location:** `tests/unit/`
+### 1. Unit Tests (`tests/unit/`)
+- Test individual components in isolation
+- Fast execution (< 1 second per test)
+- No external dependencies
+- Located in `tests/unit/` directory
 
-**What's Tested:**
-- Agent logic
-- Parsing and normalization
-- Telemetry system
-- Protocol management
-- Model validation
+### 2. Integration Tests (`tests/integration/`)
+- Test component interactions
+- May require local services
+- Located in `tests/integration/` directory
 
-**Run:**
+### 3. End-to-End Tests (`tests/e2e/`)
+- Test complete user workflows
+- May require application to be running
+- Located in `tests/e2e/` directory
+
+### 4. AI Interaction Tests (`tests/end_to_end/`)
+- Test AI integration functionality
+- Require valid API keys
+- Located in `tests/end_to_end/` directory
+
+## Test Markers
+
+The test suite uses pytest markers to categorize tests:
+
+- `@pytest.mark.unit`: Unit tests
+- `@pytest.mark.integration`: Integration tests  
+- `@pytest.mark.e2e`: End-to-end tests
+- `@pytest.mark.ai_interaction`: Tests that use AI services (excluded from CI/CD)
+- `@pytest.mark.local_only`: Tests that require local environment (excluded from CI/CD)
+
+## Running Tests
+
+### Basic Test Execution
 ```bash
-pytest tests/unit/ -v
-```
-
-### 2. Integration Tests (5 tests, ~1s)
-**Location:** `tests/integration/`
-
-**What's Tested:**
-- Workspace I/O
-- Project loading
-- Realistic project workflows
-
-**Run:**
-```bash
-pytest tests/integration/ -v
-```
-
-### 3. AI Tests (5 tests, ~65s)
-**Location:** `tests/unit/ai/`, `tests/end_to_end/`
-
-**What's Tested:**
-- AI provider integration
-- Telemetry logging
-- Complete E2E workflow with AI
-- Metadata extraction quality
-
-**Requirements:**
-- App running with `--api` flag
-- Valid AI configuration (OpenAI endpoint)
-
-**Run:**
-```bash
-# Start app first
-python src/opendata/main.py --headless --api --port 8080 &
-sleep 15
-
-# Run AI tests
-pytest tests/unit/ai/ tests/end_to_end/ -v -m "ai_interaction"
-```
-
----
-
-## Test Infrastructure
-
-### Automated Test Runners
-
-**`tests/run_all_tests.sh`** - Complete suite
-```bash
-./tests/run_all_tests.sh
-# Runs everything, ~67 seconds
-```
-
-**`tests/run_e2e_tests.sh`** - E2E tests only
-```bash
-./tests/run_e2e_tests.sh
-# GUI tests with Xvfb, ~90 seconds
-```
-
-### Manual Testing
-
-**Start App Manually:**
-```bash
-python src/opendata/main.py --headless --api --port 8080 &
-sleep 15
-
-# Verify API works
-curl http://127.0.0.1:8080/api/projects
-```
-
-**Run Specific Tests:**
-```bash
-# Field protocol tests
-pytest tests/unit/agents/test_field_protocol_persistence.py -v
-
-# Parsing tests
-pytest tests/unit/agents/test_parsing*.py -v
-
-# Telemetry tests
-pytest tests/unit/ai/test_telemetry.py -v
-```
-
----
-
-## Test Coverage
-
-| Category | Tests | Time | Coverage |
-|----------|-------|------|----------|
-| Unit | 42 | ~1s | 100% |
-| Integration | 5 | ~1s | 100% |
-| AI | 4 | ~3s | 90% |
-| E2E | 1 | ~62s | 85% |
-| **TOTAL** | **52** | **~67s** | **85%** |
-
----
-
-## Pytest Markers
-
-Tests are categorized with markers:
-
-- `local_only` - Requires local environment (app, Xvfb)
-- `ai_interaction` - Uses AI services
-- `requires_app` - Needs app running with `--api`
-
-**Default Behavior:**
-```bash
+# Run all CI/CD safe tests (excludes AI and local tests)
 pytest
-# Excludes local_only and ai_interaction
-# Safe for CI/CD
+
+# Run all tests including AI and local (requires configuration)
+pytest -m ""
+
+# Run only unit tests
+pytest -m "unit"
+
+# Run only end-to-end tests
+pytest -m "e2e"
 ```
 
-**Include Specific Tests:**
-```bash
-# AI tests only
-pytest -m ai_interaction -v
+### Test Configuration
 
-# Local tests only
-pytest -m local_only -v
+The default pytest configuration excludes AI interaction and local-only tests:
 
-# All tests
-pytest -m "" -v
-```
-
----
-
-## API Endpoints (for Testing)
-
-When app is running with `--api`:
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/projects` | GET | List all projects |
-| `/api/projects/load` | POST | Load project by path |
-| `/api/projects/{id}` | GET | Get project details |
-| `/api/projects/{id}/config` | GET/PUT | Get/update config |
-| `/api/projects/{id}/field-protocol` | POST | Set field protocol |
-
-**Test with curl:**
-```bash
-curl http://127.0.0.1:8080/api/projects
-```
-
----
-
-## Configuration
-
-### AI Configuration
-
-**File:** `~/.opendata_tool/settings.yaml`
-
-```yaml
-ai_provider: openai
-openai_api_key: your-api-key
-openai_base_url: http://your-proxy:8317/v1
-openai_model: gemini-3-flash-preview
-```
-
-### Pytest Configuration
-
-**File:** `pyproject.toml`
-
-```toml
-[tool.pytest.ini_options]
-markers = [
-    "local_only: Tests that require local environment",
-    "ai_interaction: Tests that use AI services",
-    "requires_app: Tests that require the app running",
-]
+```ini
+# In pyproject.toml
 addopts = "-m 'not ai_interaction and not local_only'"
 ```
 
----
+This ensures CI/CD runs safely without requiring API keys or special local configurations.
 
-## Troubleshooting
+## Test Writing Guidelines
 
-### App Won't Start
-```bash
-# Kill stuck processes
-pkill -9 -f "main.py"
-pkill -9 Xvfb
-sleep 2
+### 1. Tests Define CORRECT Behavior
+- Tests specify what SHOULD happen, not what currently happens
+- Tests are written BEFORE implementation (TDD)
+- Tests verify meaningful, user-facing behavior
+- Tests are independent of current implementation details
 
-# Try again
-python src/opendata/main.py --headless --api --port 8080
+### 2. Bug Fixes Include Tests
+- Every bug fix has a corresponding test
+- Tests target the ROOT CAUSE, not symptoms
+- Tests prevent regression
+- Tests are added BEFORE the fix (to verify the bug exists)
+
+### 3. Test Quality Requirements
+- Tests must verify CORRECT behavior, not current behavior
+- Tests must be independent and isolated
+- Tests must be fast (< 1 second for unit tests)
+- Tests must be deterministic (no flaky tests)
+- Tests must have clear docstrings explaining what they test
+
+## Example: Good vs Bad Tests
+
+**Good Test (Tests CORRECT Behavior):**
+```python
+def test_field_protocol_no_heuristics_fully_user_controlled():
+    """NO automatic heuristics - field protocol is 100% user controlled."""
+    # Arrange: Create fingerprint with obvious physics files
+    agent.current_fingerprint = ProjectFingerprint(
+        extensions=[".tex", ".born", ".kappa"],  # Physics indicators
+    )
+
+    # Act: Get effective field (no user selection)
+    field = agent._get_effective_field()
+
+    # Assert: Returns None - NO automatic detection
+    assert field is None
 ```
 
-### Tests Hang
-```bash
-# Kill everything
-pkill -9 -f "main.py"
-pkill -9 pytest
-pkill -9 Xvfb
-sleep 2
-
-# Run single test
-pytest tests/unit/ai/test_telemetry.py -v
+**Bad Test (Tests Current Implementation):**
+```python
+def test_field_protocol_returns_none():
+    """Test that _get_effective_field returns None."""
+    # This is bad - it just tests what the code does now,
+    # not what it SHOULD do
+    field = agent._get_effective_field()
+    assert field is None  # Why should it be None? What's the requirement?
 ```
 
-### Port 8080 In Use
-```bash
-lsof -i :8080
-kill -9 <PID>
-```
+## CI/CD Pipeline
 
-### AI Tests Fail
-```bash
-# Check AI configuration
-cat ~/.opendata_tool/settings.yaml
+### Test Execution Order
+1. Unit tests
+2. Integration tests  
+3. End-to-end tests
+4. GUI smoke tests
+5. Binary builds (on tagged releases)
 
-# Test AI endpoint directly
-curl -X POST http://your-proxy:8317/v1/chat/completions \
-  -H "Authorization: Bearer your-api-key" \
-  -H "Content-Type: application/json" \
-  -d '{"model": "gemini-3-flash-preview", "messages": [{"role": "user", "content": "test"}]}'
-```
+### Platform Matrix
+- Ubuntu 22.04, 24.04 (primary)
+- Debian 12 (container)
+- Rocky Linux 9 (container)
+- Windows-latest (Windows 10/11)
+- macOS-13 (Intel Mac)
 
----
+### Exclusions
+- AI interaction tests are excluded from CI/CD
+- Local-only tests are excluded from CI/CD
+- GUI tests run with Xvfb on Linux
+- Platform-specific tests run only on relevant platforms
 
-## Test Quality
+## Supported Platforms
 
-### TDD Compliance: 95%
-- ✅ Tests define CORRECT behavior
-- ✅ Tests written for bug fixes
-- ✅ Tests prevent regression
-- ✅ Tests are independent
-- ✅ Tests verify user-facing behavior
+For the current list of supported platforms, see [SUPPORTED_PLATFORMS.md](./SUPPORTED_PLATFORMS.md).
 
-### Performance
-- Unit tests: ~0.02s per test ✅
-- Integration: ~0.2s per test ✅
-- AI tests: ~0.75s per test ✅
-- E2E: ~62s total ✅
-- CI/CD: ~2s total ✅
+## AI Testing Considerations
 
----
+AI interaction tests require special handling:
 
-## Documentation
+- Marked with `@pytest.mark.ai_interaction`
+- Excluded from CI/CD by default
+- Require valid API keys in environment
+- Should be run manually by developers
+- May have rate limits affecting test reliability
 
-**For Users:**
-- This document (`docs/TESTING.md`) - Complete testing guide
-- `README.md` - Quick start
+## Documentation Standards
 
-**For Developers:**
-- `docs/TEST_INFRASTRUCTURE.md` - Technical implementation
-- `docs/TEST_RESULTS.md` - Test results and coverage
-
----
-
-**Last Updated:** February 18, 2026  
-**Status:** ✅ Production Ready  
-**Total Tests:** 60 (all passing)
+- Tests must have docstrings explaining the CORRECT behavior
+- Test names should be descriptive of the expected outcome
+- Edge cases should be tested separately
+- Error conditions must be verified with appropriate exceptions
