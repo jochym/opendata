@@ -224,13 +224,25 @@ jobs:
       - name: Install Python, curl and dependencies
         run: |
           if command -v apt-get &> /dev/null; then
-            apt-get update
-            apt-get install -y ${{ matrix.distro.py }} ${{ matrix.distro.py }}-venv ${{ matrix.distro.py }}-pip curl wget || true
+            apt-get update && apt-get install -y ${{ matrix.distro.py }} curl wget || true
           else
-            dnf install -y python3 python3-pip curl wget || (dnf install -y epel-release && dnf install -y python3 python3-pip curl wget) || true
+            dnf install -y python3 curl wget || true
           fi
       - name: Test Binary Launch and API
         run: |
+          # Verify curl or wget is available
+          if ! command -v curl &> /dev/null && ! command -v wget &> /dev/null; then
+            echo "❌ Neither curl nor wget found"
+            exit 1
+          fi
+          
+          # Use curl if available, otherwise wget
+          if command -v curl &> /dev/null; then
+            HTTP_CMD="curl -s"
+          else
+            HTTP_CMD="wget -qO-"
+          fi
+          
           # Start binary in headless mode (no X server needed)
           /opt/opendata/opendata-linux --headless --port 8080 &
           BINARY_PID=$!
@@ -238,7 +250,7 @@ jobs:
           
           # Test 1: Basic HTTP response
           echo "Testing basic HTTP response..."
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080)
+          HTTP_CODE=$($HTTP_CMD -o /dev/null -w "%{http_code}" http://127.0.0.1:8080 2>/dev/null)
           if [ "$HTTP_CODE" -eq 200 ]; then
             echo "✅ Basic HTTP response: $HTTP_CODE"
           else
@@ -249,7 +261,7 @@ jobs:
           
           # Test 2: API endpoint - projects list
           echo "Testing API endpoint: /api/projects..."
-          API_RESPONSE=$(curl -s http://127.0.0.1:8080/api/projects)
+          API_RESPONSE=$($HTTP_CMD http://127.0.0.1:8080/api/projects 2>/dev/null)
           if echo "$API_RESPONSE" | grep -q "projects"; then
             echo "✅ API /api/projects responding correctly"
           else
@@ -261,7 +273,7 @@ jobs:
           
           # Test 3: API health check
           echo "Testing API health..."
-          HEALTH_RESPONSE=$(curl -s http://127.0.0.1:8080/api/health 2>/dev/null || curl -s http://127.0.0.1:8080)
+          HEALTH_RESPONSE=$($HTTP_CMD http://127.0.0.1:8080 2>/dev/null)
           if [ -n "$HEALTH_RESPONSE" ]; then
             echo "✅ API health check passed"
           else
