@@ -56,16 +56,21 @@ jobs:
       matrix:
         include:
           - os: ubuntu-22.04
+            platform: linux
             artifact_name: opendata-linux
           - os: windows-latest
+            platform: windows
             artifact_name: opendata-win
           - os: macos-latest
+            platform: macos-arm
             artifact_name: opendata-macos-arm
           - os: macos-12
+            platform: macos-intel
             artifact_name: opendata-macos-intel
     uses: ./.github/workflows/reusable-build-binary.yml
     with:
       os: ${{ matrix.os }}
+      platform: ${{ matrix.platform }}
       artifact_name: ${{ matrix.artifact_name }}
     secrets: inherit
 
