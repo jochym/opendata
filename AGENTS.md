@@ -45,8 +45,12 @@ This repository contains the OpenData Tool, designed for preparing metadata and 
 
 ### Setup & Build
 - Development: `pip install -e .`
-- **Single Executable (No Console):** `pyinstaller --noconsole --onefile src/opendata/main.py`
-- Running Tests: `pytest` (Must pass on Win/Mac/Linux).
+- **Build Binary (All Platforms):** `python build.py` or `python build.py --platform PLATFORM`
+  - Automatically detects platform (linux, windows, macos-intel, macos-arm)
+  - Includes all required resources (ui, prompts, VERSION)
+  - Creates no-console GUI executable
+  - See `docs/BUILDING.md` for details
+- Running Tests: `pytest` (Must pass on Win/Mac/Linux)
 
 ### Vibe-Coding Verification (CRITICAL)
 Every substantial step must have an accompanying automated test. Before completing a task, run the relevant test to verify the "vibe":

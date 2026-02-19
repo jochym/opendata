@@ -87,9 +87,12 @@ If your system isn't supported by our binaries:
 pip install -e ".[dev]"
 python src/opendata/main.py
 
-# Or create custom binary
+# Or create custom binary using our unified build script
 pip install pyinstaller
-pyinstaller --onefile --name opendata-custom src/opendata/main.py
+python build.py --platform YOUR_PLATFORM --test
+
+# Available platforms: linux, windows, macos-intel, macos-arm
+# The build script auto-detects your platform if not specified
 ```
 
 ## Support Policy
