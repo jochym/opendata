@@ -270,7 +270,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            artifacts/opendata-win.exe/opendata-win.exe
+            artifacts/opendata-win/opendata-win.exe
             artifacts/opendata-linux/opendata-linux
             artifacts/opendata-macos-arm/opendata-macos-arm
           generate_release_notes: true
