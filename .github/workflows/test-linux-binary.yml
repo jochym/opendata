@@ -1,0 +1,105 @@
+name: Test Linux Binary on Distributions
+
+on:
+  workflow_call:
+    needs: [build-linux]
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+    paths:
+      - '.github/workflows/test-linux-binary.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/test-linux-binary.yml'
+
+jobs:
+  test-linux-binary:
+    name: Test Linux Binary on ${{ matrix.distro.name }}
+    runs-on: ubuntu-latest
+    container: ${{ matrix.distro.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        distro:
+          - { image: ubuntu:22.04, name: "Ubuntu 22.04", py: "python3.11" }
+          - { image: ubuntu:24.04, name: "Ubuntu 24.04", py: "python3.12" }
+          - { image: debian:12, name: "Debian 12", py: "python3.11" }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Linux Binary, Install Dependencies and Test
+        run: |
+          # Install curl/wget FIRST before downloading binary
+          if command -v apt-get &> /dev/null; then
+            apt-get update && apt-get install -y curl wget || true
+          else
+            dnf install -y curl wget || true
+          fi
+          
+          # Download artifact manually from latest release
+          mkdir -p /opt/opendata
+          cd /opt/opendata
+          curl -L -o opendata-linux https://github.com/jochym/opendata/releases/latest/download/opendata-linux || wget -O opendata-linux https://github.com/jochym/opendata/releases/latest/download/opendata-linux
+          chmod +x opendata-linux
+          
+          # Install Python and other dependencies
+          if command -v apt-get &> /dev/null; then
+            apt-get update && apt-get install -y ${{ matrix.distro.py }} || true
+          else
+            dnf install -y python3 || true
+          fi
+          
+          # Verify curl or wget is available
+          if ! command -v curl &> /dev/null && ! command -v wget &> /dev/null; then
+            echo "❌ Neither curl nor wget found"
+            exit 1
+          fi
+          
+          # Use curl if available, otherwise wget
+          HTTP_CMD="curl -s"
+          if ! command -v curl &> /dev/null; then
+            HTTP_CMD="wget -qO-"
+          fi
+          
+          # Start binary in headless mode (no X server needed)
+          /opt/opendata/opendata-linux --headless --port 8080 &
+          BINARY_PID=$!
+          sleep 15
+          
+          # Test 1: Basic HTTP response
+          echo "Testing basic HTTP response..."
+          HTTP_CODE=$($HTTP_CMD -o /dev/null -w "%{http_code}" http://127.0.0.1:8080 2>/dev/null)
+          if [ "$HTTP_CODE" -eq 200 ]; then
+            echo "✅ Basic HTTP response: $HTTP_CODE"
+          else
+            echo "❌ Basic HTTP response failed: $HTTP_CODE"
+            kill $BINARY_PID 2>/dev/null || true
+            exit 1
+          fi
+          
+          # Test 2: API endpoint - projects list
+          echo "Testing API endpoint: /api/projects..."
+          API_RESPONSE=$($HTTP_CMD http://127.0.0.1:8080/api/projects 2>/dev/null)
+          if echo "$API_RESPONSE" | grep -q "projects"; then
+            echo "✅ API /api/projects responding correctly"
+          else
+            echo "❌ API /api/projects failed"
+            echo "Response: $API_RESPONSE"
+            kill $BINARY_PID 2>/dev/null || true
+            exit 1
+          fi
+          
+          # Test 3: API health check
+          echo "Testing API health..."
+          HEALTH_RESPONSE=$($HTTP_CMD http://127.0.0.1:8080 2>/dev/null)
+          if [ -n "$HEALTH_RESPONSE" ]; then
+            echo "✅ API health check passed"
+          else
+            echo "❌ API health check failed"
+            kill $BINARY_PID 2>/dev/null || true
+            exit 1
+          fi
+          
+          echo "✅ All API tests passed on ${{ matrix.distro.name }}"
+          kill $BINARY_PID 2>/dev/null || true
+          exit 0
