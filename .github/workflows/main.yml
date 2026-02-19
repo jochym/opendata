@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, ubuntu-24.04, windows-latest, macos-13]
+        os: [ubuntu-22.04, ubuntu-24.04, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -40,7 +40,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, ubuntu-24.04, windows-latest, macos-13]
+        os: [ubuntu-22.04, ubuntu-24.04, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -114,8 +114,8 @@ jobs:
         include:
           - os: windows-latest
             artifact_name: opendata-win.exe
-          - os: macos-13
-            artifact_name: opendata-macos-intel
+          - os: macos-latest
+            artifact_name: opendata-macos-arm
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -263,7 +263,7 @@ jobs:
           files: |
             artifacts/opendata-win.exe/opendata-win.exe
             artifacts/opendata-linux/opendata-linux
-            artifacts/opendata-macos-intel/opendata-macos-intel
+            artifacts/opendata-macos-arm/opendata-macos-arm
           generate_release_notes: true
           draft: false
           prerelease: false
