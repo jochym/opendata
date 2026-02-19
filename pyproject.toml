@@ -26,6 +26,7 @@ requires-python = ">=3.11"
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
+    "pytest-playwright>=0.5.0",
     "ruff>=0.1.0",
     "mypy>=1.0.0",
 ]
@@ -60,9 +61,10 @@ markers = [
     "integration: Integration tests",
 ]
 
-# Default: exclude AI interaction tests (for CI/CD safety)
+# Default: exclude AI interaction tests and E2E tests (for CI/CD safety)
+# E2E tests are excluded because they require playwright and a running app
 # For local dev with AI: use 'pytest -m ""' to run ALL tests
-addopts = "-m 'not ai_interaction and not local_only'"
+addopts = "-m 'not ai_interaction and not local_only' --ignore=tests/e2e"
 
 [tool.ruff]
 line-length = 88
