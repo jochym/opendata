@@ -75,7 +75,7 @@ class TestChatScanMessagePersistence:
         ScanState.is_scanning = True
 
         # Mock refresh_inventory to set the stop_event during execution
-        def mock_refresh_with_cancel(*args, **kwargs):
+        def mock_refresh_with_cancel(*_args, **kwargs):
             stop_ev = kwargs.get("stop_event")
             if stop_ev:
                 stop_ev.set()  # Simulate cancellation during scan
