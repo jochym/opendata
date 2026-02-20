@@ -9,6 +9,7 @@ from nicegui import ui
 
 from opendata.i18n.translator import _
 from opendata.ui.components.file_picker import LocalFilePicker
+from opendata.ui.components.inventory_logic import load_inventory_background
 from opendata.ui.components.metadata import metadata_preview_ui
 from opendata.ui.context import AppContext
 from opendata.ui.state import ScanState
@@ -270,6 +271,9 @@ async def handle_scan_only(ctx: AppContext, path: str):
             ui.notify(_("Inventory refreshed."), type="positive")
         # Persist the updated chat history so the scan result message survives reloads
         ctx.agent.save_state()
+
+        # Refresh the UI inventory cache and stats
+        await load_inventory_background(ctx)
     except asyncio.CancelledError:
         logger.info("Scan cancelled by user.")
         ctx.agent.chat_history.append(("agent", f"🛑 **{_('Scan cancelled.')}**"))
@@ -308,6 +312,10 @@ async def handle_heuristics(ctx: AppContext, path: str):
             stop_event=ScanState.stop_event,
         )
         ui.notify(_("Heuristics phase complete."), type="positive")
+        # Refresh the UI inventory cache and stats as heuristics might change file identification
+        from opendata.ui.components.inventory_logic import load_inventory_background
+
+        await load_inventory_background(ctx)
     except asyncio.CancelledError:
         logger.info("Heuristics cancelled by user.")
     except Exception as e:
@@ -336,6 +344,8 @@ async def handle_ai_analysis(ctx: AppContext, path: str):
             stop_event=ScanState.stop_event,
         )
         ui.notify(_("AI analysis phase complete."), type="positive")
+        # Refresh the UI inventory cache and stats
+        await load_inventory_background(ctx)
     except asyncio.CancelledError:
         logger.info("AI analysis cancelled by user.")
     except Exception as e:
@@ -534,27 +544,3 @@ async def handle_clear_metadata(ctx: AppContext):
     from opendata.ui.components.metadata import handle_clear_metadata as hcm
 
     await hcm(ctx)
-
-
-async def handle_ai_scan_experiment(ctx: AppContext):
-    if not ctx.agent.project_id:
-        ui.notify(_("Please open a project first."), type="warning")
-        return
-
-    ScanState.is_processing_ai = True
-    ctx.session.ai_stop_event = threading.Event()
-    ctx.refresh("chat")
-
-    ui.notify(_("Running AI Inventory Scan..."))
-
-    try:
-        experiment = AIScanExperiment(ctx.wm, ctx.agent.project_id)
-        result = await asyncio.to_thread(experiment.run, ctx.ai)
-        ctx.agent.chat_history.append(("agent", result))
-        ctx.agent.save_state()
-    except Exception as e:
-        ui.notify(f"Experiment failed: {e}", type="negative")
-    finally:
-        ScanState.is_processing_ai = False
-        ctx.session.ai_stop_event = None
-        ctx.refresh_all()
