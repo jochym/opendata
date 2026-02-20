@@ -69,6 +69,12 @@ def main():
         action="store_true",
         help="Enable REST API endpoints for test automation (localhost only)",
     )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"OpenData Tool {get_app_version()}",
+        help="Show version number and exit",
+    )
     args = parser.parse_args()
 
     log_level = logging.INFO
