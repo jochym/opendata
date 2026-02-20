@@ -19,8 +19,9 @@ class UIState:
     pending_refresh: bool = False
     _is_refreshing_global: bool = False
     is_project_loading: bool = False
-    total_files_count: int = 0
-    total_files_size: int = 0
+    total_files_count: int = 0  # Count of included files
+    total_files_size: int = 0  # Total size of included files
+    inventory_total_count: int = 0  # Total count of all files in inventory
     grid_rows: list[dict[str, Any]] = []
     show_only_included: bool = False
     show_suggestions_banner: bool = True
