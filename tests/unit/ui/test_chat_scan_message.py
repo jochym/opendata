@@ -5,7 +5,6 @@ Ensures that after a successful scan, the statistics message
 is added to chat history and remains visible to the user.
 """
 
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
