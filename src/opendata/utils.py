@@ -24,9 +24,9 @@ def get_app_version() -> str:
     """Reads the application version from the VERSION file or package metadata."""
     version_str = "0.0.0"
 
-    # 1. Try to find VERSION file using get_resource_path (works in dev and bundle)
+    # 1. Try to find VERSION file in the opendata package directory
     try:
-        version_file = get_resource_path("VERSION")
+        version_file = Path(__file__).parent / "VERSION"
         if version_file.exists():
             version_str = version_file.read_text(encoding="utf-8").strip()
     except Exception:
