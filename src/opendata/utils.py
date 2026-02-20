@@ -26,7 +26,7 @@ def get_app_version() -> str:
 
     # 1. Try to find VERSION file in the opendata package directory
     try:
-        version_file = Path(__file__).parent / "VERSION"
+        version_file = get_resource_path("src/opendata/VERSION")
         if version_file.exists():
             version_str = version_file.read_text(encoding="utf-8").strip()
     except Exception:
