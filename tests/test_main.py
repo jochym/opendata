@@ -1,3 +1,6 @@
+import pytest
+
+
 def test_ui_import() -> None:
     """Ensure the UI components are importable."""
     from opendata.ui.app import start_ui
@@ -15,7 +18,6 @@ def test_main_launch() -> None:
 def test_version_argument(capsys) -> None:
     """Test that --version argument displays version and exits with code 0."""
     import sys
-    import pytest
     from opendata.main import main
     from opendata.utils import get_app_version
 
@@ -65,7 +67,6 @@ def test_help_argument(capsys) -> None:
 def test_version_displays_correct_value(capsys) -> None:
     """Test that --version displays the actual version from VERSION file."""
     import sys
-    import pytest
     from pathlib import Path
     from opendata.main import main
 
