@@ -59,6 +59,7 @@ class TestChatScanMessagePersistence:
         assert "✅" in message_content
         assert "Inventory refreshed" in message_content
         assert "5 files" in message_content
+        mock_context.agent.save_state.assert_called_once()
 
     def test_cancelled_scan_adds_canceled_message(self, mock_context, temp_project_dir):
         """After cancelled scan, cancellation message is added to chat history.
@@ -95,6 +96,7 @@ class TestChatScanMessagePersistence:
         assert message_role == "agent"
         assert "🛑" in message_content
         assert "cancelled" in message_content.lower()
+        mock_context.agent.save_state.assert_called_once()
 
     def test_scan_error_shows_notification(self, mock_context, temp_project_dir):
         """When scan fails, error notification is shown."""
@@ -116,6 +118,9 @@ class TestChatScanMessagePersistence:
             # Assert error notification was called
             mock_notify.assert_called()
             assert any("Scan error" in str(call) for call in mock_notify.call_args_list)
+
+        # Assert save_state is NOT called when an exception occurs
+        mock_context.agent.save_state.assert_not_called()
 
     def test_scan_resets_state_after_completion(self, mock_context, temp_project_dir):
         """After scan completes, scanning state is reset."""
