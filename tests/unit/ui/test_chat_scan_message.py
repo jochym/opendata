@@ -48,7 +48,12 @@ class TestChatScanMessagePersistence:
         ScanState.stop_event = None
 
         # Mock ui.notify to avoid NiceGUI context errors
-        with patch("opendata.ui.components.chat.ui.notify"):
+        with (
+            patch("opendata.ui.components.chat.ui.notify"),
+            patch(
+                "opendata.ui.components.chat.load_inventory_background"
+            ) as mock_load_inventory,
+        ):
             # Act
             asyncio.run(handle_scan_only(mock_context, temp_project_dir))
 
@@ -60,6 +65,7 @@ class TestChatScanMessagePersistence:
         assert "Inventory refreshed" in message_content
         assert "5 files" in message_content
         mock_context.agent.save_state.assert_called_once()
+        mock_load_inventory.assert_called_once_with(mock_context)
 
     def test_cancelled_scan_adds_canceled_message(self, mock_context, temp_project_dir):
         """After cancelled scan, cancellation message is added to chat history.

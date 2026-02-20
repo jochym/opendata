@@ -9,6 +9,7 @@ from nicegui import ui
 
 from opendata.i18n.translator import _
 from opendata.ui.components.file_picker import LocalFilePicker
+from opendata.ui.components.inventory_logic import load_inventory_background
 from opendata.ui.components.metadata import metadata_preview_ui
 from opendata.ui.context import AppContext
 from opendata.ui.state import ScanState
@@ -272,8 +273,6 @@ async def handle_scan_only(ctx: AppContext, path: str):
         ctx.agent.save_state()
 
         # Refresh the UI inventory cache and stats
-        from opendata.ui.components.inventory_logic import load_inventory_background
-
         await load_inventory_background(ctx)
     except asyncio.CancelledError:
         logger.info("Scan cancelled by user.")
@@ -346,8 +345,6 @@ async def handle_ai_analysis(ctx: AppContext, path: str):
         )
         ui.notify(_("AI analysis phase complete."), type="positive")
         # Refresh the UI inventory cache and stats
-        from opendata.ui.components.inventory_logic import load_inventory_background
-
         await load_inventory_background(ctx)
     except asyncio.CancelledError:
         logger.info("AI analysis cancelled by user.")
