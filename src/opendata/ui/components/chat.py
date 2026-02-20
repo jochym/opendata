@@ -272,6 +272,8 @@ async def handle_scan_only(ctx: AppContext, path: str):
         ctx.agent.save_state()
     except asyncio.CancelledError:
         logger.info("Scan cancelled by user.")
+        ctx.agent.chat_history.append(("agent", f"🛑 **{_('Scan cancelled.')}**"))
+        ctx.agent.save_state()
     except Exception as e:
         ui.notify(f"Scan error: {e}", type="negative")
     finally:
