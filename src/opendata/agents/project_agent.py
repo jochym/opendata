@@ -234,6 +234,81 @@ class ProjectAnalysisAgent:
             count=self.current_fingerprint.file_count
         )
 
+    def set_significant_files_manual(self, selections: list[dict[str, str]]) -> str:
+        """
+        User manually selects significant files with categories.
+        Replaces AI heuristics phase entirely.
+
+        Args:
+            selections: List of dicts with 'path' and 'category' keys.
+                       Categories: main_article, visualization_scripts, data_files, documentation, other
+
+        Returns:
+            Confirmation message for chat history.
+        """
+        if not self.current_fingerprint:
+            return _("Error: No inventory found. Please scan the project first.")
+
+        # 1. Validate and filter selections against inventory
+        inventory_paths = set(self.current_fingerprint.structure_sample)
+        valid_selections = []
+        for sel in selections:
+            path = sel.get("path", "")
+            if path in inventory_paths:
+                valid_selections.append(sel)
+
+        # 2. Update significant files list
+        self.current_fingerprint.significant_files = [
+            sel["path"] for sel in valid_selections
+        ]
+
+        # 3. Auto-set primary file if article found
+        for sel in valid_selections:
+            if sel.get("category") == "main_article":
+                path = sel["path"]
+                if path.endswith((".tex", ".docx")):
+                    self.current_fingerprint.primary_file = path
+                    break
+
+        # 4. Store categories in analysis for context injection
+        from opendata.models import FileSuggestion, AIAnalysis
+
+        category_labels = {
+            "main_article": "Main article/paper",
+            "visualization_scripts": "Visualization scripts",
+            "data_files": "Data files",
+            "documentation": "Documentation",
+            "other": "Supporting file",
+        }
+
+        file_suggestions = []
+        for sel in valid_selections:
+            category = sel.get("category", "other")
+            reason = category_labels.get(category, category)
+            file_suggestions.append(FileSuggestion(path=sel["path"], reason=reason))
+
+        # Create or update analysis object
+        if not self.current_analysis:
+            self.current_analysis = AIAnalysis(summary="Manual file selection")
+        self.current_analysis.file_suggestions = file_suggestions
+
+        # 5. Set heuristics_run flag to enable AI Analyze button
+        self.heuristics_run = True
+
+        # 6. Add chat message
+        if valid_selections:
+            files_msg = ", ".join([f"`{sel['path']}`" for sel in valid_selections])
+            msg = _(
+                "### Manual File Selection\n\nSelected {count} files: {files}\n\n*Ready for deep content analysis. Click **AI Analyze** to proceed.*"
+            ).format(count=len(valid_selections), files=files_msg)
+            self.chat_history.append(("agent", msg))
+        else:
+            msg = _("Cleared all file selections.")
+            self.chat_history.append(("agent", msg))
+
+        self.save_state()
+        return msg
+
     def run_heuristics_phase(
         self,
         project_dir: Path,

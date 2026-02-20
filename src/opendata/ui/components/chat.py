@@ -415,12 +415,12 @@ def render_metadata_panel(ctx: AppContext):
                     ScanState, "is_scanning", backward=lambda x: not x
                 )
 
-                # Button 2: Heuristics
-                heur_btn = (
+                # Button 2: Select Files (replaces AI Heuristics)
+                select_files_btn = (
                     ui.button(
-                        _("Heuristics"),
-                        icon="science",
-                        on_click=lambda: handle_heuristics(ctx, path_input.value),
+                        _("Select Files"),
+                        icon="folder_open",
+                        on_click=lambda: open_file_selection_dialog(ctx),
                     )
                     .classes("flex-grow")
                     .props("dense outline")
@@ -429,7 +429,7 @@ def render_metadata_panel(ctx: AppContext):
                     )
                 )
                 # Enable only if scan is done
-                heur_btn.bind_enabled_from(
+                select_files_btn.bind_enabled_from(
                     ctx.agent, "current_fingerprint", backward=lambda x: bool(x)
                 )
 
@@ -544,3 +544,140 @@ async def handle_clear_metadata(ctx: AppContext):
     from opendata.ui.components.metadata import handle_clear_metadata as hcm
 
     await hcm(ctx)
+
+
+def open_file_selection_dialog(ctx: AppContext):
+    """Opens a dialog for manual file selection with categories."""
+    if not ctx.agent.current_fingerprint:
+        ui.notify(_("Please scan the project first."), type="warning")
+        return
+
+    # Get all files from inventory (use session cache)
+    inventory = (
+        ctx.session.inventory_cache
+        if hasattr(ctx, "session") and ctx.session.inventory_cache
+        else []
+    )
+
+    # Category options
+    CATEGORIES = {
+        "main_article": _("Main Article/Paper"),
+        "visualization_scripts": _("Visualization Scripts"),
+        "data_files": _("Data Files"),
+        "documentation": _("Documentation"),
+        "other": _("Other"),
+    }
+
+    # Current selections (from existing analysis or empty)
+    current_selections = {}
+    if ctx.agent.current_analysis and ctx.agent.current_analysis.file_suggestions:
+        for fs in ctx.agent.current_analysis.file_suggestions:
+            # Infer category from reason
+            reason_lower = fs.reason.lower()
+            if (
+                "main" in reason_lower
+                or "article" in reason_lower
+                or "paper" in reason_lower
+            ):
+                current_selections[fs.path] = "main_article"
+            elif "visual" in reason_lower or "script" in reason_lower:
+                current_selections[fs.path] = "visualization_scripts"
+            elif "data" in reason_lower:
+                current_selections[fs.path] = "data_files"
+            elif "doc" in reason_lower:
+                current_selections[fs.path] = "documentation"
+            else:
+                current_selections[fs.path] = "other"
+
+    # Build dialog
+    with ui.dialog() as dialog, ui.card().classes("w-[700px] h-[600px]"):
+        ui.label(_("Select Significant Files")).classes("text-h6 mb-2")
+        ui.markdown(
+            _(
+                "**Instructions:** Select files for deep analysis and assign categories. "
+                "The AI will read these files to extract metadata."
+            )
+        ).classes("text-sm text-slate-600 mb-4")
+
+        # File selection table
+        selected_paths = {}
+
+        with ui.scroll_area().classes("h-96 w-full border rounded-md"):
+            with ui.column().classes("gap-0"):
+                # Header
+                with ui.row().classes(
+                    "w-full items-center gap-2 p-2 bg-slate-100 font-bold text-sm"
+                ):
+                    ui.label(_("File")).classes("flex-grow")
+                    ui.label(_("Category")).classes("w-48")
+
+                # Files
+                for item in inventory:
+                    path = item.get("path", "")
+                    if not path or item.get("type") == "folder":
+                        continue
+
+                    with ui.row().classes(
+                        "w-full items-center gap-2 p-1 hover:bg-slate-50"
+                    ):
+                        # Checkbox
+                        is_selected = path in current_selections
+                        cb = ui.checkbox(
+                            value=is_selected,
+                            on_change=lambda e, p=path: (
+                                selected_paths.update({p: "other"})
+                                if e.value
+                                else selected_paths.pop(p, None)
+                            ),
+                        ).props("dense")
+
+                        # File path
+                        ui.label(path).classes("flex-grow text-sm font-mono truncate")
+
+                        # Category dropdown (only enabled if selected)
+                        cat_select = (
+                            ui.select(
+                                options=CATEGORIES,
+                                value=current_selections.get(path, "other"),
+                                on_change=lambda e, p=path: selected_paths.update(
+                                    {p: e.value}
+                                )
+                                if e.value
+                                else None,
+                            )
+                            .props("dense size=sm")
+                            .classes("w-48")
+                        )
+
+                        # Bind enabled state to checkbox
+                        def update_cat_enabled(e, cat_sel=cat_select):
+                            cat_sel.enabled = e.value
+
+                        cb.on("update:model-value", update_cat_enabled)
+                        cat_select.enabled = is_selected
+
+        with ui.row().classes("w-full justify-end gap-2 mt-4"):
+            ui.button(_("Cancel"), on_click=dialog.close).props("flat")
+
+            async def apply_selection():
+                # Convert to list of dicts
+                selections = [
+                    {"path": path, "category": cat}
+                    for path, cat in selected_paths.items()
+                ]
+
+                # Call agent method
+                msg = ctx.agent.set_significant_files_manual(selections)
+
+                # Notify and close
+                ui.notify(_("File selection saved."), type="positive")
+                dialog.close()
+
+                # Refresh UI
+                ctx.refresh_all()
+
+            ui.button(_("Apply"), on_click=apply_selection).props(
+                "elevated color=primary"
+            )
+
+    dialog.open()
