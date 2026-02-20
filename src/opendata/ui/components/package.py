@@ -133,7 +133,9 @@ def render_package_tab(ctx: AppContext):
 
             with ui.row().classes("items-center gap-2"):
                 ui.icon("storage", color="slate-500", size="sm")
-                ui.label(_("Total Size: {size}").format(size=format_size(total_size)))
+                ui.label(
+                    _("Selected Size: {size}").format(size=format_size(total_size))
+                )
 
             ui.space()
 
