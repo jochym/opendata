@@ -13,9 +13,10 @@ def test_main_launch() -> None:
 
 
 def test_version_argument(capsys) -> None:
-    """Test that --version argument displays version and exits."""
+    """Test that --version argument displays version and exits with code 0."""
     import sys
     from opendata.main import main
+    from opendata.utils import get_app_version
 
     # Save original argv
     original_argv = sys.argv
@@ -25,11 +26,17 @@ def test_version_argument(capsys) -> None:
         sys.argv = ["opendata", "--version"]
 
         # --version calls sys.exit(), so we expect SystemExit
-        with capsys.disabled():
-            try:
-                main()
-            except SystemExit as e:
-                assert e.code == 0 or e.code is None
+        try:
+            main()
+        except SystemExit as e:
+            assert e.code == 0 or e.code is None
+
+        # Verify the actual version string is present in the output
+        captured = capsys.readouterr()
+        version = get_app_version()
+        assert version in captured.out, (
+            f"Expected version {version!r} in stdout, got: {captured.out!r}"
+        )
     finally:
         # Restore original argv
         sys.argv = original_argv
