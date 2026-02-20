@@ -53,3 +53,44 @@ def test_version_argument_short_flag(capsys) -> None:
             pass  # --help exits after showing help
     finally:
         sys.argv = original_argv
+
+
+def test_version_displays_correct_value(capsys) -> None:
+    """Test that --version displays the actual version from VERSION file."""
+    import sys
+    from pathlib import Path
+    from opendata.main import main
+
+    # Read expected version from VERSION file
+    version_file = Path(__file__).parent.parent / "src" / "opendata" / "VERSION"
+    expected_version = version_file.read_text(encoding="utf-8").strip()
+
+    original_argv = sys.argv
+
+    try:
+        # Test --version flag
+        sys.argv = ["opendata", "--version"]
+
+        # Capture output by redirecting stdout
+        import io
+        from contextlib import redirect_stdout
+
+        f = io.StringIO()
+        try:
+            with redirect_stdout(f):
+                main()
+        except SystemExit as e:
+            # --version exits with code 0
+            assert e.code == 0 or e.code is None
+
+        output = f.getvalue().strip()
+
+        # Verify version number is in output (not 0.0.0)
+        assert expected_version.split(".")[0] != "0" or expected_version != "0.0.0", (
+            "Version should not be default 0.0.0"
+        )
+        assert expected_version in output, (
+            f"Expected version {expected_version} in output, got: {output}"
+        )
+    finally:
+        sys.argv = original_argv
