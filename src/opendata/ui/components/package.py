@@ -110,16 +110,17 @@ def render_package_tab(ctx: AppContext):
                         "text-[10px] text-blue-400 truncate flex-grow"
                     )
 
-        included_files = [f for f in ctx.session.inventory_cache if f["included"]]
-        total_files = len(ctx.session.inventory_cache)
-        total_size = sum(f["size"] for f in included_files)
+        # Use cached statistics for better performance with large inventories
+        included_count = ctx.session.total_files_count
+        total_count = ctx.session.inventory_total_count
+        total_size = ctx.session.total_files_size
 
         with ui.row().classes(
             "w-full gap-8 p-3 bg-slate-50 rounded-lg border items-center"
         ):
             with ui.row().classes("items-center gap-2"):
                 ui.icon("inventory", color="slate-500", size="sm")
-                ui.label(_("Total: {count} files").format(count=total_files)).classes(
+                ui.label(_("Total: {count} files").format(count=total_count)).classes(
                     "font-medium text-slate-600"
                 )
 
@@ -127,14 +128,16 @@ def render_package_tab(ctx: AppContext):
                 ui.icon("check_circle", color="primary", size="sm")
                 ui.label(
                     _("Selected: {included}/{total} files").format(
-                        included=len(included_files), total=total_files
+                        included=included_count, total=total_count
                     )
                 ).classes("font-bold text-primary")
 
             with ui.row().classes("items-center gap-2"):
                 ui.icon("storage", color="slate-500", size="sm")
                 ui.label(
-                    _("Selected Size: {size}").format(size=format_size(total_size))
+                    _("Estimated Package Data Size: {size}").format(
+                        size=format_size(total_size)
+                    )
                 )
 
             ui.space()

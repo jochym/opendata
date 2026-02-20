@@ -28,9 +28,13 @@ class TestPackageStats:
         ctx.session.show_suggestions_banner = False
         ctx.session.show_only_included = False
         ctx.session.explorer_path = ""
-        ctx.session.folder_children_map = {"": []}  # Required by render_file_list
+        ctx.session.folder_children_map = {"": []}
 
-        # Mock inventory cache with some files
+        # Mock cached statistics
+        ctx.session.inventory_total_count = 3
+        ctx.session.total_files_count = 2
+        ctx.session.total_files_size = 5120  # 5.0 KB
+
         ctx.session.inventory_cache = [
             {"path": "file1.txt", "size": 1024, "included": True, "type": "file"},
             {"path": "file2.txt", "size": 2048, "included": False, "type": "file"},
@@ -41,7 +45,7 @@ class TestPackageStats:
         return ctx
 
     def setup_ui_mocks(self, mock_ui):
-        """Setup standard UI context manager mocks."""
+        """Setup standard UI context manager mocks for NiceGUI components."""
         mock_ui.column.return_value.__enter__ = MagicMock()
         mock_ui.row.return_value.__enter__ = MagicMock()
         mock_ui.card.return_value.__enter__ = MagicMock()
@@ -60,7 +64,7 @@ class TestPackageStats:
 
             render_package_tab(mock_ctx)
 
-            # Verify total count (3 files) is displayed
+            # Verify total count (3 files) is displayed using cached value
             calls = [
                 call[0][0] for call in mock_ui.label.call_args_list if len(call[0]) > 0
             ]
@@ -73,21 +77,21 @@ class TestPackageStats:
 
             render_package_tab(mock_ctx)
 
-            # Verify selection ratio (2/3 files) is displayed
+            # Verify selection ratio (2/3 files) is displayed using cached values
             calls = [
                 call[0][0] for call in mock_ui.label.call_args_list if len(call[0]) > 0
             ]
             assert any("Selected: 2/3 files" in str(c) for c in calls)
 
-    def test_package_tab_displays_selected_size(self, mock_ctx):
-        """Package tab should display total size of selected files."""
+    def test_package_tab_displays_estimated_package_size(self, mock_ctx):
+        """Package tab should display estimated total size of selected files."""
         with patch("opendata.ui.components.package.ui") as mock_ui:
             self.setup_ui_mocks(mock_ui)
 
             render_package_tab(mock_ctx)
 
-            # 1024 + 4096 = 5120 bytes = 5.0 KB
+            # Verify estimated size (5.0 KB) is displayed using cached value
             calls = [
                 call[0][0] for call in mock_ui.label.call_args_list if len(call[0]) > 0
             ]
-            assert any("Selected Size: 5.0 KB" in str(c) for c in calls)
+            assert any("Estimated Package Data Size: 5.0 KB" in str(c) for c in calls)

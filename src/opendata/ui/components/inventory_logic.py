@@ -158,16 +158,20 @@ async def load_inventory_background(ctx: AppContext):
         def prepare_ui_data():
             included = [f for f in inventory if f["included"]]
             count = len(included)
+            total_count = len(inventory)
             size = sum(f["size"] for f in included)
 
             # Build Explorer Index
             children_map, stats = build_folder_index(inventory)
 
-            return count, size, children_map, stats
+            return count, total_count, size, children_map, stats
 
-        count, size, children_map, stats = await asyncio.to_thread(prepare_ui_data)
+        count, total_count, size, children_map, stats = await asyncio.to_thread(
+            prepare_ui_data
+        )
 
         ctx.session.total_files_count = count
+        ctx.session.inventory_total_count = total_count
         ctx.session.total_files_size = size
         ctx.session.folder_children_map = children_map
         ctx.session.folder_stats = stats
