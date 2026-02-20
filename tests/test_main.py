@@ -78,19 +78,13 @@ def test_version_displays_correct_value(capsys) -> None:
         # Test --version flag
         sys.argv = ["opendata", "--version"]
 
-        # Capture output by redirecting stdout
-        import io
-        from contextlib import redirect_stdout
-
-        f = io.StringIO()
         try:
-            with redirect_stdout(f):
-                main()
+            main()
         except SystemExit as e:
             # --version exits with code 0
             assert e.code == 0 or e.code is None
 
-        output = f.getvalue().strip()
+        output = capsys.readouterr().out.strip()
 
         # Verify version number is in output (not 0.0.0)
         assert any(c != "0" for c in expected_version.split(".")), (
