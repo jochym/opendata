@@ -49,8 +49,6 @@ class TestPackageStats:
             render_package_tab(mock_ctx)
 
             # Check if total count (3 files) is mentioned in any label
-            # Current implementation only shows included count (2 files)
-            # We want it to show something like "Total: 3 files"
             calls = [
                 call[0][0] for call in mock_ui.label.call_args_list if len(call[0]) > 0
             ]
