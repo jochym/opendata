@@ -602,6 +602,10 @@ def open_file_selection_dialog(ctx: AppContext):
         # File selection table
         selected_paths = {}
 
+        # Initialize selected_paths with current selections (fix for pre-selected files)
+        for path, category in current_selections.items():
+            selected_paths[path] = category
+
         with ui.scroll_area().classes("h-96 w-full border rounded-md"):
             with ui.column().classes("gap-0"):
                 # Header
@@ -622,10 +626,23 @@ def open_file_selection_dialog(ctx: AppContext):
                     ):
                         # Checkbox
                         is_selected = path in current_selections
+                        initial_category = current_selections.get(path, "other")
+
+                        # Category dropdown
+                        cat_select = (
+                            ui.select(
+                                options=CATEGORIES,
+                                value=initial_category,
+                            )
+                            .props("dense size=sm")
+                            .classes("w-48")
+                        )
+
+                        # Checkbox with proper category handling
                         cb = ui.checkbox(
                             value=is_selected,
-                            on_change=lambda e, p=path: (
-                                selected_paths.update({p: "other"})
+                            on_change=lambda e, p=path, cat_sel=cat_select: (
+                                selected_paths.update({p: cat_sel.value})
                                 if e.value
                                 else selected_paths.pop(p, None)
                             ),
@@ -634,27 +651,20 @@ def open_file_selection_dialog(ctx: AppContext):
                         # File path
                         ui.label(path).classes("flex-grow text-sm font-mono truncate")
 
-                        # Category dropdown (only enabled if selected)
-                        cat_select = (
-                            ui.select(
-                                options=CATEGORIES,
-                                value=current_selections.get(path, "other"),
-                                on_change=lambda e, p=path: selected_paths.update(
-                                    {p: e.value}
-                                )
-                                if e.value
-                                else None,
-                            )
-                            .props("dense size=sm")
-                            .classes("w-48")
-                        )
-
                         # Bind enabled state to checkbox
                         def update_cat_enabled(e, cat_sel=cat_select):
                             cat_sel.enabled = e.value
 
                         cb.on("update:model-value", update_cat_enabled)
                         cat_select.enabled = is_selected
+
+                        # Update selected_paths when category changes
+                        cat_select.on(
+                            "update:model-value",
+                            lambda e, p=path: selected_paths.update({p: e.value})
+                            if p in selected_paths
+                            else None,
+                        )
 
         with ui.row().classes("w-full justify-end gap-2 mt-4"):
             ui.button(_("Cancel"), on_click=dialog.close).props("flat")
