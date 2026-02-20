@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.20] - 2026-02-20
+### Added
+- **CLI**: Added `--version` argument to display the application version and exit.
+- **UI**: Added inventory and selection statistics to the **Package** tab (total files, selected ratio, estimated size).
+- **UI**: Statistics in the Package tab now include visual icons and bold formatting for better readability.
+- **I18n**: Added Polish translations for the new package statistics labels.
+- **Testing**: Added unit tests for CLI version display and package tab statistics.
+- **Git**: Added "Iron Rule" for feature branches to `AGENTS.md`.
+
+### Fixed
+- **UI**: Fixed a bug where the scan progress box disappeared silently; scan statistics are now permanently added to the chat history.
+- **Version**: Fixed `get_app_version()` to correctly locate the `VERSION` file in the package directory.
+
+### Changed
+- **Performance**: Optimized Package tab rendering by caching inventory statistics in the session state (O(1) rendering).
+- **CI/CD**: Improved Linux binary verification by adding **Debian 13** (Trixie) to the test matrix.
+- **CI/CD**: Unified build process using a new `build_binary.py` script for better cross-platform reliability.
+
 ## [0.22.1] - 2026-02-18
 ### Changed
 - **CI/CD**: Simplified Linux distribution from 5 binaries to 2 universal builds (Ubuntu 20.04 and Rocky Linux 8)
