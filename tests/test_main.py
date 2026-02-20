@@ -35,22 +35,22 @@ def test_version_argument(capsys) -> None:
         sys.argv = original_argv
 
 
-def test_version_argument_short_flag(capsys) -> None:
-    """Test that -v shows verbose help (not version, as -v is for verbose)."""
+def test_help_argument(capsys) -> None:
+    """Test that --help argument displays help and exits."""
     from opendata.main import main
     import sys
 
     original_argv = sys.argv
 
     try:
-        # Note: -v is for --verbose, not --version
-        # --version doesn't have a short flag to avoid conflict
+        # Ensure that requesting help works and exits cleanly
         sys.argv = ["opendata", "--help"]
 
         try:
             main()
         except SystemExit:
-            pass  # --help exits after showing help
+            # --help exits after showing help
+            pass
     finally:
         sys.argv = original_argv
 
