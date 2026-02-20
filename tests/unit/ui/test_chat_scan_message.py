@@ -70,7 +70,6 @@ class TestChatScanMessagePersistence:
         # Arrange
         from opendata.ui.components.chat import handle_scan_only
         import asyncio
-        import threading
 
         ScanState.is_scanning = True
 
