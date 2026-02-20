@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.21] - 2026-02-20
+### Fixed
+- **UI**: Fixed a bug where the inventory window state was not updating after a scan triggered from the Analysis/Chat panel.
+- **UI**: Removed broken experimental AI scan function that was causing LSP errors.
+
+### Changed
+- **UI**: Optimized inventory refresh logic by consolidating `load_inventory_background` calls.
+
 ## [0.22.20] - 2026-02-20
 ### Added
 - **CLI**: Added `--version` argument to display the application version and exit.
