@@ -42,7 +42,7 @@ def test_version_argument(capsys) -> None:
         sys.argv = original_argv
 
 
-def test_help_argument(capsys) -> None:
+def test_help_argument() -> None:
     """Test that --help argument displays help and exits."""
     from opendata.main import main
     import sys
