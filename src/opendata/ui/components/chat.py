@@ -265,9 +265,15 @@ async def handle_scan_only(ctx: AppContext, path: str):
         if ScanState.stop_event and ScanState.stop_event.is_set():
             ctx.agent.chat_history.append(("agent", f"🛑 **{result}**"))
         else:
+            # Add scan statistics to chat history
+            ctx.agent.chat_history.append(("agent", f"✅ **{result}**"))
             ui.notify(_("Inventory refreshed."), type="positive")
+        # Persist the updated chat history so the scan result message survives reloads
+        ctx.agent.save_state()
     except asyncio.CancelledError:
         logger.info("Scan cancelled by user.")
+        ctx.agent.chat_history.append(("agent", f"🛑 **{_('Scan cancelled.')}**"))
+        ctx.agent.save_state()
     except Exception as e:
         ui.notify(f"Scan error: {e}", type="negative")
     finally:
