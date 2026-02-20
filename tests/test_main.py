@@ -86,7 +86,7 @@ def test_version_displays_correct_value(capsys) -> None:
         output = f.getvalue().strip()
 
         # Verify version number is in output (not 0.0.0)
-        assert expected_version.split(".")[0] != "0" or expected_version != "0.0.0", (
+        assert any(c != "0" for c in expected_version.split(".")), (
             "Version should not be default 0.0.0"
         )
         assert expected_version in output, (
