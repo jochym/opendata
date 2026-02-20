@@ -1,3 +1,6 @@
+import pytest
+
+
 def test_ui_import() -> None:
     """Ensure the UI components are importable."""
     from opendata.ui.app import start_ui
@@ -25,11 +28,10 @@ def test_version_argument(capsys) -> None:
         # Test --version flag
         sys.argv = ["opendata", "--version"]
 
-        # --version calls sys.exit(), so we expect SystemExit
-        try:
+        # --version must raise SystemExit with code 0
+        with pytest.raises(SystemExit) as exc_info:
             main()
-        except SystemExit as e:
-            assert e.code == 0 or e.code is None
+        assert exc_info.value.code == 0 or exc_info.value.code is None
 
         # Verify the actual version string is present in the output
         captured = capsys.readouterr()
@@ -78,11 +80,10 @@ def test_version_displays_correct_value(capsys) -> None:
         # Test --version flag
         sys.argv = ["opendata", "--version"]
 
-        try:
+        # --version must raise SystemExit with code 0
+        with pytest.raises(SystemExit) as exc_info:
             main()
-        except SystemExit as e:
-            # --version exits with code 0
-            assert e.code == 0 or e.code is None
+        assert exc_info.value.code == 0 or exc_info.value.code is None
 
         output = capsys.readouterr().out.strip()
 
