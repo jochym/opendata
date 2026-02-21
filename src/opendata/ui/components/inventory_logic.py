@@ -179,10 +179,12 @@ async def load_inventory_background(ctx: AppContext):
 
         ctx.session.last_inventory_project = ctx.agent.project_id
 
-        # Always refresh preview and package (if initialized)
+        # Always refresh preview, package and chat components (if initialized)
         try:
             ctx.refresh("preview")
             ctx.refresh("package")
+            ctx.refresh("significant_files_editor")
+            ctx.refresh("inventory_selector")
         except RuntimeError:
             pass
         logger.info(f"Inventory load complete for {ctx.agent.project_id}")

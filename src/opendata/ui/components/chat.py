@@ -293,7 +293,7 @@ async def handle_scan_only(ctx: AppContext, path: str):
                 "- **Total files:** {count}\n"
                 "- **Total size:** {size}\n\n"
                 "**What now?**\n"
-                "1. Select **Significant Files** using the explorer below to provide context.\n"
+                "1. Select **Significant Files** in the section below to provide context.\n"
                 "2. You can adjust exclusions in the **Protocols** tab.\n"
                 "3. Click **AI Analyze** to generate metadata."
             ).format(
@@ -306,11 +306,12 @@ async def handle_scan_only(ctx: AppContext, path: str):
             except Exception:
                 pass
 
+        # Refresh the UI inventory cache and stats
+        # This will trigger targeted refreshes via inventory_logic.py
+        await load_inventory_background(ctx)
+
         # Persist the updated chat history
         ctx.agent.save_state()
-
-        # Refresh the UI inventory cache and stats
-        await load_inventory_background(ctx)
 
     except asyncio.CancelledError:
         logger.info("Scan cancelled by user.")
@@ -331,27 +332,60 @@ async def handle_scan_only(ctx: AppContext, path: str):
             pass
 
 
+async def handle_ai_analysis(ctx: AppContext, path: str):
+    if not ctx.agent.project_id:
+        ui.notify(_("Please open a project first."), type="warning")
+        return
+
+    ScanState.is_processing_ai = True
+    ctx.session.ai_stop_event = threading.Event()
+    ctx.refresh("chat")
+
+    try:
+        await asyncio.to_thread(
+            ctx.agent.run_ai_analysis_phase,
+            ctx.ai,
+            None,  # progress_callback
+            ctx.session.ai_stop_event,
+        )
+        ui.notify(_("AI analysis phase complete."), type="positive")
+        await load_inventory_background(ctx)
+    except asyncio.CancelledError:
+        logger.info("AI analysis cancelled by user.")
+    except Exception as e:
+        logger.error(f"AI analysis failed: {e}", exc_info=True)
+        ui.notify(f"AI analysis error: {e}", type="negative")
+    finally:
+        ScanState.is_processing_ai = False
+        ctx.session.ai_stop_event = None
+        ctx.refresh_all()
+
+
 @ui.refreshable
 def render_significant_files_editor(ctx: AppContext):
     """Editor for significant files and their roles."""
-    if not ctx.agent.current_fingerprint:
-        return
-
-    suggestions = (
-        ctx.agent.current_analysis.file_suggestions
-        if ctx.agent.current_analysis
-        else []
-    )
-
+    # Always show the header and container
     with ui.column().classes("w-full gap-2 mt-4"):
         with ui.row().classes("w-full items-center justify-between"):
             ui.label(_("Significant Files")).classes("text-sm font-bold text-slate-700")
+
+            suggestions = (
+                ctx.agent.current_analysis.file_suggestions
+                if ctx.agent.current_analysis
+                else []
+            )
             ui.badge(str(len(suggestions)), color="blue").props("dense")
 
+        if not ctx.agent.current_fingerprint:
+            ui.label(_("Please scan the project to select files.")).classes(
+                "text-xs text-slate-400 italic"
+            )
+            return
+
         if not suggestions:
-            ui.label(
-                _("No files selected. Use the explorer below to add files.")
-            ).classes("text-xs text-slate-500 italic")
+            ui.label(_("No files selected. Use the explorer below.")).classes(
+                "text-xs text-slate-500 italic"
+            )
 
         CATEGORIES = {
             "main_article": _("Article"),
@@ -361,7 +395,6 @@ def render_significant_files_editor(ctx: AppContext):
             "other": _("Other"),
         }
 
-        # Mapping reason back to category key
         REASON_MAP = {
             _("Main article/paper"): "main_article",
             _("Visualization scripts"): "visualization_scripts",
@@ -381,42 +414,59 @@ def render_significant_files_editor(ctx: AppContext):
                         current_cat = cat
                         break
 
+                # Capture path for select change
+                def make_select_handler(p):
+                    return lambda e: (
+                        ctx.agent.update_file_role(p, e.value),
+                        ctx.refresh("significant_files_editor"),
+                    )
+
                 ui.select(
                     options=CATEGORIES,
                     value=current_cat,
-                    on_change=lambda e, p=fs.path: (
-                        ctx.agent.update_file_role(p, e.value),
-                        ctx.refresh("significant_files"),
-                    ),
+                    on_change=make_select_handler(fs.path),
                 ).props("dense size=sm flat").classes("w-24 text-[10px]")
 
-                # Path
                 ui.label(fs.path).classes(
                     "flex-grow text-[11px] font-mono truncate cursor-help"
                 ).tooltip(fs.path)
 
-                # Remove button
+                # Capture path for remove click
+                def make_remove_handler(p):
+                    return lambda _: (
+                        ctx.agent.remove_significant_file(p),
+                        ctx.refresh("significant_files_editor"),
+                        ctx.refresh("inventory_selector"),
+                    )
+
                 ui.button(
                     icon="close",
-                    on_click=lambda _, p=fs.path: (
-                        ctx.agent.remove_significant_file(p),
-                        ctx.refresh("significant_files"),
-                        ctx.refresh("inventory_selector"),
-                    ),
+                    on_click=make_remove_handler(fs.path),
                 ).props("flat dense color=red size=sm")
 
 
 @ui.refreshable
 def render_inventory_selector(ctx: AppContext):
     """Scalable explorer-based inventory selector to add files."""
-    if not ctx.session.inventory_cache:
-        return
-
-    current_path = ctx.session.explorer_path
-    children = ctx.session.folder_children_map.get(current_path, [])
-
     with ui.column().classes("w-full mt-4 border rounded overflow-hidden"):
-        # Header / Breadcrumbs
+        ui.label(_("Project Explorer")).classes(
+            "w-full bg-slate-200 p-1 text-[10px] font-bold text-slate-600 uppercase tracking-wider"
+        )
+
+        if not ctx.session.inventory_cache:
+            with ui.column().classes("w-full items-center justify-center p-4"):
+                if ScanState.is_scanning:
+                    ui.spinner(size="sm")
+                else:
+                    ui.label(_("No inventory. Click Scan.")).classes(
+                        "text-xs text-slate-400 italic"
+                    )
+            return
+
+        current_path = ctx.session.explorer_path
+        children = ctx.session.folder_children_map.get(current_path, [])
+
+        # Breadcrumbs
         with ui.row().classes(
             "w-full items-center gap-1 p-1 bg-slate-100 border-b text-[10px]"
         ):
@@ -436,11 +486,15 @@ def render_inventory_selector(ctx: AppContext):
                 if i == len(parts) - 1:
                     ui.label(part).classes("font-bold")
                 else:
-                    ui.button(
-                        part, on_click=lambda _, p=accumulated: navigate_to(ctx, p)
-                    ).props("flat dense no-caps size=xs").classes("p-0 min-h-0")
 
-        # File List (Current Folder Only)
+                    def make_nav(p):
+                        return lambda: navigate_to(ctx, p)
+
+                    ui.button(part, on_click=make_nav(accumulated)).props(
+                        "flat dense no-caps size=xs"
+                    ).classes("p-0 min-h-0")
+
+        # File List
         with ui.scroll_area().classes("h-48 w-full bg-white"):
             with ui.column().classes("w-full gap-0"):
                 if not children:
@@ -458,9 +512,10 @@ def render_inventory_selector(ctx: AppContext):
                         )
                     )
 
+                    # Item row
                     with ui.row().classes(
-                        "w-full items-center gap-1 px-2 py-0.5 hover:bg-blue-50 border-b border-slate-50"
-                    ):
+                        "w-full items-center gap-1 px-2 py-0.5 hover:bg-blue-50 border-b border-slate-50 cursor-pointer"
+                    ) as row:
                         # Icon
                         icon = "folder" if item["type"] == "folder" else "description"
                         color = "amber-400" if item["type"] == "folder" else "slate-400"
@@ -468,21 +523,28 @@ def render_inventory_selector(ctx: AppContext):
 
                         # Name
                         if item["type"] == "folder":
-                            ui.button(
-                                item["name"],
-                                on_click=lambda _, p=item["path"]: navigate_to(ctx, p),
-                            ).props("flat dense no-caps size=sm").classes(
-                                "text-[11px] text-left flex-grow p-0 min-h-0"
+                            ui.label(item["name"]).classes(
+                                "text-[11px] flex-grow py-1 truncate"
                             )
+
+                            # Capture path for folder click
+                            def make_folder_handler(p):
+                                return lambda _: navigate_to(ctx, p)
+
+                            row.on("click", make_folder_handler(item["path"]))
                         else:
+                            # Capture path for file click
+                            def make_file_handler(p):
+                                return lambda _: (
+                                    ctx.agent.add_significant_file(p),
+                                    ctx.refresh("significant_files_editor"),
+                                    ctx.refresh("inventory_selector"),
+                                )
+
                             btn = (
                                 ui.button(
                                     item["name"],
-                                    on_click=lambda _, p=item["path"]: (
-                                        ctx.agent.add_significant_file(p),
-                                        ctx.refresh("significant_files"),
-                                        ctx.refresh("inventory_selector"),
-                                    ),
+                                    on_click=make_file_handler(item["path"]),
                                 )
                                 .props("flat dense no-caps size=sm")
                                 .classes("text-[11px] text-left flex-grow p-0 min-h-0")
@@ -494,6 +556,7 @@ def render_inventory_selector(ctx: AppContext):
 
 def navigate_to(ctx: AppContext, path: str):
     """Updates the explorer path and refreshes the selector."""
+    logger.info(f"Navigating to: {path}")
     ctx.session.explorer_path = path
     ctx.refresh("inventory_selector")
 
