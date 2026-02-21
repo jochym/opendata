@@ -127,6 +127,9 @@ class WorkspaceManager:
 
         # Save Analysis (JSON)
         if analysis:
+            logger.info(
+                f"Saving analysis for {project_id} with {len(analysis.file_suggestions)} suggestions"
+            )
             with open(pdir / "analysis.json", "w", encoding="utf-8") as f:
                 f.write(analysis.model_dump_json(indent=2))
         else:
@@ -173,7 +176,11 @@ class WorkspaceManager:
         if analysis_path.exists():
             try:
                 with open(analysis_path, "r", encoding="utf-8") as f:
-                    analysis = AIAnalysis.model_validate_json(f.read())
+                    data = f.read()
+                    analysis = AIAnalysis.model_validate_json(data)
+                    logger.info(
+                        f"Loaded analysis for {project_id} with {len(analysis.file_suggestions)} suggestions"
+                    )
             except Exception:
                 pass
 

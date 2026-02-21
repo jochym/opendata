@@ -293,13 +293,13 @@ class ProjectAnalysisAgent:
         from opendata.models import FileSuggestion, AIAnalysis
 
         category_labels = {
-            "main_article": _("Main article/paper"),
-            "visualization_scripts": _("Visualization scripts"),
-            "data_files": _("Data files"),
-            "documentation": _("Documentation"),
-            "other": _("Supporting file"),
+            "main_article": "Main article/paper",
+            "visualization_scripts": "Visualization scripts",
+            "data_files": "Data files",
+            "documentation": "Documentation",
+            "other": "Supporting file",
         }
-        reason = category_labels.get(category, _("Supporting file"))
+        reason = category_labels.get(category, "Supporting file")
 
         if not self.current_analysis:
             self.current_analysis = AIAnalysis(summary="Manual selection")

@@ -58,7 +58,7 @@ def chat_messages_ui(ctx: AppContext):
                     ):
                         ui.markdown(text).classes("text-sm text-slate-800")
 
-                        # If this is the last message and there\'s an active analysis form, show it
+                        # If this is the last message and there's an active analysis form, show it
                         if (
                             i == len(ctx.agent.chat_history) - 1
                             and ctx.agent.current_analysis
@@ -389,13 +389,13 @@ def render_significant_files_editor(ctx: AppContext):
         with ui.column().classes("w-full gap-1 p-2"):
             if not ctx.agent.current_fingerprint:
                 ui.label(_("Please scan the project to select files.")).classes(
-                    "text-xs text-slate-400 italic"
+                    "text-sm text-slate-400 italic"
                 )
                 return
 
             if not suggestions:
                 ui.label(_("No files selected. Use the explorer below.")).classes(
-                    "text-xs text-slate-500 italic"
+                    "text-sm text-slate-500 italic"
                 )
 
             CATEGORIES = {
@@ -407,11 +407,11 @@ def render_significant_files_editor(ctx: AppContext):
             }
 
             REASON_MAP = {
-                _("Main article/paper"): "main_article",
-                _("Visualization scripts"): "visualization_scripts",
-                _("Data files"): "data_files",
-                _("Documentation"): "documentation",
-                _("Supporting file"): "other",
+                "Main article/paper": "main_article",
+                "Visualization scripts": "visualization_scripts",
+                "Data files": "data_files",
+                "Documentation": "documentation",
+                "Supporting file": "other",
             }
 
             for fs in suggestions:
@@ -436,10 +436,10 @@ def render_significant_files_editor(ctx: AppContext):
                         options=CATEGORIES,
                         value=current_cat,
                         on_change=make_select_handler(fs.path),
-                    ).props("dense size=sm flat").classes("w-24 text-xs")
+                    ).props("dense size=sm flat").classes("w-24 text-sm")
 
                     ui.label(fs.path).classes(
-                        "flex-grow text-xs font-mono truncate cursor-help"
+                        "flex-grow text-sm font-mono truncate cursor-help"
                     ).tooltip(fs.path)
 
                     # Capture path for remove click
@@ -482,7 +482,7 @@ def render_inventory_selector(ctx: AppContext):
                         ui.spinner(size="sm")
                     else:
                         ui.label(_("No inventory. Click Scan.")).classes(
-                            "text-xs text-slate-400 italic"
+                            "text-sm text-slate-400 italic"
                         )
                 return
 
@@ -518,11 +518,11 @@ def render_inventory_selector(ctx: AppContext):
                         ).classes("p-0 min-h-0")
 
             # File List
-            with ui.scroll_area().classes("h-48 w-full bg-white"):
+            with ui.scroll_area().classes("h-64 w-full bg-white"):
                 with ui.column().classes("w-full gap-0"):
                     if not children:
                         ui.label(_("Folder is empty")).classes(
-                            "text-xs text-slate-400 p-4 text-center"
+                            "text-sm text-slate-400 p-4 text-center"
                         )
 
                     for item in children:
@@ -565,7 +565,7 @@ def render_inventory_selector(ctx: AppContext):
                                 # Capture path for file click
                                 def make_file_handler(p):
                                     return lambda _: (
-                                        ctx.agent.add_significant_file(p),
+                                        ctx.agent.add_significant_file(p, "other"),
                                         ctx.refresh("significant_files_editor"),
                                         ctx.refresh("inventory_selector"),
                                     )
