@@ -152,6 +152,7 @@ async def load_inventory_background(ctx: AppContext):
             ctx.pkg_mgr.get_inventory_for_ui, project_path, manifest, protocol_excludes
         )
 
+        logger.info(f"Inventory retrieved from pkg_mgr: {len(inventory)} items")
         ctx.session.inventory_cache = inventory
 
         # Prepare UI data (summary and explorer index) in background thread

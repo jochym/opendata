@@ -26,7 +26,7 @@ from opendata.agents.tools import handle_external_tools
 from opendata.agents.scanner import ScannerService
 from opendata.agents.persistence import ProjectStateManager
 from opendata.agents.engine import AnalysisEngine
-from opendata.agents.ai_heuristics import AIHeuristicsService
+
 
 logger = logging.getLogger("opendata.agents.project_agent")
 
@@ -64,7 +64,6 @@ class ProjectAnalysisAgent:
         self.scanner = ScannerService(wm)
         self.state_manager = ProjectStateManager(wm)
         self.engine = AnalysisEngine(self.prompt_manager)
-        self.ai_heuristics = AIHeuristicsService(wm)
 
     def _setup_extractors(self):
         from opendata.extractors.latex import LatexExtractor
@@ -234,6 +233,84 @@ class ProjectAnalysisAgent:
             count=self.current_fingerprint.file_count
         )
 
+    def _update_heuristics_state(self):
+        """Internal helper to sync heuristics_run flag and primary file."""
+        if not self.current_fingerprint:
+            return
+
+        # 1. Update heuristics_run flag
+        self.heuristics_run = len(self.current_fingerprint.significant_files) > 0
+
+        # 2. Update primary file if needed
+        if not self.current_fingerprint.primary_file and self.current_analysis:
+            for fs in self.current_analysis.file_suggestions:
+                if "Main article" in fs.reason and fs.path.endswith((".tex", ".docx")):
+                    self.current_fingerprint.primary_file = fs.path
+                    break
+
+    def add_significant_file(self, path: str, category: str = "other"):
+        """Adds a file to significant files with a category."""
+        if not self.current_fingerprint:
+            return
+
+        # Ensure path is relative to root
+        if path not in self.current_fingerprint.significant_files:
+            self.current_fingerprint.significant_files.append(path)
+
+        # Update or create suggestion
+        from opendata.models import FileSuggestion, AIAnalysis
+
+        category_labels = {
+            "main_article": _("Main article/paper"),
+            "visualization_scripts": _("Visualization scripts"),
+            "data_files": _("Data files"),
+            "documentation": _("Documentation"),
+            "other": _("Supporting file"),
+        }
+        reason = category_labels.get(category, _("Supporting file"))
+
+        if not self.current_analysis:
+            self.current_analysis = AIAnalysis(summary="Manual selection")
+
+        # Find existing or add new
+        existing = next(
+            (fs for fs in self.current_analysis.file_suggestions if fs.path == path),
+            None,
+        )
+        if existing:
+            existing.reason = reason
+        else:
+            self.current_analysis.file_suggestions.append(
+                FileSuggestion(path=path, reason=reason)
+            )
+
+        self._update_heuristics_state()
+        self.save_state()
+
+    def remove_significant_file(self, path: str):
+        """Removes a file from significant files."""
+        if not self.current_fingerprint:
+            return
+
+        if path in self.current_fingerprint.significant_files:
+            self.current_fingerprint.significant_files.remove(path)
+
+        if self.current_analysis:
+            self.current_analysis.file_suggestions = [
+                fs for fs in self.current_analysis.file_suggestions if fs.path != path
+            ]
+
+        # Clear primary file if it was the one removed
+        if self.current_fingerprint.primary_file == path:
+            self.current_fingerprint.primary_file = None
+
+        self._update_heuristics_state()
+        self.save_state()
+
+    def update_file_role(self, path: str, category: str):
+        """Updates the role of an existing significant file."""
+        self.add_significant_file(path, category)
+
     def set_significant_files_manual(self, selections: list[dict[str, str]]) -> str:
         """
         User manually selects significant files with categories.
@@ -306,71 +383,6 @@ class ProjectAnalysisAgent:
             msg = _("Cleared all file selections.")
             self.chat_history.append(("agent", msg))
 
-        self.save_state()
-        return msg
-
-    def run_heuristics_phase(
-        self,
-        project_dir: Path,
-        ai_service: Any,
-        progress_callback: Optional[Callable[[str, str, str], None]] = None,
-        stop_event: Optional[Any] = None,
-    ) -> str:
-        """
-        Phase 2: Pure AI-driven identification of significant files.
-        """
-        if not self.current_fingerprint:
-            return _("Error: No inventory found. Please scan the project first.")
-
-        if progress_callback:
-            progress_callback(_("AI is analyzing project structure..."), "", "")
-
-        # 1. AI File Identification
-        significant_files, ai_analysis = self.ai_heuristics.identify_significant_files(
-            self.project_id, ai_service
-        )
-
-        # DEBUG: Log if AI failed
-        if not significant_files:
-            logger.warning(
-                f"AI Heuristics returned no files for project {self.project_id}"
-            )
-            if ai_analysis:
-                logger.debug(f"AI Analysis summary: {ai_analysis.summary}")
-
-        if stop_event and stop_event.is_set():
-            return _("Heuristics analysis cancelled by user.")
-
-        if not significant_files:
-            msg = _("AI failed to identify significant files from the inventory.")
-            self.chat_history.append(("agent", msg))
-            self.save_state()
-            return msg
-
-        self.current_fingerprint.significant_files = significant_files
-        # Update primary file if AI found one
-        for f in significant_files:
-            if f.endswith((".tex", ".docx")):
-                self.current_fingerprint.primary_file = f
-                break
-
-        # 2. Report findings
-        msg = _("### AI Heuristics Analysis\n\n")
-        if ai_analysis:
-            msg += f"{ai_analysis.summary}\n\n"
-
-        msg += _("**Significant Files Identified:**\n")
-        for f in significant_files:
-            p = project_dir / f
-            size = format_size(p.stat().st_size) if p.exists() else "???"
-            msg += f"- `{f}` ({size})\n"
-
-        msg += _(
-            "\n*Ready for deep content analysis. Click **AI Analyze** to proceed.*"
-        )
-
-        self.chat_history.append(("agent", msg))
-        self.heuristics_run = True
         self.save_state()
         return msg
 

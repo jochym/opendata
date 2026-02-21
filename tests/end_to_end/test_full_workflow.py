@@ -206,51 +206,18 @@ def test_e2e_full_extraction_flow(real_project_path, workspace, ai_service):
         f"Effective protocol correctly combined all layers. Files reduced from {initial_file_count} to {physics_file_count}"
     )
 
-    # --- STEP 4: AI HEURISTICS (File Identification) ---
-    logger.info("--- STEP 4: AI HEURISTICS ---")
+    # --- STEP 4: MANUAL FILE SELECTION (Replaces AI Heuristics) ---
+    logger.info("--- STEP 4: MANUAL FILE SELECTION ---")
 
-    # For large real datasets, trim the file list to avoid overwhelming AI
-    # Focus on paper/main.tex and root text/yaml files
-    if real_project_path.name in ["3C-SiC", "fesi"]:
-        logger.info(f"Trimming file list for large dataset: {real_project_path.name}")
-        # Get all files from fingerprint
-        all_files = agent.current_fingerprint.structure_sample
-        # Filter to only paper/main.tex and root .txt/.yaml/.md files
-        trimmed_files = [
-            f
-            for f in all_files
-            if "paper/main.tex" in f
-            or (
-                Path(f).suffix in [".txt", ".yaml", ".yml", ".md"]
-                and Path(f).parent == Path(".")
-            )
-        ]
-        # Ensure paper/main.tex is included
-        if not any("paper/main.tex" in f for f in trimmed_files):
-            trimmed_files.append("paper/main.tex")
+    # Simulate user manually selecting files
+    # In a real UI, this would be done via the tree selector
+    agent.add_significant_file("paper/main.tex", "main_article")
+    agent.add_significant_file("OpenData.yaml", "other")
+    agent.add_significant_file("ReadMe.md", "documentation")
 
-        logger.info(
-            f"Trimmed from {len(all_files)} to {len(trimmed_files)} files for AI analysis"
-        )
-        agent.current_fingerprint.structure_sample = trimmed_files
-
-    heuristics_msg = agent.run_heuristics_phase(real_project_path, ai_service)
-    logger.info(f"Heuristics Result: {heuristics_msg}")
-
-    # Verify significant files were found
-    significant = agent.current_fingerprint.significant_files
-    logger.info(f"AI Identified Significant Files: {significant}")
-    assert significant, "No significant files identified by AI."
-
-    # Check for expected files
-    expected_files = ["paper/main.tex", "OpenData.yaml", "ReadMe.md"]
-    found_expected = [
-        f for f in significant if any(f.endswith(exp) for exp in expected_files)
-    ]
-    logger.info(f"Found expected files: {found_expected}")
-    assert len(found_expected) >= 2, (
-        "AI missed critical files (main.tex/OpenData.yaml/ReadMe.md)"
-    )
+    assert agent.heuristics_run is True
+    assert "paper/main.tex" in agent.current_fingerprint.significant_files
+    assert agent.current_fingerprint.primary_file == "paper/main.tex"
 
     # --- STEP 5: AI ANALYSIS (Metadata Extraction) ---
     logger.info("--- STEP 5: AI ANALYSIS ---")
