@@ -38,8 +38,9 @@ def chat_messages_ui(ctx: AppContext):
                         "**To get started:**\n"
                         "1. **Select project directory** and click **Open**.\n"
                         "2. Click **Scan** to index your files.\n"
-                        "3. **Select significant files** (using the tree below) to provide context for the AI.\n"
-                        "4. Click **AI Analyze** to generate draft metadata."
+                        "3. **Select significant files** in the **Significant Files** section below to provide context for the AI.\n"
+                        "4. You can adjust file exclusions in the **Protocols** tab at any time.\n"
+                        "5. Click **AI Analyze** to generate draft metadata."
                     )
                 ).classes("text-sm text-blue-900 text-center")
 
@@ -282,12 +283,24 @@ async def handle_scan_only(ctx: AppContext, path: str):
             ctx.agent.chat_history.append(("agent", f"🛑 **{result}**"))
         else:
             # Add scan statistics and invitation to action
-            ctx.agent.chat_history.append(
-                (
-                    "agent",
-                    f"✅ **{result}**\n\n{_('Inventory refreshed. What now? You can select significant files using the tree below or ask me a question about the project.')}",
-                )
+            from opendata.utils import format_size
+
+            total_size = sum(
+                item.get("size", 0) for item in ctx.session.inventory_cache
             )
+            stats_msg = _(
+                "✅ **Inventory refreshed.**\n\n"
+                "- **Total files:** {count}\n"
+                "- **Total size:** {size}\n\n"
+                "**What now?**\n"
+                "1. Select **Significant Files** using the explorer below to provide context.\n"
+                "2. You can adjust exclusions in the **Protocols** tab.\n"
+                "3. Click **AI Analyze** to generate metadata."
+            ).format(
+                count=len(ctx.session.inventory_cache), size=format_size(total_size)
+            )
+
+            ctx.agent.chat_history.append(("agent", stats_msg))
             try:
                 ui.notify(_("Inventory refreshed."), type="positive")
             except Exception:
@@ -318,6 +331,7 @@ async def handle_scan_only(ctx: AppContext, path: str):
             pass
 
 
+@ui.refreshable
 def render_significant_files_editor(ctx: AppContext):
     """Editor for significant files and their roles."""
     if not ctx.agent.current_fingerprint:
@@ -335,9 +349,9 @@ def render_significant_files_editor(ctx: AppContext):
             ui.badge(str(len(suggestions)), color="blue").props("dense")
 
         if not suggestions:
-            ui.label(_("No files selected. Use the tree below to add files.")).classes(
-                "text-xs text-slate-500 italic"
-            )
+            ui.label(
+                _("No files selected. Use the explorer below to add files.")
+            ).classes("text-xs text-slate-500 italic")
 
         CATEGORIES = {
             "main_article": _("Article"),
@@ -372,7 +386,7 @@ def render_significant_files_editor(ctx: AppContext):
                     value=current_cat,
                     on_change=lambda e, p=fs.path: (
                         ctx.agent.update_file_role(p, e.value),
-                        ctx.refresh_all(),
+                        ctx.refresh("significant_files"),
                     ),
                 ).props("dense size=sm flat").classes("w-24 text-[10px]")
 
@@ -386,37 +400,57 @@ def render_significant_files_editor(ctx: AppContext):
                     icon="close",
                     on_click=lambda _, p=fs.path: (
                         ctx.agent.remove_significant_file(p),
-                        ctx.refresh_all(),
+                        ctx.refresh("significant_files"),
+                        ctx.refresh("inventory_selector"),
                     ),
                 ).props("flat dense color=red size=sm")
 
 
+@ui.refreshable
 def render_inventory_selector(ctx: AppContext):
-    """Simple tree-based inventory selector to add files."""
+    """Scalable explorer-based inventory selector to add files."""
     if not ctx.session.inventory_cache:
         return
 
-    children_map, stats = build_folder_index(ctx.session.inventory_cache)
+    current_path = ctx.session.explorer_path
+    children = ctx.session.folder_children_map.get(current_path, [])
 
-    with (
-        ui.expansion(_("Add Files from Inventory"), icon="add_circle_outline")
-        .classes("w-full text-sm mt-2 border rounded")
-        .props("dense")
-    ):
+    with ui.column().classes("w-full mt-4 border rounded overflow-hidden"):
+        # Header / Breadcrumbs
+        with ui.row().classes(
+            "w-full items-center gap-1 p-1 bg-slate-100 border-b text-[10px]"
+        ):
+            ui.button(icon="home", on_click=lambda: navigate_to(ctx, "")).props(
+                "flat dense round size=xs color=primary"
+            )
 
-        def render_node(parent_path: str):
-            for child in children_map.get(parent_path, []):
-                if child["type"] == "folder":
-                    with (
-                        ui.expansion(child["name"], icon="folder")
-                        .classes("w-full pl-2")
-                        .props("dense")
-                    ):
-                        render_node(child["path"])
+            parts = Path(current_path).parts if current_path else []
+            accumulated = ""
+            for i, part in enumerate(parts):
+                ui.label("/").classes("text-slate-400")
+                if i > 0:
+                    accumulated = str(Path(accumulated) / part)
                 else:
-                    # File
+                    accumulated = part
+
+                if i == len(parts) - 1:
+                    ui.label(part).classes("font-bold")
+                else:
+                    ui.button(
+                        part, on_click=lambda _, p=accumulated: navigate_to(ctx, p)
+                    ).props("flat dense no-caps size=xs").classes("p-0 min-h-0")
+
+        # File List (Current Folder Only)
+        with ui.scroll_area().classes("h-48 w-full bg-white"):
+            with ui.column().classes("w-full gap-0"):
+                if not children:
+                    ui.label(_("Folder is empty")).classes(
+                        "text-xs text-slate-400 p-4 text-center"
+                    )
+
+                for item in children:
                     is_selected = any(
-                        fs.path == child["path"]
+                        fs.path == item["path"]
                         for fs in (
                             ctx.agent.current_analysis.file_suggestions
                             if ctx.agent.current_analysis
@@ -425,29 +459,43 @@ def render_inventory_selector(ctx: AppContext):
                     )
 
                     with ui.row().classes(
-                        "w-full items-center gap-2 pl-4 hover:bg-blue-50"
+                        "w-full items-center gap-1 px-2 py-0.5 hover:bg-blue-50 border-b border-slate-50"
                     ):
-                        ui.icon(
-                            "check_circle" if is_selected else "add",
-                            color="green" if is_selected else "grey",
-                            size="xs",
-                        )
-                        btn = (
-                            ui.button(
-                                child["name"],
-                                on_click=lambda _, p=child["path"]: (
-                                    ctx.agent.add_significant_file(p),
-                                    ctx.refresh_all(),
-                                ),
-                            )
-                            .props("flat dense no-caps")
-                            .classes("text-[11px] font-mono text-left flex-grow")
-                        )
-                        if is_selected:
-                            btn.disable()
+                        # Icon
+                        icon = "folder" if item["type"] == "folder" else "description"
+                        color = "amber-400" if item["type"] == "folder" else "slate-400"
+                        ui.icon(icon, color=color, size="xs")
 
-        with ui.column().classes("w-full gap-0 p-1"):
-            render_node("")
+                        # Name
+                        if item["type"] == "folder":
+                            ui.button(
+                                item["name"],
+                                on_click=lambda _, p=item["path"]: navigate_to(ctx, p),
+                            ).props("flat dense no-caps size=sm").classes(
+                                "text-[11px] text-left flex-grow p-0 min-h-0"
+                            )
+                        else:
+                            btn = (
+                                ui.button(
+                                    item["name"],
+                                    on_click=lambda _, p=item["path"]: (
+                                        ctx.agent.add_significant_file(p),
+                                        ctx.refresh("significant_files"),
+                                        ctx.refresh("inventory_selector"),
+                                    ),
+                                )
+                                .props("flat dense no-caps size=sm")
+                                .classes("text-[11px] text-left flex-grow p-0 min-h-0")
+                            )
+                            if is_selected:
+                                btn.disable()
+                                ui.icon("check", color="green", size="xs")
+
+
+def navigate_to(ctx: AppContext, path: str):
+    """Updates the explorer path and refreshes the selector."""
+    ctx.session.explorer_path = path
+    ctx.refresh("inventory_selector")
 
 
 def render_metadata_panel(ctx: AppContext):
@@ -523,8 +571,9 @@ def render_metadata_panel(ctx: AppContext):
                 )
 
             # Significant Files Editor & Selector
-            render_significant_files_editor(ctx)
-            render_inventory_selector(ctx)
+            with ui.column().classes("w-full shrink-0"):
+                render_significant_files_editor(ctx)
+                render_inventory_selector(ctx)
 
             ui.button(
                 _("Cancel"),
