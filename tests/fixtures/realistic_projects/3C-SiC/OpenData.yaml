@@ -1,0 +1,70 @@
+title:
+  - Thermal conductivity of 3C-SiC from configuration space sampling
+short_title:
+  - 3C-SiC thermal conductivity
+
+authors:
+  - name: &AUTHOR Paweł T. Jochym
+    id: jochym
+    affiliations:
+      - &IFJ Institute of Nuclear Physics, Polish Academy of Sciences, Cracow, Poland
+    corresponding: true
+    email: &EMAIL pawel.jochym@ifj.edu.pl
+
+  - name: Jan Łażewski
+    id: lazewski
+    affiliations:
+      - *IFJ
+
+contributors:
+  - name: Krzysztof Parlinski
+  - name: Przemysław Piekarz
+  - name: Andrzej M. Oleś
+  - name: Małgorzata Sternik
+
+summary: >
+  This dataset contains calculations of thermal conductivity of
+  cubic SiC using ab-initio DFT force calculations, HECSS sampling
+  of thermodynamic ensamble and ALAMODE fitted interaction model.
+
+abstract: >
+  Cubic silicon carbide phonon thermal conductivity has been 
+  calculated using anharmonic phonon analysis. The atomic 
+  interaction model was built using displacement-force data 
+  generated with High Efficiency Configuration Space Sampling 
+  (HECSS) technique and density functional theory calculated forces.
+
+keywords:
+  - HECSS
+  - Thermal conductivity
+  - DFT
+  
+datatype: DFT/phonon calculations  # The general type of data in the dataset
+
+language: english  # language of the dataset
+
+# Domain-specific categories corresponding to the thematic datasets
+branch:
+  MNiSW: physics  # MNiSW (Ministry of Science and Higher Education)
+  OECD: physics   # OECD (Organisation for Economic Cooperation and Development)
+
+funding:  # List of founding agencies and grants
+  - name: National Science Centre (NCN, Poland)
+    number: UMO-2014/13/B/ST3/04393
+
+# The person (Family Name, Given Name) or the name
+# of the organization that deposited this dataset to the repository
+depositor: *AUTHOR  # Here we use the name of the designated author
+contact: *EMAIL  # Contact person - again re-use the e-mail of the first author
+
+submitted: 2024-12-31  # Date of the submission of the dataset
+issued: 2025-XX-XX  # Publication date
+version: 1  # Revision of the dataset
+embargo: 2025-12-31  # Date when embargo on data ends
+
+license: CC-by-SA 3.0  # Example, but recommended license
+
+folders:
+  - data
+  - analysis
+  - paper

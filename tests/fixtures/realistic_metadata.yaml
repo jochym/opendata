@@ -1,0 +1,100 @@
+projects:
+  "3C-SiC":
+    title: "Thermal conductivity of 3C-SiC from configuration space sampling"
+    authors:
+      - name: "Jochym, Paweł T."
+        affiliation: "Institute of Nuclear Physics, Polish Academy of Sciences, Krakow, Poland"
+        identifier_scheme: "ORCID"
+        identifier: "0000-0003-0427-7333"
+      - name: "Łażewski, Jan"
+        affiliation: "Institute of Nuclear Physics, Polish Academy of Sciences, Krakow, Poland"
+        identifier_scheme: "ORCID"
+        identifier: "0000-0002-7585-8875"
+    contacts:
+      - person_to_contact: "Paweł T. Jochym"
+        email: "pawel.jochym@ifj.edu.pl"
+        affiliation: "IFJ PAN"
+    abstract: |
+      We present a first-principles study of the lattice thermal conductivity ($\kappa$) of cubic silicon carbide (3C-SiC) calculated via the solution of the Boltzmann transport equation (BTE). The interatomic force constants (IFCs) up to fourth order were derived using displacement-force relations, obtained from configurations sampled from the thermal equilibrium distribution with an improved High Efficiency Configuration Space Sampling (HECSS) method. Our results demonstrate that third-order anharmonic effects play a crucial role in determining phonon lifetimes and heat transport. The calculated $\kappa$ shows good agreement with available experimental data above 120 K, confirming the reliability of the presented approach.
+    description:
+      - "A comprehensive study of lattice thermal conductivity in cubic silicon carbide (3C-SiC) using first-principles calculations."
+      - "The research employs an improved High Efficiency Configuration Space Sampling (HECSS) method to derive interatomic force constants up to the fourth order."
+      - "The study analyzes the influence of grain size on low-temperature thermal transport and establishes a reliable theoretical benchmark for thermal properties in 3C-SiC."
+    keywords:
+      - "3C-SiC"
+      - "thermal conductivity"
+      - "HECSS"
+      - "DFT"
+      - "Boltzmann transport equation"
+      - "interatomic force constants"
+      - "anharmonicity"
+      - "wide-bandgap semiconductor"
+    science_branches_mnisw: ["nauki fizyczne"]
+    science_branches_oecd: ["Physical sciences"]
+    software: ["VASP", "Alamode", "Phono3Py"]
+    funding:
+      - agency: "National Science Centre (NCN, Poland)"
+        grant_id: "UMO-2014/13/B/ST3/04393"
+    related_publications:
+      - title: "Thermal conductivity of 3C-SiC from configuration space sampling"
+        relation_type: "isSupplementTo"
+        id_type: "DOI"
+        id_number: "10.48550/arXiv.2501.11019"
+    kind_of_data: "Simulation / Theoretical"
+    license: "CC-BY-4.0"
+
+  "FeSi":
+    title: "Ab initio study of the anharmonic properties and thermal conductivity in beta-FeSi2"
+    authors:
+      - name: "Pastukh, Svitlana"
+        affiliation: "IFJ PAN, Krakow, Poland"
+      - name: "Sternik, Małgorzata"
+        affiliation: "IFJ PAN, Krakow, Poland"
+        identifier_scheme: "ORCID"
+        identifier: "0000-0003-3162-3151"
+      - name: "Jochym, Paweł T."
+        affiliation: "IFJ PAN, Krakow, Poland"
+        identifier_scheme: "ORCID"
+        identifier: "0000-0003-0427-7333"
+      - name: "Łażewski, Jan"
+        affiliation: "IFJ PAN, Krakow, Poland"
+        identifier_scheme: "ORCID"
+        identifier: "0000-0002-7585-8875"
+      - name: "Ptok, Andrzej"
+        affiliation: "IFJ PAN, Krakow, Poland"
+        identifier_scheme: "ORCID"
+        identifier: "0000-0002-5566-2656"
+      - name: "Stankov, Svetoslav"
+        affiliation: "Karlsruhe Institute of Technology, Germany"
+      - name: "Piekarz, Przemysław"
+        affiliation: "IFJ PAN, Krakow, Poland"
+        identifier_scheme: "ORCID"
+        identifier: "0000-0002-7033-0248"
+    contacts:
+      - person_to_contact: "Svitlana Pastukh"
+      - email: "svitlana.pastukh@ifj.edu.pl"
+      - affiliation: "IFJ PAN"
+    abstract: |
+      Lattice dynamical properties and thermal conductivity in the $\beta$-FeSi$_2$ semiconductor are investigated with the first-principles computational methods. Phonon dispersion relations are calculated via the temperature-dependent effective potential method and self-consistent phonon theory. To properly model thermal transport, we explicitly consider the impact of phonon-phonon interactions by analyzing anharmonic contributions to the phonon self-energy. This yields temperature-dependent phonon frequencies and linewidths, reflecting the finite lifetime of phonons due to scattering processes. The lattice thermal conductivity is then obtained as a function of temperature and crystallite size within the relaxation-time approximation.
+    description:
+      - "Investigation of lattice dynamical properties and thermal conductivity of $\beta$-FeSi$_2$ using DFT calculations."
+      - "The study focuses on anharmonic effects, specifically temperature-dependent phonon frequencies and lifetimes, comparing theoretical Raman spectra with experimental data."
+      - "Thermal conductivity is derived across a broad temperature range, analyzing the significant impact of crystallite size and grain boundaries on heat transport."
+    keywords:
+      - "Iron silicides"
+      - "beta-FeSi2"
+      - "thermal conductivity"
+      - "anharmonic properties"
+      - "DFT"
+      - "TDEP"
+      - "HECSS"
+      - "Raman spectra"
+      - "orthorhombic structure"
+    science_branches_mnisw: ["nauki fizyczne"]
+    science_branches_oecd: ["Physical sciences"]
+    software: ["VASP", "Alamode", "Phono3Py", "Phonopy-Spectroscopy", "Vesta"]
+    funding:
+      - agency: "Ministry of Education, Youth and Sports of the Czech Republic"
+        grant_id: "e-INFRA CZ ID:90254"
+    kind_of_data: "Simulation"
+    license: "CC-BY-4.0"

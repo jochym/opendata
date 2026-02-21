@@ -1,0 +1,257 @@
+project:
+  title: "Ab initio study of the anharmonic properties and thermal conductivity in β-FeSi2"
+  short_title: "FeSi2 systems"
+  description: >
+    Iron silicides are good candidates for applications in optoelectronic and
+    thermoelectric devices. Lattice dynamical properties and thermal
+    conductivity in the β-FeSi2 semiconductor are investigated with the
+    first-principles computational methods. Phonon dispersion relations are
+    calculated via the temperature-dependent effective potential method and
+    self-consistent phonon theory. To properly model thermal transport, we
+    explicitly consider the impact of phonon-phonon interactions by analyzing
+    anharmonic contributions to the phonon self-energy. This yields
+    temperature-dependent phonon frequencies and linewidths, reflecting the
+    finite lifetime of phonons due to scattering processes. The calculated
+    phonon frequencies and line profiles are used to obtain the Raman spectra,
+    which shows good agreement with the experimental data. We revealed an
+    enhanced anharmonic behaviour of the Raman modes with the highest
+    frequencies. The lattice thermal conductivity is then obtained as a
+    function of temperature and crystallite size within the relaxation-time
+    approximation. Phonon transport shows a small anisotropy due to the
+    orthorhombic structure, and its temperature dependence corresponds very
+    well to the experimental results.
+  keywords:
+    - "FeSi2"
+    - "anharmonicity"
+    - "thermal conductivity"
+    - "phonons"
+    - "DFT"
+    - "ab initio"
+    - "Raman spectra"
+    - "thermoelectric materials"
+    - "Computational Materials Science"
+    - "Condensed Matter Physics"
+  authors:
+    - name: "Svitlana Pastukh"
+      orcid: "0000-0003-0273-2726"
+      id: "pastukh"
+      affiliations:
+        - "Institute of Nuclear Physics, Polish Academy of Sciences, ul. W. E. Radzikowskiego 152, 31-342 Kraków, Poland"
+      corresponding: true
+      email: "svitlana.pastukh@ifj.edu.pl"
+    - name: "Małgorzata Sternik"
+      orcid: "0000-0001-5419-9519"
+      id: "sternik"
+      affiliations:
+        - "Institute of Nuclear Physics, Polish Academy of Sciences, ul. W. E. Radzikowskiego 152, 31-342 Kraków, Poland"
+      corresponding: false
+      email: ""
+    - name: "Paweł T. Jochym"
+      orcid: "0000-0003-0427-7333"
+      id: "jochym"
+      affiliations:
+        - "Institute of Nuclear Physics, Polish Academy of Sciences, ul. W. E. Radzikowskiego 152, 31-342 Kraków, Poland"
+      corresponding: false
+      email: ""
+    - name: "Jan Łażewski"
+      orcid: "0000-0002-7585-8875"
+      id: "lazewski"
+      affiliations:
+        - "Institute of Nuclear Physics, Polish Academy of Sciences, ul. W. E. Radzikowskiego 152, 31-342 Kraków, Poland"
+      corresponding: false
+      email: ""
+    - name: "Andrzej Ptok"
+      orcid: "0000-0002-5566-2656"
+      id: "ptok"
+      affiliations:
+        - "Institute of Nuclear Physics, Polish Academy of Sciences, ul. W. E. Radzikowskiego 152, 31-342 Kraków, Poland"
+      corresponding: false
+      email: ""
+    - name: "Svetoslav Stankov"
+      orcid: "0000-0002-8097-0327"
+      id: "stankov"
+      affiliations:
+        - "Institute for Photon Science and Synchrotron Radiation, Karlsruhe Institute of Technology, D-76131 Karlsruhe, Germany"
+        - "Laboratory for Applications of Synchrotron Radiation, Karlsruhe Institute of Technology, D-76131 Karlsruhe, Germany"
+      corresponding: false
+      email: ""
+    - name: "Przemysław Piekarz"
+      orcid: "0000-0001-6339-2986"
+      id: "piekarz"
+      affiliations:
+        - "Institute of Nuclear Physics, Polish Academy of Sciences, ul. W. E. Radzikowskiego 152, 31-342 Kraków, Poland"
+      corresponding: false
+      email: ""
+  contributors: [] # TODO: Add other contributors if applicable
+  publication:
+    arxiv_id: "" # TODO: Add arXiv ID if available
+    arxiv_url: "" # TODO: Add arXiv URL if available
+    doi: "" # TODO: Add DOI if available
+    publication_date: "" # TODO: Add publication date if available
+    journal: "Physical Review B" # Inferred from cover_letter.txt
+    publisher: "American Physical Society" # Inferred from cover_letter.txt
+
+data_description:
+  datatype: "Computational and Experimental Data"
+  data_types:
+    - "Raw Data"
+    - "Processed Data"
+    - "Analysis Scripts"
+    - "Figures"
+    - "Source Code"
+  data_locations:
+    - path: "analysis/"
+      description: >
+        Jupyter notebooks and Python scripts for post-processing and
+        visualization of computational results. This includes plotting phonon
+        dispersion curves, phonon density of states (total and projected),
+        thermal conductivity (anisotropic and size-dependent), and analyzing
+        phonon lifetimes and eigenvectors.
+      expected_formats:
+        - "application/x-ipynb+json"
+        - "text/x-python"
+      file_count: 59 # Inferred from previous glob output
+      size_mb: 0.0 # TODO: Calculate actual size
+    - path: "data/"
+      description: >
+        Contains raw and processed computational data, as well as experimental
+        data. Computational Data (data/Fe3Si/DFSET/ and subdirectories):
+        Includes force constant files (.fcs), phonon band structures (.bands),
+        phonon density of states (.dos), thermal properties (.thermo), and
+        intermediate calculation outputs (e.g., .kl files for thermal
+        conductivity components, .yaml files for phonon data). These are
+        derived from first-principles calculations. Experimental Data
+        (data/exp_data/): Contains measured thermal conductivity and heat
+        capacity data from various experimental studies, typically in plain
+        text format.
+      expected_formats:
+        - "text/plain"
+        - "application/x-yaml"
+        - "application/x-ipynb+json"
+        - "application/octet-stream"
+      file_count: 14 # Inferred from previous glob output for exp_data, need to sum up others
+      size_mb: 0.0 # TODO: Calculate actual size
+    - path: "lib/"
+      description: >
+        External software library used for specific spectroscopic analysis
+        (Phonopy-Spectroscopy).
+      expected_formats:
+        - "application/octet-stream"
+      file_count: 317 # Inferred from previous glob output
+      size_mb: 0.0 # TODO: Calculate actual size
+    - path: "paper/"
+      description: >
+        LaTeX source files, figures, and related documents for the scientific
+        publication. Includes main manuscript, bibliography files, and
+        generated PDF figures.
+      expected_formats:
+        - "application/x-tex"
+        - "application/pdf"
+        - "text/plain"
+        - "application/x-bibtex"
+        - "application/x-sh"
+      file_count: 24 # Inferred from previous glob output (5 tex + 2 bib + 15 pdf + 1 sh + 1 txt)
+      size_mb: 0.0 # TODO: Calculate actual size
+  data_processing_scripts:
+    - path: "analysis/"
+      description: >
+        Jupyter notebooks and Python scripts for data analysis and
+        visualization.
+      runtime_requirements: "Python 3.x with NumPy, Matplotlib, SciPy, ASE, Spglib, Alamode, HECSS, Phonopy-Spectroscopy."
+
+software_and_tools:
+  programming_languages:
+    - "Python"
+    - "LaTeX"
+    - "Shell Script"
+  libraries_and_frameworks:
+    - "NumPy" # Latest stable version
+    - "Matplotlib" # Latest stable version
+    - "SciPy" # Latest stable version
+    - "ASE" # Latest stable version
+    - "Spglib" # Latest stable version
+  scientific_software:
+    - name: "VASP"
+      version: "TODO: Specify version used"
+      description: >
+        Vienna Ab initio Simulation Package for first-principles calculations.
+    - name: "Alamode"
+      version: "TODO: Specify version used (e.g., 1.2)"
+      description: >
+        Software for calculating interatomic force constants and phonon
+        frequencies.
+    - name: "HECSS"
+      version: "TODO: Specify version used"
+      description: >
+        High Efficiency Configuration Space Sampling for generating atomic
+        displacements.
+    - name: "Phonopy-Spectroscopy"
+      version: "TODO: Specify version used"
+      description: >
+        Package for investigating Raman-active scattering.
+  other_tools:
+    - name: "Vesta"
+      version: "TODO: Specify version used"
+      description: >
+        Software for three-dimensional visualization of crystal structures
+        (used for figures).
+  environments: [] # TODO: Add specific environments if applicable (e.g., Conda, Docker)
+
+licensing:
+  license_type: "CC BY 4.0"
+  license_url: "https://creativecommons.org/licenses/by/4.0/"
+  rights_holder: "Svitlana Pastukh et al." # TODO: Confirm rights holder
+
+repository_info:
+  github_url: "" # TODO: Add GitHub repository URL if applicable
+  last_update: "2025-07-10"
+  file_count: 0 # TODO: Calculate total file count
+  directory_count: 0 # TODO: Calculate total directory count
+  root_files:
+    - "OpenData.yaml"
+    - "ReadMe.md"
+    - "Comments.md"
+  language: "en"
+
+dataset_metadata:
+  language: "en"
+  branch:
+    MNiSW: "" # TODO: Add MNiSW branch if applicable
+    OECD: "" # TODO: Add OECD branch if applicable
+  funding:
+    - name: "Ministry of Education, Youth and Sports of the Czech Republic"
+      number: "ID:90254"
+      program: "e-INFRA CZ" # Inferred from previous metadata
+  depositor: "" # TODO: Add depositor name
+  contact: "svitlana.pastukh@ifj.edu.pl"
+  submitted: "" # TODO: Add submission date if applicable
+  issued: "" # TODO: Add issue date if applicable
+  version: "1.0"
+  embargo: "" # Optional: Add embargo details if applicable
+  access_rights: "open"
+  license_spdx: "CC-BY-4.0"
+  folders:
+    - "data"
+    - "analysis"
+    - "lib"
+    - "paper"
+
+infrastructure:
+  host_institution: "Institute of Nuclear Physics, Polish Academy of Sciences"
+  rodbuk_node: "" # TODO: Add RODBUK node name if applicable
+  doi_request: true
+  metadata_standard:
+    - "Dublin Core"
+    - "DataCite"
+    - "OpenAIRE" # Added based on common practice for open science
+
+provenance:
+  created_by: "Gemini CLI Agent"
+  created_on: "2025-07-10"
+  modified_by: "Gemini CLI Agent"
+  modified_on: "2025-07-10"
+
+validation:
+  validated_by: "" # TODO: Add validator name if applicable
+  validation_date: "" # TODO: Add validation date if applicable
+  checksum: "" # TODO: Add checksum if applicable

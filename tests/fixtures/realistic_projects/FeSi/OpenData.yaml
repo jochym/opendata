@@ -1,0 +1,31 @@
+title:
+  - Properties of the FeSi2 system
+short_title:
+  - FeSi2 systems
+authors:
+  - name: Svitlana Pastukh
+    id: pastukh
+    affiliations:
+      - Institute of Nuclear Physics, Polish Academy of Sciences, Cracow, Poland  
+    corresponding: true
+    email: svitlana.pastukh@ifj.edu.pl
+  - name: Przemysław Piekarz
+    id: piekarz
+    affiliations:
+      - Institute of Nuclear Physics, Polish Academy of Sciences, Cracow, Poland
+  - name: Paweł T. Jochym
+    id: jochym
+    affiliations:
+      - Institute of Nuclear Physics, Polish Academy of Sciences, Cracow, Poland
+  - name: Jan Łażewski
+    id: lazewski
+    affiliations:
+      - Institute of Nuclear Physics, Polish Academy of Sciences, Cracow, Poland
+  - name: Małgorzata Sternik
+    id: sternik
+    affiliations:
+      - Institute of Nuclear Physics, Polish Academy of Sciences, Cracow, Poland
+bibliography:
+  - refs.bib
+keywords:
+  - DFT
