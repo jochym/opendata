@@ -63,7 +63,7 @@ class TestChatScanMessagePersistence:
         assert message_role == "agent"
         assert "✅" in message_content
         assert "Inventory refreshed" in message_content
-        assert "5 files" in message_content
+        assert "Total files:" in message_content
         mock_context.agent.save_state.assert_called_once()
         mock_load_inventory.assert_called_once_with(mock_context)
 
