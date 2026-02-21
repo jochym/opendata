@@ -552,12 +552,21 @@ def open_file_selection_dialog(ctx: AppContext):
         ui.notify(_("Please scan the project first."), type="warning")
         return
 
+    # Ensure inventory is loaded before opening dialog
+    if not ctx.session.inventory_cache:
+        # Trigger background load if not already loading
+        if not ctx.session.inventory_lock:
+            from opendata.ui.components.inventory_logic import load_inventory_background
+            import asyncio
+
+            # Schedule inventory load
+            asyncio.create_task(load_inventory_background(ctx))
+
+        ui.notify(_("Loading inventory... Please try again in a moment."), type="info")
+        return
+
     # Get all files from inventory (use session cache)
-    inventory = (
-        ctx.session.inventory_cache
-        if hasattr(ctx, "session") and ctx.session.inventory_cache
-        else []
-    )
+    inventory = ctx.session.inventory_cache
 
     # Category options
     CATEGORIES = {
