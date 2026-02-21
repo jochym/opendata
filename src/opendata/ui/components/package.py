@@ -114,15 +114,18 @@ def render_package_tab(ctx: AppContext):
         included_count = ctx.session.total_files_count
         total_count = ctx.session.inventory_total_count
         total_size = ctx.session.total_files_size
+        project_total_size = ctx.session.inventory_total_size
 
         with ui.row().classes(
             "w-full gap-8 p-3 bg-slate-50 rounded-lg border items-center"
         ):
             with ui.row().classes("items-center gap-2"):
                 ui.icon("inventory", color="slate-500", size="sm")
-                ui.label(_("Total: {count} files").format(count=total_count)).classes(
-                    "font-medium text-slate-600"
-                )
+                ui.label(
+                    _("Total: {count} files ({size})").format(
+                        count=total_count, size=format_size(project_total_size)
+                    )
+                ).classes("font-medium text-slate-600")
 
             with ui.row().classes("items-center gap-2"):
                 ui.icon("check_circle", color="primary", size="sm")

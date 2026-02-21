@@ -17,6 +17,8 @@ def agent(tmp_path):
         total_size_bytes=1000,
         extensions=[".txt", ".py"],
         structure_sample=["foo.txt", "src/bar.py"],
+        primary_file=None,
+        significant_files=[],
     )
     # Create dummy files
     (tmp_path / "foo.txt").write_text("content of foo")

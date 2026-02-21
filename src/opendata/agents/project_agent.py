@@ -174,11 +174,15 @@ class ProjectAnalysisAgent:
         # No user selection = no field protocol
         return None
 
-    def set_field_protocol(self, field_name: str):
+    def set_field_protocol(self, field_name: Any):
         """User explicitly selects a field protocol."""
+        # Handle NiceGUI dict value if necessary
+        if isinstance(field_name, dict):
+            field_name = field_name.get("label", field_name.get("value", ""))
+
         if self.project_id:
             config = self.wm.load_project_config(self.project_id)
-            config["field_name"] = field_name
+            config["field_name"] = str(field_name)
             self.wm.save_project_config(self.project_id, config)
             logger.info(f"Field protocol set to: {field_name}")
 

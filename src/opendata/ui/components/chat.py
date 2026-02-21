@@ -363,195 +363,224 @@ async def handle_ai_analysis(ctx: AppContext, path: str):
 
 @ui.refreshable
 def render_significant_files_editor(ctx: AppContext):
-    """Editor for significant files and their roles."""
-    # Always show the header and container
-    with ui.column().classes("w-full gap-2 mt-4"):
-        with ui.row().classes("w-full items-center justify-between"):
-            ui.label(_("Significant Files")).classes("text-sm font-bold text-slate-700")
+    """Collapsible editor for significant files and their roles."""
+    suggestions = (
+        ctx.agent.current_analysis.file_suggestions
+        if ctx.agent.current_analysis
+        else []
+    )
 
-            suggestions = (
-                ctx.agent.current_analysis.file_suggestions
-                if ctx.agent.current_analysis
-                else []
-            )
-            ui.badge(str(len(suggestions)), color="blue").props("dense")
+    # Calculate stats for selected files
+    selected_count = len(suggestions)
+    selected_size = 0
+    if ctx.agent.current_fingerprint:
+        from pathlib import Path
 
-        if not ctx.agent.current_fingerprint:
-            ui.label(_("Please scan the project to select files.")).classes(
-                "text-xs text-slate-400 italic"
-            )
-            return
-
-        if not suggestions:
-            ui.label(_("No files selected. Use the explorer below.")).classes(
-                "text-xs text-slate-500 italic"
-            )
-
-        CATEGORIES = {
-            "main_article": _("Article"),
-            "visualization_scripts": _("Scripts"),
-            "data_files": _("Data"),
-            "documentation": _("Docs"),
-            "other": _("Other"),
-        }
-
-        REASON_MAP = {
-            _("Main article/paper"): "main_article",
-            _("Visualization scripts"): "visualization_scripts",
-            _("Data files"): "data_files",
-            _("Documentation"): "documentation",
-            _("Supporting file"): "other",
-        }
-
+        project_dir = Path(ctx.agent.current_fingerprint.root_path)
         for fs in suggestions:
-            with ui.row().classes(
-                "w-full items-center gap-1 p-1 bg-slate-50 rounded border border-slate-100"
-            ):
-                # Role dropdown
-                current_cat = "other"
-                for reason, cat in REASON_MAP.items():
-                    if reason in fs.reason:
-                        current_cat = cat
-                        break
+            p = project_dir / fs.path
+            if p.exists():
+                selected_size += p.stat().st_size
 
-                # Capture path for select change
-                def make_select_handler(p):
-                    return lambda e: (
-                        ctx.agent.update_file_role(p, e.value),
-                        ctx.refresh("significant_files_editor"),
-                    )
+    size_str = format_size(selected_size) if selected_size > 0 else "0 B"
 
-                ui.select(
-                    options=CATEGORIES,
-                    value=current_cat,
-                    on_change=make_select_handler(fs.path),
-                ).props("dense size=sm flat").classes("w-24 text-[10px]")
+    with (
+        ui.expansion(
+            _("Significant Files ({count}, {size})").format(
+                count=selected_count, size=size_str
+            ),
+            icon="fact_check",
+        )
+        .classes("w-full mt-2")
+        .props("dense")
+    ):
+        with ui.column().classes("w-full gap-1 p-1"):
+            if not ctx.agent.current_fingerprint:
+                ui.label(_("Please scan the project to select files.")).classes(
+                    "text-xs text-slate-400 italic"
+                )
+                return
 
-                ui.label(fs.path).classes(
-                    "flex-grow text-[11px] font-mono truncate cursor-help"
-                ).tooltip(fs.path)
+            if not suggestions:
+                ui.label(_("No files selected. Use the explorer below.")).classes(
+                    "text-xs text-slate-500 italic"
+                )
 
-                # Capture path for remove click
-                def make_remove_handler(p):
-                    return lambda _: (
-                        ctx.agent.remove_significant_file(p),
-                        ctx.refresh("significant_files_editor"),
-                        ctx.refresh("inventory_selector"),
-                    )
+            CATEGORIES = {
+                "main_article": _("Article"),
+                "visualization_scripts": _("Scripts"),
+                "data_files": _("Data"),
+                "documentation": _("Docs"),
+                "other": _("Other"),
+            }
 
-                ui.button(
-                    icon="close",
-                    on_click=make_remove_handler(fs.path),
-                ).props("flat dense color=red size=sm")
+            REASON_MAP = {
+                _("Main article/paper"): "main_article",
+                _("Visualization scripts"): "visualization_scripts",
+                _("Data files"): "data_files",
+                _("Documentation"): "documentation",
+                _("Supporting file"): "other",
+            }
+
+            for fs in suggestions:
+                with ui.row().classes(
+                    "w-full items-center gap-1 p-0.5 bg-slate-50 rounded border border-slate-100"
+                ):
+                    # Role dropdown
+                    current_cat = "other"
+                    for reason, cat in REASON_MAP.items():
+                        if reason in fs.reason:
+                            current_cat = cat
+                            break
+
+                    # Capture path for select change
+                    def make_select_handler(p):
+                        return lambda e: (
+                            ctx.agent.update_file_role(p, e.value),
+                            ctx.refresh("significant_files_editor"),
+                            ctx.refresh("inventory_selector"),
+                        )
+
+                    ui.select(
+                        options=CATEGORIES,
+                        value=current_cat,
+                        on_change=make_select_handler(fs.path),
+                    ).props("dense size=xs flat").classes("w-20 text-[10px]")
+
+                    ui.label(fs.path).classes(
+                        "flex-grow text-[10px] font-mono truncate cursor-help"
+                    ).tooltip(fs.path)
+
+                    # Capture path for remove click
+                    def make_remove_handler(p):
+                        return lambda _: (
+                            ctx.agent.remove_significant_file(p),
+                            ctx.refresh("significant_files_editor"),
+                            ctx.refresh("inventory_selector"),
+                        )
+
+                    ui.button(
+                        icon="close",
+                        on_click=make_remove_handler(fs.path),
+                    ).props("flat dense color=red size=xs")
 
 
 @ui.refreshable
 def render_inventory_selector(ctx: AppContext):
-    """Scalable explorer-based inventory selector to add files."""
-    with ui.column().classes("w-full mt-4 border rounded overflow-hidden"):
-        ui.label(_("Project Explorer")).classes(
-            "w-full bg-slate-200 p-1 text-[10px] font-bold text-slate-600 uppercase tracking-wider"
-        )
-
-        if not ctx.session.inventory_cache:
-            with ui.column().classes("w-full items-center justify-center p-4"):
-                if ScanState.is_scanning:
-                    ui.spinner(size="sm")
-                else:
-                    ui.label(_("No inventory. Click Scan.")).classes(
-                        "text-xs text-slate-400 italic"
-                    )
-            return
-
-        current_path = ctx.session.explorer_path
-        children = ctx.session.folder_children_map.get(current_path, [])
-
-        # Breadcrumbs
-        with ui.row().classes(
-            "w-full items-center gap-1 p-1 bg-slate-100 border-b text-[10px]"
-        ):
-            ui.button(icon="home", on_click=lambda: navigate_to(ctx, "")).props(
-                "flat dense round size=xs color=primary"
-            )
-
-            parts = Path(current_path).parts if current_path else []
-            accumulated = ""
-            for i, part in enumerate(parts):
-                ui.label("/").classes("text-slate-400")
-                if i > 0:
-                    accumulated = str(Path(accumulated) / part)
-                else:
-                    accumulated = part
-
-                if i == len(parts) - 1:
-                    ui.label(part).classes("font-bold")
-                else:
-
-                    def make_nav(p):
-                        return lambda: navigate_to(ctx, p)
-
-                    ui.button(part, on_click=make_nav(accumulated)).props(
-                        "flat dense no-caps size=xs"
-                    ).classes("p-0 min-h-0")
-
-        # File List
-        with ui.scroll_area().classes("h-48 w-full bg-white"):
-            with ui.column().classes("w-full gap-0"):
-                if not children:
-                    ui.label(_("Folder is empty")).classes(
-                        "text-xs text-slate-400 p-4 text-center"
-                    )
-
-                for item in children:
-                    is_selected = any(
-                        fs.path == item["path"]
-                        for fs in (
-                            ctx.agent.current_analysis.file_suggestions
-                            if ctx.agent.current_analysis
-                            else []
+    """Collapsible explorer-based inventory selector to add files."""
+    with (
+        ui.expansion(_("Project Explorer"), icon="folder_open")
+        .classes("w-full mt-1")
+        .props("dense")
+    ):
+        with ui.column().classes("w-full gap-0"):
+            if not ctx.session.inventory_cache:
+                with ui.column().classes("w-full items-center justify-center p-2"):
+                    if ScanState.is_scanning:
+                        ui.spinner(size="xs")
+                    else:
+                        ui.label(_("No inventory. Click Scan.")).classes(
+                            "text-xs text-slate-400 italic"
                         )
-                    )
+                return
 
-                    # Item row
-                    with ui.row().classes(
-                        "w-full items-center gap-1 px-2 py-0.5 hover:bg-blue-50 border-b border-slate-50 cursor-pointer"
-                    ) as row:
-                        # Icon
-                        icon = "folder" if item["type"] == "folder" else "description"
-                        color = "amber-400" if item["type"] == "folder" else "slate-400"
-                        ui.icon(icon, color=color, size="xs")
+            current_path = ctx.session.explorer_path
+            children = ctx.session.folder_children_map.get(current_path, [])
 
-                        # Name
-                        if item["type"] == "folder":
-                            ui.label(item["name"]).classes(
-                                "text-[11px] flex-grow py-1 truncate"
+            # Breadcrumbs
+            with ui.row().classes(
+                "w-full items-center gap-0.5 p-1 bg-slate-100 border-b text-[9px]"
+            ):
+                ui.button(icon="home", on_click=lambda: navigate_to(ctx, "")).props(
+                    "flat dense round size=xs color=primary"
+                )
+
+                parts = Path(current_path).parts if current_path else []
+                accumulated = ""
+                for i, part in enumerate(parts):
+                    ui.label("/").classes("text-slate-400")
+                    if i > 0:
+                        accumulated = str(Path(accumulated) / part)
+                    else:
+                        accumulated = part
+
+                    if i == len(parts) - 1:
+                        ui.label(part).classes("font-bold")
+                    else:
+
+                        def make_nav(p):
+                            return lambda: navigate_to(ctx, p)
+
+                        ui.button(part, on_click=make_nav(accumulated)).props(
+                            "flat dense no-caps size=xs"
+                        ).classes("p-0 min-h-0")
+
+            # File List
+            with ui.scroll_area().classes("h-32 w-full bg-white"):
+                with ui.column().classes("w-full gap-0"):
+                    if not children:
+                        ui.label(_("Folder is empty")).classes(
+                            "text-xs text-slate-400 p-2 text-center"
+                        )
+
+                    for item in children:
+                        is_selected = any(
+                            fs.path == item["path"]
+                            for fs in (
+                                ctx.agent.current_analysis.file_suggestions
+                                if ctx.agent.current_analysis
+                                else []
                             )
+                        )
 
+                        # Item row with click handler for folders
+                        row = ui.row().classes(
+                            "w-full items-center gap-1 px-1 py-0.5 hover:bg-blue-50 border-b border-slate-50 cursor-pointer"
+                        )
+                        if item["type"] == "folder":
                             # Capture path for folder click
                             def make_folder_handler(p):
                                 return lambda _: navigate_to(ctx, p)
 
                             row.on("click", make_folder_handler(item["path"]))
-                        else:
-                            # Capture path for file click
-                            def make_file_handler(p):
-                                return lambda _: (
-                                    ctx.agent.add_significant_file(p),
-                                    ctx.refresh("significant_files_editor"),
-                                    ctx.refresh("inventory_selector"),
-                                )
 
-                            btn = (
-                                ui.button(
-                                    item["name"],
-                                    on_click=make_file_handler(item["path"]),
-                                )
-                                .props("flat dense no-caps size=sm")
-                                .classes("text-[11px] text-left flex-grow p-0 min-h-0")
+                        with row:
+                            # Icon
+                            icon = (
+                                "folder" if item["type"] == "folder" else "description"
                             )
-                            if is_selected:
-                                btn.disable()
-                                ui.icon("check", color="green", size="xs")
+                            color = (
+                                "amber-400" if item["type"] == "folder" else "slate-400"
+                            )
+                            ui.icon(icon, color=color, size="xs")
+
+                            # Name
+                            if item["type"] == "folder":
+                                ui.label(item["name"]).classes(
+                                    "text-[10px] flex-grow py-0.5 truncate"
+                                )
+                            else:
+                                # Capture path for file click
+                                def make_file_handler(p):
+                                    return lambda _: (
+                                        ctx.agent.add_significant_file(p),
+                                        ctx.refresh("significant_files_editor"),
+                                        ctx.refresh("inventory_selector"),
+                                    )
+
+                                btn = (
+                                    ui.button(
+                                        item["name"],
+                                        on_click=make_file_handler(item["path"]),
+                                    )
+                                    .props("flat dense no-caps size=xs")
+                                    .classes(
+                                        "text-[10px] text-left flex-grow p-0 min-h-0"
+                                    )
+                                )
+                                if is_selected:
+                                    btn.disable()
+                                    ui.icon("check", color="green", size="xs")
 
 
 def navigate_to(ctx: AppContext, path: str):

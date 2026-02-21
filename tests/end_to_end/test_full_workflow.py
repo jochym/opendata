@@ -215,6 +215,7 @@ def test_e2e_full_extraction_flow(real_project_path, workspace, ai_service):
     agent.add_significant_file("OpenData.yaml", "other")
     agent.add_significant_file("ReadMe.md", "documentation")
 
+    expected_files = ["paper/main.tex", "OpenData.yaml", "ReadMe.md"]
     assert agent.heuristics_run is True
     assert "paper/main.tex" in agent.current_fingerprint.significant_files
     assert agent.current_fingerprint.primary_file == "paper/main.tex"

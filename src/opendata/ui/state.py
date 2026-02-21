@@ -22,6 +22,7 @@ class UIState:
     total_files_count: int = 0  # Count of included files
     total_files_size: int = 0  # Total size of included files
     inventory_total_count: int = 0  # Total count of all files in inventory
+    inventory_total_size: int = 0  # Total size of all files in inventory
     grid_rows: list[dict[str, Any]] = []
     show_only_included: bool = False
     show_suggestions_banner: bool = True

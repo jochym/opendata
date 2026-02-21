@@ -25,28 +25,6 @@ def metadata_preview_ui(ctx: AppContext):
     if not ctx.agent.project_id:
         return
 
-    # Significant Files Section (Foldable)
-    if (
-        ctx.agent.current_fingerprint
-        and ctx.agent.current_fingerprint.significant_files
-    ):
-        with ui.expansion(
-            _("Significant Files for Analysis"), icon="fact_check"
-        ).classes(
-            "w-full bg-blue-50 border border-blue-100 rounded-lg shadow-none mt--6 mb-2"
-        ):
-            with ui.column().classes("w-full p-3 pt-0"):
-                with ui.row().classes("w-full items-center justify-end mb-1"):
-                    ui.button(
-                        _("Edit List"),
-                        icon="edit",
-                        on_click=lambda: open_significant_files_dialog(ctx),
-                    ).props("flat dense size=sm color=primary")
-
-                with ui.column().classes("w-full gap-1"):
-                    for f in ctx.agent.current_fingerprint.significant_files:
-                        ui.label(f).classes("text-sm font-mono text-blue-700 truncate")
-
     fields = ctx.agent.current_metadata.model_dump(exclude_unset=True)
 
     def create_expandable_text(text, key=None):
@@ -598,79 +576,3 @@ async def handle_clear_metadata(ctx: AppContext):
     ctx.agent.clear_metadata()
     ctx.refresh("metadata")
     ui.notify(_("Metadata reset"))
-
-
-async def open_significant_files_dialog(ctx: AppContext):
-    """Dialog to manage the list of files selected for deep analysis."""
-    if not ctx.agent.current_fingerprint:
-        return
-
-    with ui.dialog() as dialog, ui.card().classes("w-[600px]"):
-        ui.label(_("Manage Significant Files")).classes("text-h6 mb-4")
-        ui.markdown(
-            _(
-                "These files are used as context for AI analysis. You can add or remove files from this list."
-            )
-        )
-
-        current_files = list(ctx.agent.current_fingerprint.significant_files)
-
-        with ui.column().classes("w-full gap-2 mb-4"):
-            file_list_container = ui.column().classes(
-                "w-full border rounded p-2 max-h-60 overflow-y-auto"
-            )
-
-            def refresh_list():
-                file_list_container.clear()
-                with file_list_container:
-                    if not current_files:
-                        ui.label(_("No files selected.")).classes(
-                            "text-slate-400 italic text-sm"
-                        )
-                    for f in current_files:
-                        with ui.row().classes(
-                            "w-full items-center justify-between hover:bg-slate-50 p-1 rounded"
-                        ):
-                            ui.label(f).classes("text-xs font-mono truncate flex-grow")
-                            ui.button(
-                                icon="delete",
-                                on_click=lambda _e, path=f: remove_file(path),
-                            ).props("flat dense color=red size=sm")
-
-            def remove_file(path):
-                if path in current_files:
-                    current_files.remove(path)
-                    refresh_list()
-
-            refresh_list()
-
-        new_file_input = (
-            ui.input(label=_("Add file path (relative to root)"))
-            .classes("w-full mb-4")
-            .props("dense outlined")
-        )
-
-        def add_file():
-            path = new_file_input.value.strip()
-            if path and path not in current_files:
-                current_files.append(path)
-                new_file_input.value = ""
-                refresh_list()
-
-        ui.button(_("Add File"), on_click=add_file).classes("w-full mb-4").props(
-            "outline"
-        )
-
-        with ui.row().classes("w-full justify-end gap-2"):
-            ui.button(_("Cancel"), on_click=dialog.close).props("flat")
-
-            def save():
-                ctx.agent.current_fingerprint.significant_files = current_files
-                ctx.agent.save_state()
-                ctx.refresh("metadata")
-                dialog.close()
-                ui.notify(_("Significant files updated."))
-
-            ui.button(_("Save Changes"), on_click=save).props("elevated color=primary")
-
-    dialog.open()
