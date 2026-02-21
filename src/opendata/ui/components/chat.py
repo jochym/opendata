@@ -307,6 +307,7 @@ async def handle_scan_only(ctx: AppContext, path: str):
         # Refresh the UI inventory cache and stats
         # This will trigger targeted refreshes via inventory_logic.py
         await load_inventory_background(ctx)
+        ctx.refresh_all()  # Ensure UI updates after agent state change
 
     except asyncio.CancelledError:
         logger.info("Scan cancelled by user.")
