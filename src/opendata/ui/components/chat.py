@@ -58,7 +58,7 @@ def chat_messages_ui(ctx: AppContext):
                     ):
                         ui.markdown(text).classes("text-sm text-slate-800")
 
-                        # If this is the last message and there's an active analysis form, show it
+                        # If this is the last message and there\'s an active analysis form, show it
                         if (
                             i == len(ctx.agent.chat_history) - 1
                             and ctx.agent.current_analysis
@@ -374,9 +374,17 @@ def render_significant_files_editor(ctx: AppContext):
                 count=selected_count, size=size_str
             ),
             icon="fact_check",
+            value=ctx.settings.significant_files_expanded,
         )
         .classes("w-full mt-1")
         .props("dense")
+        .on(
+            "update:value",
+            lambda e: (
+                setattr(ctx.settings, "significant_files_expanded", e.args),
+                ctx.wm.save_yaml(ctx.settings, "settings.yaml"),
+            ),
+        )
     ):
         with ui.column().classes("w-full gap-1 p-2"):
             if not ctx.agent.current_fingerprint:
@@ -452,9 +460,20 @@ def render_significant_files_editor(ctx: AppContext):
 def render_inventory_selector(ctx: AppContext):
     """Collapsible explorer-based inventory selector to add files."""
     with (
-        ui.expansion(_("Project Explorer"), icon="folder_open")
+        ui.expansion(
+            _("Project Explorer"),
+            icon="folder_open",
+            value=ctx.settings.explorer_expanded,
+        )
         .classes("w-full mt-1")
         .props("dense")
+        .on(
+            "update:value",
+            lambda e: (
+                setattr(ctx.settings, "explorer_expanded", e.args),
+                ctx.wm.save_yaml(ctx.settings, "settings.yaml"),
+            ),
+        )
     ):
         with ui.column().classes("w-full gap-0"):
             if not ctx.session.inventory_cache:
@@ -472,7 +491,7 @@ def render_inventory_selector(ctx: AppContext):
 
             # Breadcrumbs
             with ui.row().classes(
-                "w-full items-center gap-1 p-2 bg-slate-100 border-b text-xs"
+                "w-full items-center gap-1 p-2 bg-slate-100 border-b text-sm"
             ):
                 ui.button(icon="home", on_click=lambda: navigate_to(ctx, "")).props(
                     "flat dense round size=xs color=primary"
@@ -540,7 +559,7 @@ def render_inventory_selector(ctx: AppContext):
                             # Name
                             if item["type"] == "folder":
                                 ui.label(item["name"]).classes(
-                                    "text-xs flex-grow py-1 truncate"
+                                    "text-sm flex-grow py-1 truncate"
                                 )
                             else:
                                 # Capture path for file click
@@ -556,8 +575,8 @@ def render_inventory_selector(ctx: AppContext):
                                         item["name"],
                                         on_click=make_file_handler(item["path"]),
                                     )
-                                    .props("flat dense no-caps size=sm")
-                                    .classes("text-xs text-left flex-grow p-0 min-h-0")
+                                    .props("flat dense no-caps size=md")
+                                    .classes("text-sm text-left flex-grow p-0 min-h-0")
                                 )
                                 if is_selected:
                                     btn.disable()
@@ -644,7 +663,7 @@ def render_metadata_panel(ctx: AppContext):
                 )
 
             # Significant Files Editor & Selector
-            with ui.column().classes("w-full shrink-0"):
+            with ui.column().classes("w-full shrink-0 gap-0"):
                 ctx.register_refreshable(
                     "significant_files_editor", render_significant_files_editor
                 )

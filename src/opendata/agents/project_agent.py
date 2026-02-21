@@ -97,6 +97,28 @@ class ProjectAnalysisAgent:
             self.chat_history = history
             self.current_fingerprint = fingerprint
             self.current_analysis = analysis
+
+            # Ensure file suggestions are synced with fingerprint significant files
+            if self.current_fingerprint and self.current_fingerprint.significant_files:
+                if not self.current_analysis:
+                    from opendata.models import AIAnalysis
+
+                    self.current_analysis = AIAnalysis(summary="Restored state")
+
+                existing_paths = {
+                    fs.path for fs in self.current_analysis.file_suggestions
+                }
+                for path in self.current_fingerprint.significant_files:
+                    if path not in existing_paths:
+                        from opendata.models import FileSuggestion
+
+                        self.current_analysis.file_suggestions.append(
+                            FileSuggestion(path=path, reason=_("Supporting file"))
+                        )
+
+            self.heuristics_run = bool(
+                self.current_fingerprint and self.current_fingerprint.significant_files
+            )
             return True
         return False
 

@@ -51,3 +51,5 @@ class ScanState:
     current_path = ""
     stop_event: Any = None
     qr_dialog: Any = None
+    significant_files_expanded: bool = True
+    explorer_expanded: bool = True

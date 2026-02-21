@@ -47,6 +47,9 @@ class UserSettings(BaseModel):
     openai_api_key: str | None = None
     openai_base_url: str = "https://api.openai.com/v1"
     openai_model: str = "gpt-3.5-turbo"
+    workspace_path: str = str(Path.home() / "OpenDataWorkspace")
+    significant_files_expanded: bool = True
+    explorer_expanded: bool = True
 
     workspace_path: str = Field(
         default_factory=lambda: str(Path.home() / ".opendata_tool"),
