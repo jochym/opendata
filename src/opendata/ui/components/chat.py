@@ -285,20 +285,15 @@ async def handle_scan_only(ctx: AppContext, path: str):
             # Add scan statistics and invitation to action
             from opendata.utils import format_size
 
-            total_size = sum(
-                item.get("size", 0) for item in ctx.session.inventory_cache
-            )
+            # Use the result string which already contains stats from refresh_inventory
+            # result contains: "Scanned X files (Y included), total size: Z MB"
             stats_msg = _(
-                "✅ **Inventory refreshed.**\n\n"
-                "- **Total files:** {count}\n"
-                "- **Total size:** {size}\n\n"
+                "✅ **Inventory refreshed.**\n\n{result}\n\n"
                 "**What now?**\n"
-                "1. Select **Significant Files** in the section below to provide context.\n"
-                "2. You can adjust exclusions in the **Protocols** tab.\n"
+                "1. Select **Significant Files** below to provide context.\n"
+                "2. Adjust exclusions in **Protocols** tab.\n"
                 "3. Click **AI Analyze** to generate metadata."
-            ).format(
-                count=len(ctx.session.inventory_cache), size=format_size(total_size)
-            )
+            ).format(result=result)
 
             ctx.agent.chat_history.append(("agent", stats_msg))
             try:
@@ -306,12 +301,12 @@ async def handle_scan_only(ctx: AppContext, path: str):
             except Exception:
                 pass
 
+        # Persist the updated chat history
+        ctx.agent.save_state()
+
         # Refresh the UI inventory cache and stats
         # This will trigger targeted refreshes via inventory_logic.py
         await load_inventory_background(ctx)
-
-        # Persist the updated chat history
-        ctx.agent.save_state()
 
     except asyncio.CancelledError:
         logger.info("Scan cancelled by user.")
@@ -394,7 +389,7 @@ def render_significant_files_editor(ctx: AppContext):
         .classes("w-full mt-2")
         .props("dense")
     ):
-        with ui.column().classes("w-full gap-1 p-1"):
+        with ui.column().classes("w-full gap-1 p-2"):
             if not ctx.agent.current_fingerprint:
                 ui.label(_("Please scan the project to select files.")).classes(
                     "text-xs text-slate-400 italic"
@@ -424,7 +419,7 @@ def render_significant_files_editor(ctx: AppContext):
 
             for fs in suggestions:
                 with ui.row().classes(
-                    "w-full items-center gap-1 p-0.5 bg-slate-50 rounded border border-slate-100"
+                    "w-full items-center gap-2 p-1 bg-slate-50 rounded border border-slate-100"
                 ):
                     # Role dropdown
                     current_cat = "other"
@@ -445,10 +440,10 @@ def render_significant_files_editor(ctx: AppContext):
                         options=CATEGORIES,
                         value=current_cat,
                         on_change=make_select_handler(fs.path),
-                    ).props("dense size=xs flat").classes("w-20 text-[10px]")
+                    ).props("dense size=sm flat").classes("w-24 text-xs")
 
                     ui.label(fs.path).classes(
-                        "flex-grow text-[10px] font-mono truncate cursor-help"
+                        "flex-grow text-xs font-mono truncate cursor-help"
                     ).tooltip(fs.path)
 
                     # Capture path for remove click
@@ -462,7 +457,7 @@ def render_significant_files_editor(ctx: AppContext):
                     ui.button(
                         icon="close",
                         on_click=make_remove_handler(fs.path),
-                    ).props("flat dense color=red size=xs")
+                    ).props("flat dense color=red size=sm")
 
 
 @ui.refreshable
@@ -470,12 +465,12 @@ def render_inventory_selector(ctx: AppContext):
     """Collapsible explorer-based inventory selector to add files."""
     with (
         ui.expansion(_("Project Explorer"), icon="folder_open")
-        .classes("w-full mt-1")
+        .classes("w-full mt-2")
         .props("dense")
     ):
         with ui.column().classes("w-full gap-0"):
             if not ctx.session.inventory_cache:
-                with ui.column().classes("w-full items-center justify-center p-2"):
+                with ui.column().classes("w-full items-center justify-center p-4"):
                     if ScanState.is_scanning:
                         ui.spinner(size="xs")
                     else:
@@ -489,7 +484,7 @@ def render_inventory_selector(ctx: AppContext):
 
             # Breadcrumbs
             with ui.row().classes(
-                "w-full items-center gap-0.5 p-1 bg-slate-100 border-b text-[9px]"
+                "w-full items-center gap-1 p-2 bg-slate-100 border-b text-xs"
             ):
                 ui.button(icon="home", on_click=lambda: navigate_to(ctx, "")).props(
                     "flat dense round size=xs color=primary"
@@ -516,7 +511,7 @@ def render_inventory_selector(ctx: AppContext):
                         ).classes("p-0 min-h-0")
 
             # File List
-            with ui.scroll_area().classes("h-32 w-full bg-white"):
+            with ui.scroll_area().classes("h-48 w-full bg-white"):
                 with ui.column().classes("w-full gap-0"):
                     if not children:
                         ui.label(_("Folder is empty")).classes(
@@ -535,7 +530,7 @@ def render_inventory_selector(ctx: AppContext):
 
                         # Item row with click handler for folders
                         row = ui.row().classes(
-                            "w-full items-center gap-1 px-1 py-0.5 hover:bg-blue-50 border-b border-slate-50 cursor-pointer"
+                            "w-full items-center gap-2 px-2 py-1 hover:bg-blue-50 border-b border-slate-50 cursor-pointer"
                         )
                         if item["type"] == "folder":
                             # Capture path for folder click
@@ -552,12 +547,12 @@ def render_inventory_selector(ctx: AppContext):
                             color = (
                                 "amber-400" if item["type"] == "folder" else "slate-400"
                             )
-                            ui.icon(icon, color=color, size="xs")
+                            ui.icon(icon, color=color, size="sm")
 
                             # Name
                             if item["type"] == "folder":
                                 ui.label(item["name"]).classes(
-                                    "text-[10px] flex-grow py-0.5 truncate"
+                                    "text-xs flex-grow py-1 truncate"
                                 )
                             else:
                                 # Capture path for file click
@@ -573,14 +568,12 @@ def render_inventory_selector(ctx: AppContext):
                                         item["name"],
                                         on_click=make_file_handler(item["path"]),
                                     )
-                                    .props("flat dense no-caps size=xs")
-                                    .classes(
-                                        "text-[10px] text-left flex-grow p-0 min-h-0"
-                                    )
+                                    .props("flat dense no-caps size=sm")
+                                    .classes("text-xs text-left flex-grow p-0 min-h-0")
                                 )
                                 if is_selected:
                                     btn.disable()
-                                    ui.icon("check", color="green", size="xs")
+                                    ui.icon("check", color="green", size="sm")
 
 
 def navigate_to(ctx: AppContext, path: str):
