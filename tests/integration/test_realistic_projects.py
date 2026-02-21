@@ -83,36 +83,23 @@ def test_chemistry_project_heuristic_extraction(wm, chemistry_project_path):
     assert agent.current_fingerprint.file_count >= 2
     assert any(".csv" in ext for ext in agent.current_fingerprint.extensions)
 
-    # Since there is no Markdown extractor in heuristics, we verify that
-    # the agent can at least IDENTIFY the markdown file as significant
-    # during the AI Heuristics phase.
+    # Verify the agent can identify significant files via manual selection
+    # User manually selects the markdown draft and data file
+    agent.refresh_inventory(chemistry_project_path)
 
-    from unittest.mock import MagicMock
-
-    mock_ai = MagicMock()
-    # Mock AI response to simulate finding the draft
-    # AIHeuristicsService expects a specific JSON structure with "SELECTION" and "ANALYSIS"
-    # and validates paths against the inventory DB.
-    mock_ai.ask_agent.return_value = """
-{
-  "ANALYSIS": "Found a markdown draft and a data file.",
-  "SELECTION": [
-    {"path": "manuscript/draft.md", "reason": "Draft paper"},
-    {"path": "data/spectra/FTIR_MOF_IFJ_1.csv", "reason": "Spectral data"}
-  ]
-}
-"""
-
-    # Run heuristics phase
-    agent.run_heuristics_phase(
-        project_dir=chemistry_project_path,
-        ai_service=mock_ai,
-        progress_callback=lambda m, f, s: None,
-    )
-
-    # Verify the agent correctly processed the AI response
-    assert agent.current_fingerprint.significant_files == [
-        "manuscript/draft.md",
-        "data/spectra/FTIR_MOF_IFJ_1.csv",
+    # Simulate user manual file selection
+    selections = [
+        {"path": "manuscript/draft.md", "category": "main_article"},
+        {"path": "data/spectra/FTIR_MOF_IFJ_1.csv", "category": "data_files"},
     ]
+
+    # Run manual selection
+    agent.set_significant_files_manual(selections)
+
+    # Verify the agent correctly processed the manual selection
+    assert "manuscript/draft.md" in agent.current_fingerprint.significant_files
+    assert (
+        "data/spectra/FTIR_MOF_IFJ_1.csv" in agent.current_fingerprint.significant_files
+    )
     assert agent.heuristics_run is True
+    assert agent.current_fingerprint.primary_file == "manuscript/draft.md"

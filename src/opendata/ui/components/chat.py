@@ -9,8 +9,12 @@ from nicegui import ui
 
 from opendata.i18n.translator import _
 from opendata.ui.components.file_picker import LocalFilePicker
-from opendata.ui.components.inventory_logic import load_inventory_background
+from opendata.ui.components.inventory_logic import (
+    load_inventory_background,
+    build_folder_index,
+)
 from opendata.ui.components.metadata import metadata_preview_ui
+from opendata.utils import format_size
 from opendata.ui.context import AppContext
 from opendata.ui.state import ScanState
 
@@ -22,13 +26,23 @@ def chat_messages_ui(ctx: AppContext):
     with ui.column().classes("w-full gap-4 p-4"):
         if not ctx.agent.chat_history:
             with ui.column().classes(
-                "w-full items-center justify-center p-8 opacity-50"
+                "w-full items-center justify-center p-8 opacity-70 bg-blue-50 rounded-lg border border-blue-100"
             ):
-                ui.icon("chat_bubble_outline", size="lg")
-                ui.label(_("No conversation history yet.")).classes("text-sm")
-                ui.label(
-                    _("Analyze the directory or ask a question to start.")
-                ).classes("text-xs")
+                ui.icon("auto_awesome", size="lg", color="blue-500")
+                ui.label(_("Welcome to OpenData Agent!")).classes(
+                    "text-lg font-bold text-blue-800"
+                )
+                ui.markdown(
+                    _(
+                        "I will help you prepare metadata for your research project.\n\n"
+                        "**To get started:**\n"
+                        "1. **Select project directory** and click **Open**.\n"
+                        "2. Click **Scan** to index your files.\n"
+                        "3. **Select significant files** in the **Significant Files** section below to provide context for the AI.\n"
+                        "4. You can adjust file exclusions in the **Protocols** tab at any time.\n"
+                        "5. Click **AI Analyze** to generate draft metadata."
+                    )
+                ).classes("text-sm text-blue-900 text-center")
 
         for i, (role, text) in enumerate(ctx.agent.chat_history):
             if role == "user":
@@ -263,97 +277,317 @@ async def handle_scan_only(ctx: AppContext, path: str):
             stop_event=ScanState.stop_event,
             force=True,
         )
+
+        # Add scan statistics to chat history
         if ScanState.stop_event and ScanState.stop_event.is_set():
             ctx.agent.chat_history.append(("agent", f"🛑 **{result}**"))
         else:
-            # Add scan statistics to chat history
+            # Simplified scan message
             ctx.agent.chat_history.append(("agent", f"✅ **{result}**"))
-            ui.notify(_("Inventory refreshed."), type="positive")
-        # Persist the updated chat history so the scan result message survives reloads
-        ctx.agent.save_state()
+            try:
+                ui.notify(_("Inventory refreshed."), type="positive")
+            except Exception:
+                pass
 
         # Refresh the UI inventory cache and stats
+        # This will trigger targeted refreshes via inventory_logic.py
         await load_inventory_background(ctx)
+
+        # Force a global UI refresh to ensure all components see the new state
+        ctx.refresh_all()
+
+        # Persist the updated chat history
+        ctx.agent.save_state()
+
     except asyncio.CancelledError:
         logger.info("Scan cancelled by user.")
         ctx.agent.chat_history.append(("agent", f"🛑 **{_('Scan cancelled.')}**"))
         ctx.agent.save_state()
     except Exception as e:
-        ui.notify(f"Scan error: {e}", type="negative")
+        logger.error(f"Scan failed: {e}", exc_info=True)
+        try:
+            ui.notify(f"Scan error: {e}", type="negative")
+        except Exception:
+            pass
     finally:
         ScanState.is_scanning = False
         ScanState.stop_event = None
-        ctx.refresh_all()
-
-
-async def handle_heuristics(ctx: AppContext, path: str):
-    if not path:
-        ui.notify(_("Please provide a path"), type="warning")
-        return
-    resolved_path = Path(path).expanduser()
-
-    ScanState.stop_event = threading.Event()
-    ScanState.is_scanning = True
-    ScanState.progress = _("Running heuristics...")
-    ctx.refresh("chat")
-
-    def update_progress(msg, full_path="", short_path=""):
-        ScanState.progress = msg
-        ScanState.full_path = full_path
-        ScanState.short_path = short_path
-        ctx.refresh("chat")
-
-    try:
-        await asyncio.to_thread(
-            ctx.agent.run_heuristics_phase,
-            resolved_path,
-            ctx.ai,
-            update_progress,
-            stop_event=ScanState.stop_event,
-        )
-        ui.notify(_("Heuristics phase complete."), type="positive")
-        # Refresh the UI inventory cache and stats as heuristics might change file identification
-        from opendata.ui.components.inventory_logic import load_inventory_background
-
-        await load_inventory_background(ctx)
-    except asyncio.CancelledError:
-        logger.info("Heuristics cancelled by user.")
-    except Exception as e:
-        ui.notify(f"Heuristics error: {e}", type="negative")
-    finally:
-        ScanState.is_scanning = False
-        ScanState.stop_event = None
-        ctx.refresh_all()
+        try:
+            ctx.refresh_all()
+        except Exception:
+            pass
 
 
 async def handle_ai_analysis(ctx: AppContext, path: str):
-    if not path:
-        ui.notify(_("Please provide a path"), type="warning")
+    if not ctx.agent.project_id:
+        ui.notify(_("Please open a project first."), type="warning")
         return
 
-    ScanState.stop_event = threading.Event()
-    ScanState.is_scanning = True
-    ScanState.progress = _("AI analysis in progress...")
-    ctx.refresh("metadata")
+    ScanState.is_processing_ai = True
+    ctx.session.ai_stop_event = threading.Event()
+    ctx.refresh("chat")
 
     try:
         await asyncio.to_thread(
             ctx.agent.run_ai_analysis_phase,
             ctx.ai,
-            None,
-            stop_event=ScanState.stop_event,
+            None,  # progress_callback
+            ctx.session.ai_stop_event,
         )
         ui.notify(_("AI analysis phase complete."), type="positive")
-        # Refresh the UI inventory cache and stats
         await load_inventory_background(ctx)
     except asyncio.CancelledError:
         logger.info("AI analysis cancelled by user.")
     except Exception as e:
+        logger.error(f"AI analysis failed: {e}", exc_info=True)
         ui.notify(f"AI analysis error: {e}", type="negative")
     finally:
-        ScanState.is_scanning = False
-        ScanState.stop_event = None
+        ScanState.is_processing_ai = False
+        ctx.session.ai_stop_event = None
         ctx.refresh_all()
+
+
+@ui.refreshable
+def render_significant_files_editor(ctx: AppContext):
+    """Collapsible editor for significant files and their roles."""
+    suggestions = (
+        ctx.agent.current_analysis.file_suggestions
+        if ctx.agent.current_analysis
+        else []
+    )
+
+    # Calculate stats for selected files
+    selected_count = len(suggestions)
+    selected_size = 0
+    if ctx.agent.current_fingerprint:
+        project_dir = Path(ctx.agent.current_fingerprint.root_path)
+        for fs in suggestions:
+            p = project_dir / fs.path
+            if p.exists():
+                selected_size += p.stat().st_size
+
+    size_str = format_size(selected_size) if selected_size > 0 else "0 B"
+
+    with (
+        ui.expansion(
+            _("Significant Files ({count}, {size})").format(
+                count=selected_count, size=size_str
+            ),
+            icon="fact_check",
+            value=ctx.settings.significant_files_expanded,
+        )
+        .classes("w-full mt-1")
+        .props("dense")
+        .on(
+            "update:value",
+            lambda e: (
+                setattr(ctx.settings, "significant_files_expanded", e.args),
+                ctx.wm.save_yaml(ctx.settings, "settings.yaml"),
+            ),
+        )
+    ):
+        with ui.column().classes("w-full gap-1 p-2"):
+            if not ctx.agent.current_fingerprint:
+                ui.label(_("Please scan the project to select files.")).classes(
+                    "text-sm text-slate-400 italic"
+                )
+                return
+
+            if not suggestions:
+                ui.label(_("No files selected. Use the explorer below.")).classes(
+                    "text-sm text-slate-500 italic"
+                )
+
+            CATEGORIES = {
+                "main_article": _("Article"),
+                "visualization_scripts": _("Scripts"),
+                "data_files": _("Data"),
+                "documentation": _("Docs"),
+                "other": _("Other"),
+            }
+
+            REASON_MAP = {
+                "Main article/paper": "main_article",
+                "Visualization scripts": "visualization_scripts",
+                "Data files": "data_files",
+                "Documentation": "documentation",
+                "Supporting file": "other",
+            }
+
+            for fs in suggestions:
+                with ui.row().classes(
+                    "w-full items-center gap-2 p-1 bg-slate-50 rounded border border-slate-100"
+                ):
+                    # Role dropdown
+                    current_cat = "other"
+                    for reason, cat in REASON_MAP.items():
+                        if reason in fs.reason:
+                            current_cat = cat
+                            break
+
+                    # Capture path for select change
+                    def make_select_handler(p):
+                        return lambda e: (
+                            ctx.agent.update_file_role(p, e.value),
+                            ctx.refresh("significant_files_editor"),
+                        )
+
+                    ui.select(
+                        options=CATEGORIES,
+                        value=current_cat,
+                        on_change=make_select_handler(fs.path),
+                    ).props("dense size=sm flat").classes("w-24 text-sm")
+
+                    ui.label(fs.path).classes(
+                        "flex-grow text-sm font-mono truncate cursor-help"
+                    ).tooltip(fs.path)
+
+                    # Capture path for remove click
+                    def make_remove_handler(p):
+                        return lambda _: (
+                            ctx.agent.remove_significant_file(p),
+                            ctx.refresh("significant_files_editor"),
+                            ctx.refresh("inventory_selector"),
+                        )
+
+                    ui.button(
+                        icon="close",
+                        on_click=make_remove_handler(fs.path),
+                    ).props("flat dense color=red size=sm")
+
+
+@ui.refreshable
+def render_inventory_selector(ctx: AppContext):
+    """Collapsible explorer-based inventory selector to add files."""
+    with (
+        ui.expansion(
+            _("Project Explorer"),
+            icon="folder_open",
+            value=ctx.settings.explorer_expanded,
+        )
+        .classes("w-full mt-1")
+        .props("dense")
+        .on(
+            "update:value",
+            lambda e: (
+                setattr(ctx.settings, "explorer_expanded", e.args),
+                ctx.wm.save_yaml(ctx.settings, "settings.yaml"),
+            ),
+        )
+    ):
+        with ui.column().classes("w-full gap-0"):
+            if not ctx.session.inventory_cache:
+                with ui.column().classes("w-full items-center justify-center p-4"):
+                    if ScanState.is_scanning:
+                        ui.spinner(size="sm")
+                    else:
+                        ui.label(_("No inventory. Click Scan.")).classes(
+                            "text-sm text-slate-400 italic"
+                        )
+                return
+
+            current_path = ctx.session.explorer_path
+            children = ctx.session.folder_children_map.get(current_path, [])
+
+            # Breadcrumbs
+            with ui.row().classes(
+                "w-full items-center gap-1 p-2 bg-slate-100 border-b text-sm"
+            ):
+                ui.button(icon="home", on_click=lambda: navigate_to(ctx, "")).props(
+                    "flat dense round size=xs color=primary"
+                )
+
+                parts = Path(current_path).parts if current_path else []
+                accumulated = ""
+                for i, part in enumerate(parts):
+                    ui.label("/").classes("text-slate-400")
+                    if i > 0:
+                        accumulated = str(Path(accumulated) / part)
+                    else:
+                        accumulated = part
+
+                    if i == len(parts) - 1:
+                        ui.label(part).classes("font-bold")
+                    else:
+
+                        def make_nav(p):
+                            return lambda: navigate_to(ctx, p)
+
+                        ui.button(part, on_click=make_nav(accumulated)).props(
+                            "flat dense no-caps size=xs"
+                        ).classes("p-0 min-h-0")
+
+            # File List
+            with ui.scroll_area().classes("h-64 w-full bg-white"):
+                with ui.column().classes("w-full gap-0"):
+                    if not children:
+                        ui.label(_("Folder is empty")).classes(
+                            "text-sm text-slate-400 p-4 text-center"
+                        )
+
+                    for item in children:
+                        is_selected = any(
+                            fs.path == item["path"]
+                            for fs in (
+                                ctx.agent.current_analysis.file_suggestions
+                                if ctx.agent.current_analysis
+                                else []
+                            )
+                        )
+
+                        # Item row with click handler for folders
+                        row = ui.row().classes(
+                            "w-full items-center gap-2 px-2 py-1 hover:bg-blue-50 border-b border-slate-50 cursor-pointer"
+                        )
+                        if item["type"] == "folder":
+                            # Capture path for folder click
+                            def make_folder_handler(p):
+                                return lambda _: navigate_to(ctx, p)
+
+                            row.on("click", make_folder_handler(item["path"]))
+
+                        with row:
+                            # Icon
+                            icon = (
+                                "folder" if item["type"] == "folder" else "description"
+                            )
+                            color = (
+                                "amber-400" if item["type"] == "folder" else "slate-400"
+                            )
+                            ui.icon(icon, color=color, size="sm")
+
+                            # Name
+                            if item["type"] == "folder":
+                                ui.label(item["name"]).classes(
+                                    "text-sm flex-grow py-1 truncate"
+                                )
+                            else:
+                                # Capture path for file click
+                                def make_file_handler(p):
+                                    return lambda _: (
+                                        ctx.agent.add_significant_file(p, "other"),
+                                        ctx.refresh("significant_files_editor"),
+                                        ctx.refresh("inventory_selector"),
+                                    )
+
+                                btn = (
+                                    ui.button(
+                                        item["name"],
+                                        on_click=make_file_handler(item["path"]),
+                                    )
+                                    .props("flat dense no-caps size=md")
+                                    .classes("text-sm text-left flex-grow p-0 min-h-0")
+                                )
+                                if is_selected:
+                                    btn.disable()
+                                    ui.icon("check", color="green", size="sm")
+
+
+def navigate_to(ctx: AppContext, path: str):
+    """Updates the explorer path and refreshes the selector."""
+    logger.info(f"Navigating to: {path}")
+    ctx.session.explorer_path = path
+    ctx.refresh("inventory_selector")
 
 
 def render_metadata_panel(ctx: AppContext):
@@ -380,7 +614,6 @@ def render_metadata_panel(ctx: AppContext):
                     if result:
                         ScanState.current_path = result
                         path_input.value = result
-                        # Auto-open project after selection
                         from opendata.ui.components.header import handle_load_project
 
                         await handle_load_project(ctx, result)
@@ -393,7 +626,6 @@ def render_metadata_panel(ctx: AppContext):
                     .classes("flex-grow")
                     .props("dense")
                 )
-                # Manual binding to state only, without on_change triggers
                 path_input.bind_value(ScanState, "current_path")
 
                 ui.button(icon="folder", on_click=pick_dir).props("dense flat")
@@ -406,7 +638,6 @@ def render_metadata_panel(ctx: AppContext):
                 ).props("dense outline").classes("shrink-0")
 
             with ui.row().classes("gap-1 mb-2 w-full shrink-0"):
-                # Button 1: Scan
                 ui.button(
                     _("Scan"),
                     icon="refresh",
@@ -415,25 +646,6 @@ def render_metadata_panel(ctx: AppContext):
                     ScanState, "is_scanning", backward=lambda x: not x
                 )
 
-                # Button 2: Heuristics
-                heur_btn = (
-                    ui.button(
-                        _("Heuristics"),
-                        icon="science",
-                        on_click=lambda: handle_heuristics(ctx, path_input.value),
-                    )
-                    .classes("flex-grow")
-                    .props("dense outline")
-                    .bind_visibility_from(
-                        ScanState, "is_scanning", backward=lambda x: not x
-                    )
-                )
-                # Enable only if scan is done
-                heur_btn.bind_enabled_from(
-                    ctx.agent, "current_fingerprint", backward=lambda x: bool(x)
-                )
-
-                # Button 3: AI Analysis
                 ai_btn = (
                     ui.button(
                         _("AI Analyze"),
@@ -446,21 +658,30 @@ def render_metadata_panel(ctx: AppContext):
                         ScanState, "is_scanning", backward=lambda x: not x
                     )
                 )
-                # Enable only if heuristics have been run
                 ai_btn.bind_enabled_from(
                     ctx.agent, "heuristics_run", backward=lambda x: bool(x)
                 )
 
-                # Cancel Button
-                ui.button(
-                    _("Cancel"),
-                    icon="stop",
-                    on_click=lambda: handle_cancel_scan(ctx),
-                    color="red",
-                ).classes("w-full").props("dense").bind_visibility_from(
-                    ScanState, "is_scanning"
+            # Significant Files Editor & Selector
+            with ui.column().classes("w-full shrink-0 gap-0"):
+                ctx.register_refreshable(
+                    "significant_files_editor", render_significant_files_editor
                 )
-                ui.separator().classes("mt-1")
+                ctx.register_refreshable(
+                    "inventory_selector", render_inventory_selector
+                )
+                render_significant_files_editor(ctx)
+                render_inventory_selector(ctx)
+
+            ui.button(
+                _("Cancel"),
+                icon="stop",
+                on_click=lambda: handle_cancel_scan(ctx),
+                color="red",
+            ).classes("w-full").props("dense").bind_visibility_from(
+                ScanState, "is_scanning"
+            )
+            ui.separator().classes("mt-1")
 
             with ui.scroll_area().classes("flex-grow w-full"):
                 metadata_preview_ui(ctx)
@@ -475,10 +696,8 @@ async def handle_user_msg(ctx: AppContext, input_element):
 
 
 async def handle_user_msg_from_code(ctx: AppContext, text: str, mode: str = "metadata"):
-    # 1. Immediate echo of user message
     ctx.agent.chat_history.append(("user", text))
 
-    # 2. Add System Report if @files are detected
     at_matches = re.findall(r"@([^\s,]+)", text)
     if at_matches:
         file_list = ", ".join([f"`{m}`" for m in at_matches])
@@ -526,8 +745,6 @@ async def handle_cancel_scan(ctx: AppContext):
     if ScanState.stop_event:
         ScanState.stop_event.set()
         ui.notify(_("Cancelling scan..."))
-        # We don't set is_scanning = False here anymore to allow the UI
-        # to show a "Stopping" state until the thread actually finishes.
         ctx.refresh_all()
 
 
@@ -535,8 +752,6 @@ async def handle_cancel_ai(ctx: AppContext):
     if ctx.session.ai_stop_event:
         ctx.session.ai_stop_event.set()
         ui.notify(_("Stopping AI..."))
-        # We don't set is_processing_ai = False here anymore to allow the UI
-        # to show a "Stopping" state until the thread actually finishes.
         ctx.refresh_all()
 
 

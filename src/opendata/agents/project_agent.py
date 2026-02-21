@@ -26,7 +26,7 @@ from opendata.agents.tools import handle_external_tools
 from opendata.agents.scanner import ScannerService
 from opendata.agents.persistence import ProjectStateManager
 from opendata.agents.engine import AnalysisEngine
-from opendata.agents.ai_heuristics import AIHeuristicsService
+
 
 logger = logging.getLogger("opendata.agents.project_agent")
 
@@ -64,7 +64,6 @@ class ProjectAnalysisAgent:
         self.scanner = ScannerService(wm)
         self.state_manager = ProjectStateManager(wm)
         self.engine = AnalysisEngine(self.prompt_manager)
-        self.ai_heuristics = AIHeuristicsService(wm)
 
     def _setup_extractors(self):
         from opendata.extractors.latex import LatexExtractor
@@ -98,6 +97,28 @@ class ProjectAnalysisAgent:
             self.chat_history = history
             self.current_fingerprint = fingerprint
             self.current_analysis = analysis
+
+            # Ensure file suggestions are synced with fingerprint significant files
+            if self.current_fingerprint and self.current_fingerprint.significant_files:
+                if not self.current_analysis:
+                    from opendata.models import AIAnalysis
+
+                    self.current_analysis = AIAnalysis(summary="Restored state")
+
+                existing_paths = {
+                    fs.path for fs in self.current_analysis.file_suggestions
+                }
+                for path in self.current_fingerprint.significant_files:
+                    if path not in existing_paths:
+                        from opendata.models import FileSuggestion
+
+                        self.current_analysis.file_suggestions.append(
+                            FileSuggestion(path=path, reason=_("Supporting file"))
+                        )
+
+            self.heuristics_run = bool(
+                self.current_fingerprint and self.current_fingerprint.significant_files
+            )
             return True
         return False
 
@@ -175,11 +196,15 @@ class ProjectAnalysisAgent:
         # No user selection = no field protocol
         return None
 
-    def set_field_protocol(self, field_name: str):
+    def set_field_protocol(self, field_name: Any):
         """User explicitly selects a field protocol."""
+        # Handle NiceGUI dict value if necessary
+        if isinstance(field_name, dict):
+            field_name = field_name.get("label", field_name.get("value", ""))
+
         if self.project_id:
             config = self.wm.load_project_config(self.project_id)
-            config["field_name"] = field_name
+            config["field_name"] = str(field_name)
             self.wm.save_project_config(self.project_id, config)
             logger.info(f"Field protocol set to: {field_name}")
 
@@ -229,73 +254,167 @@ class ProjectAnalysisAgent:
         #    science_branches_mnisw is for RODBUK repository classification only
         #    Field protocol is stored in project_config.json
 
+        from opendata.utils import format_size
+
+        total_size = self.current_fingerprint.total_size_bytes
+
         self.save_state()
-        return _("Inventory refreshed. Project contains {count} files.").format(
-            count=self.current_fingerprint.file_count
+        return _(
+            "Inventory refreshed. Project contains {count} files, total size: {size}."
+        ).format(
+            count=self.current_fingerprint.file_count, size=format_size(total_size)
         )
 
-    def run_heuristics_phase(
-        self,
-        project_dir: Path,
-        ai_service: Any,
-        progress_callback: Optional[Callable[[str, str, str], None]] = None,
-        stop_event: Optional[Any] = None,
-    ) -> str:
+    def _update_heuristics_state(self):
+        """Internal helper to sync heuristics_run flag and primary file."""
+        if not self.current_fingerprint:
+            return
+
+        # 1. Update heuristics_run flag
+        self.heuristics_run = len(self.current_fingerprint.significant_files) > 0
+
+        # 2. Update primary file if needed
+        if not self.current_fingerprint.primary_file and self.current_analysis:
+            for fs in self.current_analysis.file_suggestions:
+                if "Main article" in fs.reason and fs.path.endswith((".tex", ".docx")):
+                    self.current_fingerprint.primary_file = fs.path
+                    break
+
+    def add_significant_file(self, path: str, category: str = "other"):
+        """Adds a file to significant files with a category."""
+        if not self.current_fingerprint:
+            return
+
+        # Ensure path is relative to root
+        if path not in self.current_fingerprint.significant_files:
+            self.current_fingerprint.significant_files.append(path)
+
+        # Update or create suggestion
+        from opendata.models import FileSuggestion, AIAnalysis
+
+        category_labels = {
+            "main_article": "Main article/paper",
+            "visualization_scripts": "Visualization scripts",
+            "data_files": "Data files",
+            "documentation": "Documentation",
+            "other": "Supporting file",
+        }
+        reason = category_labels.get(category, "Supporting file")
+
+        if not self.current_analysis:
+            self.current_analysis = AIAnalysis(summary="Manual selection")
+
+        # Find existing or add new
+        existing = next(
+            (fs for fs in self.current_analysis.file_suggestions if fs.path == path),
+            None,
+        )
+        if existing:
+            existing.reason = reason
+        else:
+            self.current_analysis.file_suggestions.append(
+                FileSuggestion(path=path, reason=reason)
+            )
+
+        self._update_heuristics_state()
+        self.save_state()
+
+    def remove_significant_file(self, path: str):
+        """Removes a file from significant files."""
+        if not self.current_fingerprint:
+            return
+
+        if path in self.current_fingerprint.significant_files:
+            self.current_fingerprint.significant_files.remove(path)
+
+        if self.current_analysis:
+            self.current_analysis.file_suggestions = [
+                fs for fs in self.current_analysis.file_suggestions if fs.path != path
+            ]
+
+        # Clear primary file if it was the one removed
+        if self.current_fingerprint.primary_file == path:
+            self.current_fingerprint.primary_file = None
+
+        self._update_heuristics_state()
+        self.save_state()
+
+    def update_file_role(self, path: str, category: str):
+        """Updates the role of an existing significant file."""
+        self.add_significant_file(path, category)
+
+    def set_significant_files_manual(self, selections: list[dict[str, str]]) -> str:
         """
-        Phase 2: Pure AI-driven identification of significant files.
+        User manually selects significant files with categories.
+        Replaces AI heuristics phase entirely.
+
+        Args:
+            selections: List of dicts with 'path' and 'category' keys.
+                       Categories: main_article, visualization_scripts, data_files, documentation, other
+
+        Returns:
+            Confirmation message for chat history.
         """
         if not self.current_fingerprint:
             return _("Error: No inventory found. Please scan the project first.")
 
-        if progress_callback:
-            progress_callback(_("AI is analyzing project structure..."), "", "")
+        # 1. Validate and filter selections against inventory
+        inventory_paths = set(self.current_fingerprint.structure_sample)
+        valid_selections = []
+        for sel in selections:
+            path = sel.get("path", "")
+            if path in inventory_paths:
+                valid_selections.append(sel)
 
-        # 1. AI File Identification
-        significant_files, ai_analysis = self.ai_heuristics.identify_significant_files(
-            self.project_id, ai_service
-        )
+        # 2. Update significant files list
+        self.current_fingerprint.significant_files = [
+            sel["path"] for sel in valid_selections
+        ]
 
-        # DEBUG: Log if AI failed
-        if not significant_files:
-            logger.warning(
-                f"AI Heuristics returned no files for project {self.project_id}"
-            )
-            if ai_analysis:
-                logger.debug(f"AI Analysis summary: {ai_analysis.summary}")
+        # 3. Auto-set primary file if article found
+        for sel in valid_selections:
+            if sel.get("category") == "main_article":
+                path = sel["path"]
+                if path.endswith((".tex", ".docx")):
+                    self.current_fingerprint.primary_file = path
+                    break
 
-        if stop_event and stop_event.is_set():
-            return _("Heuristics analysis cancelled by user.")
+        # 4. Store categories in analysis for context injection
+        from opendata.models import FileSuggestion, AIAnalysis
 
-        if not significant_files:
-            msg = _("AI failed to identify significant files from the inventory.")
-            self.chat_history.append(("agent", msg))
-            self.save_state()
-            return msg
+        category_labels = {
+            "main_article": "Main article/paper",
+            "visualization_scripts": "Visualization scripts",
+            "data_files": "Data files",
+            "documentation": "Documentation",
+            "other": "Supporting file",
+        }
 
-        self.current_fingerprint.significant_files = significant_files
-        # Update primary file if AI found one
-        for f in significant_files:
-            if f.endswith((".tex", ".docx")):
-                self.current_fingerprint.primary_file = f
-                break
+        file_suggestions = []
+        for sel in valid_selections:
+            category = sel.get("category", "other")
+            reason = category_labels.get(category, category)
+            file_suggestions.append(FileSuggestion(path=sel["path"], reason=reason))
 
-        # 2. Report findings
-        msg = _("### AI Heuristics Analysis\n\n")
-        if ai_analysis:
-            msg += f"{ai_analysis.summary}\n\n"
+        # Create or update analysis object
+        if not self.current_analysis:
+            self.current_analysis = AIAnalysis(summary="Manual file selection")
+        self.current_analysis.file_suggestions = file_suggestions
 
-        msg += _("**Significant Files Identified:**\n")
-        for f in significant_files:
-            p = project_dir / f
-            size = format_size(p.stat().st_size) if p.exists() else "???"
-            msg += f"- `{f}` ({size})\n"
-
-        msg += _(
-            "\n*Ready for deep content analysis. Click **AI Analyze** to proceed.*"
-        )
-
-        self.chat_history.append(("agent", msg))
+        # 5. Set heuristics_run flag to enable AI Analyze button
         self.heuristics_run = True
+
+        # 6. Add chat message
+        if valid_selections:
+            files_msg = ", ".join([f"`{sel['path']}`" for sel in valid_selections])
+            msg = _(
+                "### Manual File Selection\n\nSelected {count} files: {files}\n\n*Ready for deep content analysis. Click **AI Analyze** to proceed.*"
+            ).format(count=len(valid_selections), files=files_msg)
+            self.chat_history.append(("agent", msg))
+        else:
+            msg = _("Cleared all file selections.")
+            self.chat_history.append(("agent", msg))
+
         self.save_state()
         return msg
 
@@ -361,8 +480,13 @@ class ProjectAnalysisAgent:
         if stop_event and stop_event.is_set():
             return _("AI analysis cancelled by user.")
 
+        if analysis:
+            # Preserve manually selected file suggestions
+            if self.current_analysis and self.current_analysis.file_suggestions:
+                analysis.file_suggestions = self.current_analysis.file_suggestions
+            self.current_analysis = analysis
+
         self.current_metadata = metadata
-        self.current_analysis = analysis
         self.chat_history.append(("agent", clean_msg))
         self.save_state()
         return clean_msg

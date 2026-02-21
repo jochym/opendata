@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any, Union, Any, Union
 import yaml
 import logging
 from ..models import ExtractionProtocol, ProtocolLevel
@@ -208,9 +208,18 @@ class ProtocolManager:
         on_disk = [p.stem for p in self.fields_dir.glob("*.yaml")]
         return list(set(built_ins + on_disk))
 
-    def get_field_protocol(self, field_name: str) -> ExtractionProtocol:
+    def get_field_protocol(self, field_name: Any) -> ExtractionProtocol:
         """Retrieves a field protocol, checking user overrides first."""
-        norm_name = field_name.lower().replace(" ", "_")
+        if not field_name:
+            return ExtractionProtocol(
+                id="field_none", name="None", level=ProtocolLevel.FIELD
+            )
+
+        # Handle NiceGUI dict values
+        if isinstance(field_name, dict):
+            field_name = field_name.get("label", field_name.get("value", ""))
+
+        norm_name = str(field_name).lower().replace(" ", "_")
 
         # 1. Check disk (user override)
         path = self.fields_dir / f"{norm_name}.yaml"

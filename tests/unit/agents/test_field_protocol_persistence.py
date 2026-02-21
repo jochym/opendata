@@ -178,6 +178,8 @@ class TestFieldProtocolPersistence:
             total_size_bytes=1000,
             extensions=[".tex", ".dat", ".born"],  # Physics indicators
             structure_sample=["paper/main.tex", "data/results.dat", "system.born"],
+            primary_file=None,
+            significant_files=[],
         )
 
         # Act: Get effective field (should return None - NO heuristics)
@@ -206,6 +208,8 @@ class TestFieldProtocolPersistence:
             total_size_bytes=500,
             extensions=[".dcm", ".nii"],  # Medical indicators
             structure_sample=["dicom/image.dcm", "data.nii"],
+            primary_file=None,
+            significant_files=[],
         )
 
         # User explicitly selects physics

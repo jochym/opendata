@@ -152,6 +152,7 @@ async def load_inventory_background(ctx: AppContext):
             ctx.pkg_mgr.get_inventory_for_ui, project_path, manifest, protocol_excludes
         )
 
+        logger.info(f"Inventory retrieved from pkg_mgr: {len(inventory)} items")
         ctx.session.inventory_cache = inventory
 
         # Prepare UI data (summary and explorer index) in background thread
@@ -160,28 +161,37 @@ async def load_inventory_background(ctx: AppContext):
             count = len(included)
             total_count = len(inventory)
             size = sum(f["size"] for f in included)
+            total_size = sum(f["size"] for f in inventory)
 
             # Build Explorer Index
             children_map, stats = build_folder_index(inventory)
 
-            return count, total_count, size, children_map, stats
+            return count, total_count, size, total_size, children_map, stats
 
-        count, total_count, size, children_map, stats = await asyncio.to_thread(
-            prepare_ui_data
-        )
+        (
+            count,
+            total_count,
+            size,
+            total_size,
+            children_map,
+            stats,
+        ) = await asyncio.to_thread(prepare_ui_data)
 
         ctx.session.total_files_count = count
         ctx.session.inventory_total_count = total_count
         ctx.session.total_files_size = size
+        ctx.session.inventory_total_size = total_size
         ctx.session.folder_children_map = children_map
         ctx.session.folder_stats = stats
 
         ctx.session.last_inventory_project = ctx.agent.project_id
 
-        # Always refresh preview and package (if initialized)
+        # Always refresh preview, package and chat components (if initialized)
         try:
             ctx.refresh("preview")
             ctx.refresh("package")
+            ctx.refresh("significant_files_editor")
+            ctx.refresh("inventory_selector")
         except RuntimeError:
             pass
         logger.info(f"Inventory load complete for {ctx.agent.project_id}")

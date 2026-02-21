@@ -179,6 +179,8 @@ class TestFieldProtocolBugRegression:
             total_size_bytes=500,
             extensions=[".tex", ".born", ".kappa"],
             structure_sample=["paper/main.tex", "system.born"],
+            primary_file=None,
+            significant_files=[],
         )
 
         # CRITICAL: Even with obvious physics files, NO automatic selection
