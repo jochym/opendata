@@ -232,9 +232,15 @@ class ProjectAnalysisAgent:
         #    science_branches_mnisw is for RODBUK repository classification only
         #    Field protocol is stored in project_config.json
 
+        from opendata.utils import format_size
+
+        total_size = self.current_fingerprint.total_size_bytes
+
         self.save_state()
-        return _("Inventory refreshed. Project contains {count} files.").format(
-            count=self.current_fingerprint.file_count
+        return _(
+            "Inventory refreshed. Project contains {count} files, total size: {size}."
+        ).format(
+            count=self.current_fingerprint.file_count, size=format_size(total_size)
         )
 
     def _update_heuristics_state(self):
@@ -452,8 +458,13 @@ class ProjectAnalysisAgent:
         if stop_event and stop_event.is_set():
             return _("AI analysis cancelled by user.")
 
+        if analysis:
+            # Preserve manually selected file suggestions
+            if self.current_analysis and self.current_analysis.file_suggestions:
+                analysis.file_suggestions = self.current_analysis.file_suggestions
+            self.current_analysis = analysis
+
         self.current_metadata = metadata
-        self.current_analysis = analysis
         self.chat_history.append(("agent", clean_msg))
         self.save_state()
         return clean_msg

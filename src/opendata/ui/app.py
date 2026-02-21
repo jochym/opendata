@@ -93,6 +93,8 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080, enable_api: bool = False
             ctx.refresh("preview")
             ctx.refresh("protocols")
             ctx.refresh("package")
+            ctx.refresh("significant_files_editor")
+            ctx.refresh("inventory_selector")
         except Exception as e:
             logger.error(f"Refresh error: {e}")
         finally:

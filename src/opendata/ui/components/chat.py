@@ -282,32 +282,22 @@ async def handle_scan_only(ctx: AppContext, path: str):
         if ScanState.stop_event and ScanState.stop_event.is_set():
             ctx.agent.chat_history.append(("agent", f"🛑 **{result}**"))
         else:
-            # Add scan statistics and invitation to action
-            from opendata.utils import format_size
-
-            # Use the result string which already contains stats from refresh_inventory
-            # result contains: "Scanned X files (Y included), total size: Z MB"
-            stats_msg = _(
-                "✅ **Inventory refreshed.**\n\n{result}\n\n"
-                "**What now?**\n"
-                "1. Select **Significant Files** below to provide context.\n"
-                "2. Adjust exclusions in **Protocols** tab.\n"
-                "3. Click **AI Analyze** to generate metadata."
-            ).format(result=result)
-
-            ctx.agent.chat_history.append(("agent", stats_msg))
+            # Simplified scan message
+            ctx.agent.chat_history.append(("agent", f"✅ **{result}**"))
             try:
                 ui.notify(_("Inventory refreshed."), type="positive")
             except Exception:
                 pass
 
-        # Persist the updated chat history
-        ctx.agent.save_state()
-
         # Refresh the UI inventory cache and stats
         # This will trigger targeted refreshes via inventory_logic.py
         await load_inventory_background(ctx)
-        ctx.refresh_all()  # Ensure UI updates after agent state change
+
+        # Force a global UI refresh to ensure all components see the new state
+        ctx.refresh_all()
+
+        # Persist the updated chat history
+        ctx.agent.save_state()
 
     except asyncio.CancelledError:
         logger.info("Scan cancelled by user.")
@@ -370,8 +360,6 @@ def render_significant_files_editor(ctx: AppContext):
     selected_count = len(suggestions)
     selected_size = 0
     if ctx.agent.current_fingerprint:
-        from pathlib import Path
-
         project_dir = Path(ctx.agent.current_fingerprint.root_path)
         for fs in suggestions:
             p = project_dir / fs.path
@@ -387,7 +375,7 @@ def render_significant_files_editor(ctx: AppContext):
             ),
             icon="fact_check",
         )
-        .classes("w-full mt-2")
+        .classes("w-full mt-1")
         .props("dense")
     ):
         with ui.column().classes("w-full gap-1 p-2"):
@@ -434,7 +422,6 @@ def render_significant_files_editor(ctx: AppContext):
                         return lambda e: (
                             ctx.agent.update_file_role(p, e.value),
                             ctx.refresh("significant_files_editor"),
-                            ctx.refresh("inventory_selector"),
                         )
 
                     ui.select(
@@ -466,14 +453,14 @@ def render_inventory_selector(ctx: AppContext):
     """Collapsible explorer-based inventory selector to add files."""
     with (
         ui.expansion(_("Project Explorer"), icon="folder_open")
-        .classes("w-full mt-2")
+        .classes("w-full mt-1")
         .props("dense")
     ):
         with ui.column().classes("w-full gap-0"):
             if not ctx.session.inventory_cache:
                 with ui.column().classes("w-full items-center justify-center p-4"):
                     if ScanState.is_scanning:
-                        ui.spinner(size="xs")
+                        ui.spinner(size="sm")
                     else:
                         ui.label(_("No inventory. Click Scan.")).classes(
                             "text-xs text-slate-400 italic"
@@ -516,7 +503,7 @@ def render_inventory_selector(ctx: AppContext):
                 with ui.column().classes("w-full gap-0"):
                     if not children:
                         ui.label(_("Folder is empty")).classes(
-                            "text-xs text-slate-400 p-2 text-center"
+                            "text-xs text-slate-400 p-4 text-center"
                         )
 
                     for item in children:
@@ -658,6 +645,12 @@ def render_metadata_panel(ctx: AppContext):
 
             # Significant Files Editor & Selector
             with ui.column().classes("w-full shrink-0"):
+                ctx.register_refreshable(
+                    "significant_files_editor", render_significant_files_editor
+                )
+                ctx.register_refreshable(
+                    "inventory_selector", render_inventory_selector
+                )
                 render_significant_files_editor(ctx)
                 render_inventory_selector(ctx)
 
