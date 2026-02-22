@@ -41,3 +41,21 @@ METADATA:
     assert updated.title == "Nested YAML Title"
     assert analysis is not None
     assert analysis.summary == "YAML analysis works."
+
+
+def test_parsing_yaml_with_question_section():
+    """
+    Test behavior: Parser should correctly handle QUESTION: section after METADATA.
+    This tests the fix for the bug where line 77 was overwriting the split result.
+    """
+    current = Metadata()
+    ai_response = """METADATA:
+title: Title with Question
+keywords: [test]
+QUESTION: Is this metadata correct?
+"""
+    msg, analysis, updated = extract_metadata_from_ai_response(ai_response, current)
+
+    assert updated.title == "Title with Question"
+    assert updated.keywords == ["test"]
+    assert "Is this metadata correct?" in msg

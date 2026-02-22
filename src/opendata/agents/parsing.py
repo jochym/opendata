@@ -74,7 +74,7 @@ def extract_metadata_from_ai_response(
             json_section = after_metadata
             clean_text = ""
 
-        json_section = after_metadata.strip()
+        json_section = json_section.strip()
 
         # Determine if we are dealing with JSON or YAML
         is_json = json_section.startswith("{") or json_section.startswith("```json")
