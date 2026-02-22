@@ -253,17 +253,21 @@ class WorkspaceManager:
                         for name in files:
                             try:
                                 os.remove(os.path.join(root, name))
-                            except:
-                                pass
+                            except (OSError, PermissionError):
+                                logger.warning(
+                                    f"Could not remove file: {os.path.join(root, name)}"
+                                )
                         for name in dirs:
                             try:
                                 os.rmdir(os.path.join(root, name))
-                            except:
-                                pass
+                            except (OSError, PermissionError):
+                                logger.warning(
+                                    f"Could not remove directory: {os.path.join(root, name)}"
+                                )
                     try:
                         os.rmdir(str(pdir))
-                    except:
-                        pass
+                    except (OSError, PermissionError):
+                        logger.warning(f"Could not remove project directory: {pdir}")
 
                 success = not pdir.exists()
                 return success

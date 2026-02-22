@@ -185,7 +185,12 @@ async def handle_manage_projects(ctx: AppContext):
                 with ui.row().classes(
                     "w-full items-center gap-2 p-2 rounded hover:bg-gray-100"
                 ):
-                    ui.label(f"{status_icon}").classes("text-lg").tooltip(tooltip_msg)
+                    # Accessibility: Add screen-reader friendly text
+                    with ui.element("div").classes("text-lg").tooltip(tooltip_msg):
+                        ui.label(status_icon).classes("inline")
+                        ui.label(status_text).classes(
+                            "sr-only"
+                        )  # Hidden from visual, visible to screen readers
 
                     with ui.column().classes("flex-1"):
                         ui.label(p.get("title", "Untitled")[:50]).classes("font-bold")
