@@ -140,6 +140,38 @@ def test_field_protocol_returns_none():
 
 For the current list of supported platforms, see [SUPPORTED_PLATFORMS.md](./SUPPORTED_PLATFORMS.md).
 
+## Realistic Test Fixtures
+
+The test suite includes realistic project fixtures from actual research projects:
+
+### Location
+- `tests/fixtures/realistic_projects/` - Complete project structures
+- `tests/fixtures/realistic_metadata.yaml` - Expected metadata extraction results
+
+### Available Fixtures
+1. **3C-SiC** - Thermal conductivity study (cubic silicon carbide)
+   - Files: `main.tex`, `OpenData.yaml`, `ReadMe.md`
+   - Domain: Physics/Materials Science
+   - Features: VASP calculations, HECSS method
+
+2. **FeSi** - Iron silicide thermal properties study
+   - Files: `main.tex`, `OpenData.yaml`, `ReadMe.md`, `FeSi_ProjectMetadata.yaml`
+   - Domain: Physics/Computational Materials Science
+   - Features: DFT calculations, TDEP method, Raman spectroscopy
+
+### Usage in Tests
+```python
+@pytest.fixture
+def realistic_projects():
+    fixture_path = Path(__file__).parent.parent.parent / "fixtures" / "realistic_metadata.yaml"
+    with open(fixture_path, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f)["projects"]
+
+def test_parsing_3c_sic_full_response(realistic_projects):
+    expected = realistic_projects["3C-SiC"]
+    # Test metadata extraction against ground truth
+```
+
 ## AI Testing Considerations
 
 AI interaction tests require special handling:
