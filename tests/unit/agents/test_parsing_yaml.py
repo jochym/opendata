@@ -5,8 +5,7 @@ from opendata.models import Metadata
 
 def test_parsing_yaml_basic():
     """
-    RED: Test should fail because current parser expects JSON (braces)
-    and uses json.loads.
+    Test behavior: Parser should correctly parse simple YAML metadata.
     """
     current = Metadata()
     ai_response = """
@@ -46,10 +45,10 @@ METADATA:
 def test_parsing_yaml_with_question_section():
     """
     Test behavior: Parser should correctly handle QUESTION: section after METADATA.
-    This tests the fix for the bug where line 77 was overwriting the split result.
     """
     current = Metadata()
-    ai_response = """METADATA:
+    ai_response = """
+METADATA:
 title: Title with Question
 keywords: [test]
 QUESTION: Is this metadata correct?

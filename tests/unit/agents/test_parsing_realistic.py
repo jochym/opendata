@@ -100,17 +100,16 @@ def test_parsing_fesi_author_list_and_trackchanges(realistic_metadata):
     # Simulate AI response with many authors and some 'noise' in YAML format
     ai_response = """
 METADATA:
-  METADATA:
-    title: "Ab initio study of the anharmonic properties and thermal conductivity in beta-FeSi2"
-    authors:
-      - "Pastukh, Svitlana"
-      - "Sternik, Małgorzata"
-      - "Jochym, Paweł T."
-      - "Łażewski, Jan"
-      - "Ptok, Andrzej"
-      - "Stankov, Svetoslav"
-      - "Piekarz, Przemysław"
-    notes: "Extracted from LaTeX source with \\\\trackchange{old}{new}{color} markers."
+title: "Ab initio study of the anharmonic properties and thermal conductivity in beta-FeSi2"
+authors:
+  - "Pastukh, Svitlana"
+  - "Sternik, Małgorzata"
+  - "Jochym, Paweł T."
+  - "Łażewski, Jan"
+  - "Ptok, Andrzej"
+  - "Stankov, Svetoslav"
+  - "Piekarz, Przemysław"
+notes: "Extracted from LaTeX source with \\\\trackchange{old}{new}{color} markers."
 """
     msg, analysis, updated = extract_metadata_from_ai_response(ai_response, current)
 
@@ -134,8 +133,7 @@ def test_parsing_placeholder_protection():
     # AI sends a placeholder response in YAML format
     ai_response = """
 METADATA:
-  METADATA:
-    abstract: "Abstract remains the same..."
+abstract: "Abstract remains the same..."
 """
     msg, analysis, updated = extract_metadata_from_ai_response(ai_response, current)
 

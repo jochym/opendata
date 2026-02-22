@@ -144,7 +144,7 @@ def extract_metadata_from_ai_response(
             # For robustness, we try to load the whole section first.
             try:
                 data = yaml.safe_load(yaml_content)
-            except Exception as e:
+            except yaml.YAMLError as e:
                 logger.error(f"YAML parse failed: {e}")
                 return (
                     clean_text if clean_text else response_text,

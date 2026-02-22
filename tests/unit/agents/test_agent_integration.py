@@ -339,15 +339,15 @@ class TestAgentSignificantFiles:
             file_count=10,
             total_size_bytes=10000,
             extensions=[".tex"],
-            structure_sample=["paper/main.tex"],
+            structure_sample=["main.tex"],
             significant_files=[],
         )
 
         # Act: Add significant file
-        agent.add_significant_file("paper/main.tex", category="main_article")
+        agent.add_significant_file("main.tex", category="main_article")
 
         # Assert: File is in significant files
-        assert "paper/main.tex" in agent.current_fingerprint.significant_files
+        assert "main.tex" in agent.current_fingerprint.significant_files
         assert agent.heuristics_run is True
 
     def test_agent_remove_significant_file(self, agent, project_3csic_path):
@@ -361,15 +361,15 @@ class TestAgentSignificantFiles:
             file_count=10,
             total_size_bytes=10000,
             extensions=[".tex"],
-            structure_sample=["paper/main.tex"],
-            significant_files=["paper/main.tex"],
+            structure_sample=["main.tex"],
+            significant_files=["main.tex"],
         )
 
         # Act: Remove file
-        agent.remove_significant_file("paper/main.tex")
+        agent.remove_significant_file("main.tex")
 
         # Assert: File is removed
-        assert "paper/main.tex" not in agent.current_fingerprint.significant_files
+        assert "main.tex" not in agent.current_fingerprint.significant_files
 
     def test_agent_set_significant_files_manual(self, agent, project_3csic_path):
         """
@@ -382,13 +382,13 @@ class TestAgentSignificantFiles:
             file_count=10,
             total_size_bytes=10000,
             extensions=[".tex", ".yaml"],
-            structure_sample=["paper/main.tex", "OpenData.yaml"],
+            structure_sample=["main.tex", "OpenData.yaml"],
             significant_files=[],
         )
 
         # Act: Set files manually
         selections = [
-            {"path": "paper/main.tex", "category": "main_article"},
+            {"path": "main.tex", "category": "main_article"},
             {"path": "OpenData.yaml", "category": "documentation"},
         ]
         msg = agent.set_significant_files_manual(selections)
