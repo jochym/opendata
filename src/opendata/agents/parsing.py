@@ -138,10 +138,14 @@ def extract_metadata_from_ai_response(
             yaml_content = re.sub(r"^```(?:yaml)?\s*", "", yaml_content)
             yaml_content = re.sub(r"\s*```$", "", yaml_content)
 
-            # YAML can be sensitive to following text (like "The analysis is based on...")
-            # We take everything until the next double newline or a common "end of block" marker
-            # But safe_load often handles trailing text if it's not valid YAML.
-            # For robustness, we try to load the whole section first.
+            # YAML can be sensitive to trailing text - split on double newline or QUESTION:
+            if "QUESTION:" in yaml_content:
+                yaml_content, question_part = yaml_content.split("QUESTION:", 1)
+                clean_text = question_part.strip()
+            elif "\n\n" in yaml_content:
+                # Take only first YAML block
+                yaml_content = yaml_content.split("\n\n")[0]
+
             try:
                 data = yaml.safe_load(yaml_content)
             except yaml.YAMLError as e:

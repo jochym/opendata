@@ -1,9 +1,8 @@
-import json
 import pytest
 import yaml
 from pathlib import Path
 from opendata.agents.parsing import extract_metadata_from_ai_response
-from opendata.models import Metadata, PersonOrOrg, Contact, AIAnalysis
+from opendata.models import Metadata, PersonOrOrg
 
 
 @pytest.fixture

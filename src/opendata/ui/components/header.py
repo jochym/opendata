@@ -228,7 +228,7 @@ async def handle_manage_projects(ctx: AppContext):
                                             ui.notify(
                                                 _("Project removed."), type="positive"
                                             )
-                                            ctx.wm._projects_cache = None
+                                            # Cache already cleared by delete_project()
                                             # Close manage dialog and refresh
                                             manage_dialog.close()
                                             await asyncio.sleep(0.1)
