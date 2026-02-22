@@ -240,6 +240,9 @@ class WorkspaceManager:
         import os
         import gc
 
+        # Always clear cache first to ensure fresh state
+        self._projects_cache = None
+
         pdir = self.projects_dir / project_id
         if pdir.exists() and pdir.is_dir():
             try:
@@ -263,15 +266,16 @@ class WorkspaceManager:
                         pass
 
                 success = not pdir.exists()
-                if success:
-                    self._projects_cache = None
                 return success
             except Exception as e:
                 logger.error(
                     f"Failed to delete project directory {pdir}: {e}", exc_info=True
                 )
                 return False
-        return False
+
+        # Even if directory doesn't exist, consider it "deleted" if we clear cache
+        # This handles cases where project metadata exists but directory is gone
+        return True
 
     def save_yaml(self, data: BaseModel, filename: str):
         """Saves a Pydantic model as a human-readable YAML file."""

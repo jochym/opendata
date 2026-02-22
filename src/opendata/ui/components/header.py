@@ -1,10 +1,13 @@
 from pathlib import Path
 import asyncio
+import logging
 from nicegui import ui
 from opendata.i18n.translator import _
 from opendata.ui.state import ScanState, UIState
 from opendata.ui.context import AppContext
 from opendata.utils import get_app_version
+
+logger = logging.getLogger("opendata.ui.header")
 
 
 @ui.refreshable
@@ -87,14 +90,17 @@ def header_content_ui(ctx: AppContext):
                 ctx.session, "is_project_loading"
             )
 
+            # Manage all projects button (always visible)
             with (
-                ui.button(icon="delete", on_click=lambda: handle_delete_current(ctx))
-                .props("flat color=red dense")
-                .classes("text-xs") as del_btn
+                ui.button(
+                    icon="folder_open", on_click=lambda: handle_manage_projects(ctx)
+                )
+                .props("flat dense")
+                .classes("text-xs") as manage_btn
             ):
-                ui.tooltip(_("Remove current project from history"))
-                del_btn.bind_visibility_from(
-                    ctx.agent, "project_id", backward=lambda x: bool(x)
+                ui.tooltip(_("Manage all projects"))
+                manage_btn.bind_visibility_from(
+                    ctx.session, "is_project_loading", backward=lambda x: not x
                 )
 
 
@@ -143,36 +149,102 @@ async def handle_load_project(ctx: AppContext, path: str):
         ctx.session.is_project_loading = False
 
 
-async def handle_delete_current(ctx: AppContext):
-    project_id = ctx.agent.project_id
-    if not project_id:
-        if ScanState.current_path:
-            projects = ctx.wm.list_projects()
-            for p in projects:
-                if p["path"] == ScanState.current_path:
-                    project_id = p["id"]
-                    break
+async def handle_manage_projects(ctx: AppContext):
+    """Shows a dialog with all projects and options to delete them."""
+    projects = ctx.wm.list_projects()
 
-    if not project_id:
-        ui.notify(_("Please select a project to delete first."), type="warning")
+    if not projects:
+        ui.notify(_("No projects in workspace."), type="info")
         return
 
-    with ui.dialog() as confirm_dialog, ui.card().classes("p-4"):
-        ui.label(_("Are you sure you want to remove this project from the list?"))
-        with ui.row().classes("w-full justify-end gap-2 mt-4"):
-            ui.button(_("Cancel"), on_click=confirm_dialog.close).props("flat")
+    with ui.dialog() as manage_dialog, ui.card().classes("p-6 w-[600px]"):
+        ui.label(_("Manage Projects")).classes("text-xl font-bold")
+        ui.separator()
 
-            async def perform_delete():
-                confirm_dialog.close()
-                success = ctx.wm.delete_project(project_id)
-                if success:
-                    ui.notify(_("Project removed from workspace."))
-                    ScanState.current_path = ""
-                    ctx.agent.reset_agent_state()
-                    ctx.refresh_all()
+        with ui.column().classes("gap-3 mt-4 max-h-96 overflow-y-auto"):
+            for p in projects:
+                path_display = p.get("path", "Unknown")
+                path_exists = (
+                    Path(path_display).exists() if path_display != "Unknown" else False
+                )
+
+                # Visual indicator for corrupt/orphaned projects
+                if path_display == "Unknown" or not path_exists:
+                    status_icon = "❌"
+                    status_color = "red"
+                    status_text = _("Corrupt/Orphaned")
+                    tooltip_msg = _(
+                        "Project data is incomplete or the original location no longer exists. Safe to remove."
+                    )
                 else:
-                    ui.notify(_("Failed to delete project state."), type="negative")
-                    ctx.refresh_all()
+                    status_icon = "✓"
+                    status_color = "green"
+                    status_text = _("OK")
+                    tooltip_msg = _("Project is valid and accessible.")
 
-            ui.button(_("Delete"), on_click=perform_delete, color="red")
-    confirm_dialog.open()
+                with ui.row().classes(
+                    "w-full items-center gap-2 p-2 rounded hover:bg-gray-100"
+                ):
+                    ui.label(f"{status_icon}").classes("text-lg").tooltip(tooltip_msg)
+
+                    with ui.column().classes("flex-1"):
+                        ui.label(p.get("title", "Untitled")[:50]).classes("font-bold")
+                        ui.label(f"{path_display[:60]}...").classes(
+                            "text-xs text-gray-500"
+                        )
+
+                    ui.chip(status_text).props(f"color={status_color} outline")
+
+                    async def do_delete(
+                        pid=p["id"], title=p.get("title", "Untitled")[:40]
+                    ):
+                        # Show confirmation dialog before destructive operation
+                        with (
+                            ui.dialog() as confirm_dialog,
+                            ui.card().classes("p-4 w-96"),
+                        ):
+                            ui.label(_("Delete Project?")).classes("text-lg font-bold")
+                            ui.label(
+                                _(
+                                    "Are you sure you want to delete '{title}'? This action cannot be undone."
+                                ).format(title=title)
+                            ).classes("mt-2 text-gray-600")
+
+                            with ui.row().classes("w-full justify-end gap-2 mt-4"):
+                                ui.button(
+                                    _("Cancel"), on_click=confirm_dialog.close
+                                ).props("flat")
+
+                                async def confirm():
+                                    confirm_dialog.close()
+                                    try:
+                                        success = ctx.wm.delete_project(pid)
+                                        if success:
+                                            ui.notify(
+                                                _("Project removed."), type="positive"
+                                            )
+                                            ctx.wm._projects_cache = None
+                                            # Close manage dialog and refresh
+                                            manage_dialog.close()
+                                            await asyncio.sleep(0.1)
+                                            ctx.refresh_all()
+                                        else:
+                                            ui.notify(
+                                                _("Failed to delete."), type="negative"
+                                            )
+                                    except Exception as e:
+                                        logger.error(f"Delete error: {e}")
+                                        ui.notify(str(e), type="negative")
+
+                                ui.button(_("Delete"), on_click=confirm, color="red")
+
+                        confirm_dialog.open()
+
+                    ui.button(icon="delete", on_click=do_delete).props(
+                        "flat color=red dense"
+                    ).tooltip(_("Delete this project permanently"))
+
+        with ui.row().classes("w-full justify-end mt-4"):
+            ui.button(_("Close"), on_click=manage_dialog.close).props("flat")
+
+    manage_dialog.open()
