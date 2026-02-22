@@ -74,40 +74,86 @@ def extract_metadata_from_ai_response(
             json_section = after_metadata
             clean_text = ""
 
-        json_section = json_section.strip()
-        json_section = re.sub(r"^```json\s*", "", json_section)
-        json_section = re.sub(r"\s*```$", "", json_section)
+        json_section = after_metadata.strip()
 
-        start = json_section.find("{")
-        if start == -1:
+        # Determine if we are dealing with JSON or YAML
+        is_json = json_section.startswith("{") or json_section.startswith("```json")
+
+        if is_json:
+            json_section = re.sub(r"^```json\s*", "", json_section)
+            json_section = re.sub(r"\s*```$", "", json_section)
+
+            start = json_section.find("{")
+            if start == -1:
+                return (
+                    clean_text if clean_text else response_text,
+                    None,
+                    updated_metadata,
+                )
+
+            brace_count = 0
+            end = -1
+            for i in range(start, len(json_section)):
+                if json_section[i] == "{":
+                    brace_count += 1
+                elif json_section[i] == "}":
+                    brace_count -= 1
+                    if brace_count == 0:
+                        end = i + 1
+                        break
+
+            if end == -1:
+                return (
+                    clean_text if clean_text else response_text,
+                    None,
+                    updated_metadata,
+                )
+
+            json_str = json_section[start:end]
+            json_str = re.sub(r"\bNone\b", "null", json_str)
+            json_str = re.sub(r"\bTrue\b", "true", json_str)
+            json_str = re.sub(r"\bFalse\b", "false", json_str)
+
+            try:
+                # Basic cleanup of common AI JSON errors
+                # 1. Trailing commas in arrays/objects: [1, 2,] -> [1, 2]
+                json_str_clean = re.sub(r",\s*([\]}])", r"\1", json_str)
+                data = json.loads(json_str_clean)
+            except json.JSONDecodeError:
+                # 2. Single quotes recovery
+                if json_str.count("'") > json_str.count('"'):
+                    try:
+                        # Also apply trailing comma fix to single-quoted version
+                        sq_json = json_str.replace("'", '"')
+                        sq_json = re.sub(r",\s*([\]}])", r"\1", sq_json)
+                        data = json.loads(sq_json)
+                    except json.JSONDecodeError:
+                        raise
+                else:
+                    raise
+        else:
+            # YAML Path
+            yaml_content = json_section
+            # Strip potential markdown blocks
+            yaml_content = re.sub(r"^```(?:yaml)?\s*", "", yaml_content)
+            yaml_content = re.sub(r"\s*```$", "", yaml_content)
+
+            # YAML can be sensitive to following text (like "The analysis is based on...")
+            # We take everything until the next double newline or a common "end of block" marker
+            # But safe_load often handles trailing text if it's not valid YAML.
+            # For robustness, we try to load the whole section first.
+            try:
+                data = yaml.safe_load(yaml_content)
+            except Exception as e:
+                logger.error(f"YAML parse failed: {e}")
+                return (
+                    clean_text if clean_text else response_text,
+                    None,
+                    updated_metadata,
+                )
+
+        if not data or not isinstance(data, dict):
             return clean_text if clean_text else response_text, None, updated_metadata
-
-        brace_count = 0
-        end = -1
-        for i in range(start, len(json_section)):
-            if json_section[i] == "{":
-                brace_count += 1
-            elif json_section[i] == "}":
-                brace_count -= 1
-                if brace_count == 0:
-                    end = i + 1
-                    break
-
-        if end == -1:
-            return clean_text if clean_text else response_text, None, updated_metadata
-
-        json_str = json_section[start:end]
-        json_str = re.sub(r"\bNone\b", "null", json_str)
-        json_str = re.sub(r"\bTrue\b", "true", json_str)
-        json_str = re.sub(r"\bFalse\b", "false", json_str)
-
-        try:
-            data = json.loads(json_str)
-        except json.JSONDecodeError:
-            if json_str.count("'") > json_str.count('"'):
-                data = json.loads(json_str.replace("'", '"'))
-            else:
-                raise
 
         if ("METADATA" in data) or ("ANALYSIS" in data):
             updates = data.get("METADATA", {})
