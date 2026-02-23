@@ -122,9 +122,9 @@ async def handle_load_project(ctx: AppContext, path: str):
         ctx.agent.project_id = project_id
 
         # Reset session state for new project
-        from opendata.ui.context import SessionState
-
-        ctx.session = SessionState()
+        # Reset session state instead of replacing the object to preserve UI bindings
+        ctx.session.reset()
+        ctx.session.is_project_loading = True
 
         success = await asyncio.to_thread(ctx.agent.load_project, path_obj)
         ScanState.current_path = str(path_obj)

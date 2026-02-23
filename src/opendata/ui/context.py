@@ -31,9 +31,29 @@ class SessionState:
     show_only_included: bool = False
     show_suggestions_banner: bool = True
     explorer_path: str = ""
-    folder_children_map: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
-    folder_stats: dict[str, dict[str, int]] = field(default_factory=dict)
+    extension_stats: dict[str, dict[str, int]] = field(default_factory=dict)
     ai_stop_event: Optional[threading.Event] = None
+
+    def reset(self):
+        """Resets session state to default values without replacing the object."""
+        self.inventory_cache = []
+        self.last_inventory_project = ""
+        self.is_loading_inventory = False
+        self.inventory_lock = False
+        self.last_refresh_time = 0.0
+        self.pending_refresh = False
+        self._is_refreshing_global = False
+        self.is_project_loading = False
+        self.total_files_count = 0
+        self.total_files_size = 0
+        self.inventory_total_count = 0
+        self.inventory_total_size = 0
+        self.grid_rows = []
+        self.show_only_included = False
+        self.show_suggestions_banner = True
+        self.explorer_path = ""
+        self.extension_stats = {}
+        self.ai_stop_event = None
 
 
 @dataclass

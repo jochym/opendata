@@ -145,10 +145,12 @@ def extract_metadata_from_ai_response(
                         sq_json = re.sub(r",\s*([\]}])", r"\1", sq_json)
                         data = json.loads(sq_json)
                     except json.JSONDecodeError:
-                        raise
+                        # Fallback to YAML if JSON fails
+                        is_json = False
                 else:
-                    raise
-        else:
+                    # Fallback to YAML if JSON fails
+                    is_json = False
+        if not is_json:
             # YAML Path
             yaml_content = json_section
             # Strip potential markdown blocks
@@ -170,10 +172,12 @@ def extract_metadata_from_ai_response(
             return clean_text if clean_text else response_text, None, updated_metadata
 
         if ("METADATA" in data) or ("ANALYSIS" in data):
-            updates = data.get("METADATA", {})
+            updates = data.get("METADATA")
+            if not isinstance(updates, dict):
+                updates = {}
             try:
                 analysis_data = data.get("ANALYSIS")
-                if analysis_data:
+                if analysis_data and isinstance(analysis_data, dict):
                     # Normalize keys for AIAnalysis model aliases (missing_fields -> missingfields)
                     normalized_analysis = {}
                     mapping = {
