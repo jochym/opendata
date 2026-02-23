@@ -1,9 +1,29 @@
 [project]
 name = "opendata-tool"
-dynamic = ["version"]
+dynamic = ["version", "readme"]
 description = "Scientific metadata preparation and packaging tool"
 authors = [
     {name = "Antigravity", email = "antigravity@example.com"}
+]
+license = {text = "MIT"}
+keywords = [
+    "scientific-data",
+    "metadata",
+    "research",
+    "RODBUK",
+    "data-management",
+    "open-science",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
 ]
 dependencies = [
     "nicegui>=1.4.0",
@@ -32,6 +52,12 @@ dev = [
     "mypy>=1.0.0",
 ]
 
+[project.urls]
+Homepage = "https://jochym.github.io/opendata/"
+Documentation = "https://jochym.github.io/opendata/"
+Repository = "https://github.com/jochym/opendata"
+Changelog = "https://github.com/jochym/opendata/blob/main/CHANGELOG.md"
+
 [project.scripts]
 opendata = "opendata.main:main"
 
@@ -41,6 +67,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.dynamic]
 version = {file = "src/opendata/VERSION"}
+readme = {file = "README.md", content-type = "text/markdown"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
