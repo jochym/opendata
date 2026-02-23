@@ -234,7 +234,7 @@ class WorkspaceManager:
         self._projects_cache = projects
         return projects
 
-    def delete_project(self, project_id: str):
+    def delete_project(self, project_id: str) -> bool:
         """Permanently deletes a project's persisted state."""
         import shutil
         import os

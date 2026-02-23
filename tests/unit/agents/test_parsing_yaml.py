@@ -1,4 +1,4 @@
-import pytest
+
 from opendata.agents.parsing import extract_metadata_from_ai_response
 from opendata.models import Metadata
 

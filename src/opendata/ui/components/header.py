@@ -163,7 +163,7 @@ async def handle_manage_projects(ctx: AppContext):
 
         with ui.column().classes("gap-3 mt-4 max-h-96 overflow-y-auto"):
             for p in projects:
-                path_display = p.get("path", "Unknown")
+                path_display = p.get("path") or "Unknown"
                 path_exists = (
                     Path(path_display).exists() if path_display != "Unknown" else False
                 )
@@ -228,6 +228,12 @@ async def handle_manage_projects(ctx: AppContext):
                                             ui.notify(
                                                 _("Project removed."), type="positive"
                                             )
+                                            # Clear state if deleted project is currently loaded
+                                            if ctx.agent.project_id == pid:
+                                                ctx.agent.reset_agent_state()
+                                                from opendata.ui.state import ScanState
+
+                                                ScanState.current_path = ""
                                             # Cache already cleared by delete_project()
                                             # Close manage dialog and refresh
                                             manage_dialog.close()

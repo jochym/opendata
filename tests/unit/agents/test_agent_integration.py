@@ -1,7 +1,7 @@
 import pytest
 import yaml
 from pathlib import Path
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock
 from opendata.agents.project_agent import ProjectAnalysisAgent
 from opendata.workspace import WorkspaceManager
 from opendata.models import Metadata, ProjectFingerprint

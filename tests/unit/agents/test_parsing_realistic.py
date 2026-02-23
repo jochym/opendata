@@ -78,13 +78,8 @@ METADATA:
     # Test Contact normalization ('name' to 'person_to_contact')
     assert updated.contacts[0].person_to_contact == "Paweł T. Jochym"
 
-    # Test Funding normalization ('grant_number' to 'grantnumber' alias/logic)
-    # Note: Currently parsing.py line 276 maps grant_number -> grantnumber
-    # However, Metadata model doesn't have grantnumber, it has list[dict].
-    # Let's check what actually happens in the dict.
+    # Test Funding normalization
     assert updated.funding[0]["agency"] == "National Science Centre (NCN, Poland)"
-    # Based on parsing.py:276 it should be 'grantnumber'
-    assert "grantnumber" in updated.funding[0]
     assert updated.funding[0]["grantnumber"] == "UMO-2014/13/B/ST3/04393"
 
 

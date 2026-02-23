@@ -161,6 +161,10 @@ The test suite includes realistic project fixtures from actual research projects
 
 ### Usage in Tests
 ```python
+import pytest
+import yaml
+from pathlib import Path
+
 @pytest.fixture
 def realistic_projects():
     fixture_path = Path(__file__).parent.parent.parent / "fixtures" / "realistic_metadata.yaml"
