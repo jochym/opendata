@@ -194,9 +194,13 @@ async def handle_manage_projects(ctx: AppContext):
 
                     with ui.column().classes("flex-1"):
                         ui.label(p.get("title", "Untitled")[:50]).classes("font-bold")
-                        ui.label(f"{path_display[:60]}...").classes(
-                            "text-xs text-gray-500"
+                        # Only show ellipsis if path is actually truncated
+                        path_label = (
+                            f"{path_display[:60]}..."
+                            if len(path_display) > 60
+                            else path_display
                         )
+                        ui.label(path_label).classes("text-xs text-gray-500")
 
                     ui.chip(status_text).props(f"color={status_color} outline")
 

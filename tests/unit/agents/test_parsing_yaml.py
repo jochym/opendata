@@ -1,4 +1,3 @@
-
 from opendata.agents.parsing import extract_metadata_from_ai_response
 from opendata.models import Metadata
 
@@ -24,7 +23,7 @@ authors:
 
 def test_parsing_yaml_with_analysis():
     """
-    RED: Test for nested YAML structure (ANALYSIS + METADATA).
+    Test behavior: Parser should correctly parse nested YAML structure (ANALYSIS + METADATA).
     """
     current = Metadata()
     ai_response = """

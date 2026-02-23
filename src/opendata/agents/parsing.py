@@ -140,12 +140,7 @@ def extract_metadata_from_ai_response(
             yaml_content = re.sub(r"^```(?:yaml)?\s*", "", yaml_content)
             yaml_content = re.sub(r"\s*```$", "", yaml_content)
 
-            # YAML can be sensitive to trailing text - split on QUESTION: marker only
-            # (double newlines are valid YAML separators, so we don't split on those)
-            if "QUESTION:" in yaml_content:
-                yaml_content, question_part = yaml_content.split("QUESTION:", 1)
-                clean_text = question_part.strip()
-
+            # QUESTION: already split off at line 70-72, yaml_content is clean
             try:
                 data = yaml.safe_load(yaml_content)
             except yaml.YAMLError as e:
