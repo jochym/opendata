@@ -37,36 +37,67 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y xvfb python3-tk libxcb-xinerama0 libxcb-cursor0 binutils
       
-      - name: Install pyApp and dependencies
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          toolchain: stable
+          target: ${{ inputs.target == 'macos-x86_64' && 'x86_64-apple-darwin' || '' }}
+      
+      - name: Get PyApp Source
+        shell: bash
         run: |
-          python -m pip install --upgrade pip
-          pip install .
-          pip install pyapp-pack
+          curl -L https://github.com/ofek/pyapp/releases/latest/download/source.tar.gz -o pyapp-source.tar.gz
+          tar -xzf pyapp-source.tar.gz
+          mv pyapp-v* pyapp-latest
+          cd pyapp-latest
+          echo "PYAPP_DIR=$(pwd)" >> $GITHUB_ENV
+      
+      - name: Get Version
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(cat src/opendata/VERSION | sed 's/+.*//')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
       
       - name: Prepare client_secrets.json
         shell: bash
         env:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-          SHA: ${{ github.sha }}
         run: |
-          python -c "import os; v=open('src/opendata/VERSION').read().strip(); open('src/opendata/VERSION', 'w').write(f'{v}+{os.environ[\"SHA\"][:7]}')"
           if [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ]; then
             echo "{\"installed\":{\"client_id\":\"$GOOGLE_CLIENT_ID\",\"project_id\":\"opendata-tool\",\"auth_uri\":\"https://accounts.google.com/o/oauth2/auth\",\"token_uri\":\"https://oauth2.googleapis.com/token\",\"auth_provider_x509_cert_url\":\"https://www.googleapis.com/oauth2/v1/certs\",\"client_secret\":\"$GOOGLE_CLIENT_SECRET\",\"redirect_uris\":[\"http://localhost\"]}}" > client_secrets.json
+          else
+            echo "{}" > client_secrets.json
           fi
       
-      - name: Build with pyApp
+      - name: Build with PyApp
         shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          if [[ "${{ inputs.target }}" == macos-* ]]; then
-            ARCH=${{ inputs.target == 'macos-arm64' && 'arm64' || 'x86_64' }}
-            pyapp pack --name ${{ inputs.artifact_name }} --output dist/ --target ${ARCH}-apple-darwin
-          elif [[ "${{ inputs.target }}" == linux-* ]]; then
-            pyapp pack --name ${{ inputs.artifact_name }} --output dist/
-          elif [[ "${{ inputs.target }}" == windows-* ]]; then
-            pyapp pack --name ${{ inputs.artifact_name }} --output dist/
-          else
-            pyapp pack --name ${{ inputs.artifact_name }} --output dist/
+          cd pyapp-latest
+          
+          # Set PyApp configuration
+          export PYAPP_PROJECT_NAME="opendata-tool"
+          export PYAPP_PROJECT_VERSION="$VERSION"
+          export PYAPP_EXEC_MODULE="opendata.main"
+          export PYAPP_EXEC_FUNCTION="main"
+          export PYAPP_PYTHON_VERSION="3.11"
+          
+          # Cross-platform build
+          if [[ "${{ inputs.target }}" == "macos-x86_64" ]]; then
+            cargo build --release --target x86_64-apple-darwin
+            mv target/x86_64-apple-darwin/release/pyapp ../dist/${{ inputs.artifact_name }}
+          elif [[ "${{ inputs.target }}" == "macos-arm64" ]]; then
+            cargo build --release
+            mv target/release/pyapp ../dist/${{ inputs.artifact_name }}
+          elif [[ "${{ inputs.target }}" == "linux-x86_64" ]]; then
+            cargo build --release
+            mv target/release/pyapp ../dist/${{ inputs.artifact_name }}
+          elif [[ "${{ inputs.target }}" == "windows-x86_64" ]]; then
+            cargo build --release
+            mv target/release/pyapp.exe ../dist/${{ inputs.artifact_name }}.exe
           fi
       
       - name: Upload Artifact
