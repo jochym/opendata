@@ -63,6 +63,7 @@ def extract_metadata_from_ai_response(
 
         return clean_text, None, updated_metadata
 
+    data = None
     try:
         parts = response_text.split("METADATA:", 1)
         after_metadata = parts[1]
@@ -109,9 +110,16 @@ def extract_metadata_from_ai_response(
             in_string = False
             for i in range(start, len(json_section)):
                 char = json_section[i]
-                # Toggle string state (ignoring escaped quotes for simplicity)
-                if char == '"' and (i == start or json_section[i-1] != '\\'):
-                    in_string = not in_string
+                if char == '"':
+                    # Count preceding backslashes to handle escaped quotes
+                    bs_count = 0
+                    idx = i - 1
+                    while idx >= start and json_section[idx] == '\\':
+                        bs_count += 1
+                        idx -= 1
+                    # Only toggle if not escaped (even number of backslashes)
+                    if bs_count % 2 == 0:
+                        in_string = not in_string
                 # Only count braces outside strings
                 if not in_string:
                     if char == "{":
