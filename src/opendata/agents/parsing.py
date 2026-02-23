@@ -1,7 +1,7 @@
-import json
 import re
 import yaml
 import logging
+import json_repair
 from pathlib import Path
 from typing import Tuple, Optional, Any
 from opendata.models import Metadata, AIAnalysis
@@ -103,64 +103,19 @@ def extract_metadata_from_ai_response(
                     updated_metadata,
                 )
 
-            # Note: Simple brace counting doesn't handle braces in string literals
-            # This is a known limitation. For robust JSON extraction, use YAML format instead.
-            brace_count = 0
-            end = -1
-            in_string = False
-            for i in range(start, len(json_section)):
-                char = json_section[i]
-                if char == '"':
-                    # Count preceding backslashes to handle escaped quotes
-                    bs_count = 0
-                    idx = i - 1
-                    while idx >= start and json_section[idx] == '\\':
-                        bs_count += 1
-                        idx -= 1
-                    # Only toggle if not escaped (even number of backslashes)
-                    if bs_count % 2 == 0:
-                        in_string = not in_string
-                # Only count braces outside strings
-                if not in_string:
-                    if char == "{":
-                        brace_count += 1
-                    elif char == "}":
-                        brace_count -= 1
-                        if brace_count == 0:
-                            end = i + 1
-                            break
-
-            if end == -1:
-                return (
-                    clean_text if clean_text else response_text,
-                    None,
-                    updated_metadata,
-                )
-
-            json_str = json_section[start:end]
-            json_str = re.sub(r"\bNone\b", "null", json_str)
-            json_str = re.sub(r"\bTrue\b", "true", json_str)
-            json_str = re.sub(r"\bFalse\b", "false", json_str)
+            json_candidate = json_section[start:]
+            # Normalise Python literals so the library can handle them
+            json_candidate = re.sub(r"\bNone\b", "null", json_candidate)
+            json_candidate = re.sub(r"\bTrue\b", "true", json_candidate)
+            json_candidate = re.sub(r"\bFalse\b", "false", json_candidate)
 
             try:
-                # Basic cleanup of common AI JSON errors
-                # 1. Trailing commas in arrays/objects: [1, 2,] -> [1, 2]
-                json_str_clean = re.sub(r",\s*([\]}])", r"\1", json_str)
-                data = json.loads(json_str_clean)
-            except json.JSONDecodeError:
-                # 2. Single quotes recovery
-                if json_str.count("'") > json_str.count('"'):
-                    try:
-                        # Also apply trailing comma fix to single-quoted version
-                        sq_json = json_str.replace("'", '"')
-                        sq_json = re.sub(r",\s*([\]}])", r"\1", sq_json)
-                        data = json.loads(sq_json)
-                    except json.JSONDecodeError:
-                        # Fallback to YAML if JSON fails
-                        is_json = False
-                else:
-                    # Fallback to YAML if JSON fails
+                data = json_repair.loads(json_candidate)
+                if not isinstance(data, dict):
                     is_json = False
+            except Exception as e:
+                logger.warning(f"json_repair failed, falling back to YAML: {e}")
+                is_json = False
         if not is_json:
             # YAML Path - use original section to avoid JSON-specific cleanup artifacts
             yaml_content = original_section
