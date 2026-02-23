@@ -31,9 +31,18 @@ class SessionState:
     show_only_included: bool = False
     show_suggestions_banner: bool = True
     explorer_path: str = ""
-    folder_children_map: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
+    extension_stats: dict[str, dict[str, int]] = field(default_factory=dict)
+    folder_children_map: dict[str, list[str]] = field(default_factory=dict)
     folder_stats: dict[str, dict[str, int]] = field(default_factory=dict)
     ai_stop_event: Optional[threading.Event] = None
+
+    def reset(self):
+        """Resets session state to default values without replacing the object."""
+        # Note: We use a temporary instance to get default values defined in dataclass.
+        # This ensures we stay in sync with field definitions without manual duplication.
+        defaults = SessionState().__dict__
+        for key, value in defaults.items():
+            setattr(self, key, value)
 
 
 @dataclass

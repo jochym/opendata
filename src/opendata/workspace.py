@@ -234,44 +234,64 @@ class WorkspaceManager:
         self._projects_cache = projects
         return projects
 
-    def delete_project(self, project_id: str):
+    def delete_project(self, project_id: str) -> bool:
         """Permanently deletes a project's persisted state."""
         import shutil
         import os
         import gc
 
         pdir = self.projects_dir / project_id
-        if pdir.exists() and pdir.is_dir():
-            try:
-                gc.collect()
-                shutil.rmtree(pdir, ignore_errors=True)
-                if pdir.exists():
-                    for root, dirs, files in os.walk(str(pdir), topdown=False):
-                        for name in files:
-                            try:
-                                os.remove(os.path.join(root, name))
-                            except:
-                                pass
-                        for name in dirs:
-                            try:
-                                os.rmdir(os.path.join(root, name))
-                            except:
-                                pass
-                    try:
-                        os.rmdir(str(pdir))
-                    except:
-                        pass
 
-                success = not pdir.exists()
-                if success:
-                    self._projects_cache = None
-                return success
-            except Exception as e:
-                logger.error(
-                    f"Failed to delete project directory {pdir}: {e}", exc_info=True
-                )
-                return False
-        return False
+        # Check if project exists before deletion
+        if not pdir.exists():
+            logger.warning(f"Project {project_id} does not exist, nothing to delete.")
+            return False
+
+        # Handle edge case: path exists but is not a directory (e.g., it's a file)
+        if not pdir.is_dir():
+            logger.error(f"Project path exists but is not a directory: {pdir}")
+            return False
+
+        try:
+            gc.collect()
+            shutil.rmtree(pdir, ignore_errors=True)
+
+            has_errors = False
+            if pdir.exists():
+                for root, dirs, files in os.walk(str(pdir), topdown=False):
+                    for name in files:
+                        try:
+                            os.remove(os.path.join(root, name))
+                        except (OSError, PermissionError):
+                            logger.warning(
+                                f"Could not remove file: {os.path.join(root, name)}"
+                            )
+                            has_errors = True
+                    for name in dirs:
+                        try:
+                            os.rmdir(os.path.join(root, name))
+                        except (OSError, PermissionError):
+                            logger.warning(
+                                f"Could not remove directory: {os.path.join(root, name)}"
+                            )
+                            has_errors = True
+                try:
+                    os.rmdir(str(pdir))
+                except (OSError, PermissionError):
+                    logger.warning(f"Could not remove project directory: {pdir}")
+                    has_errors = True
+
+            success = not pdir.exists()
+            if success and not has_errors:
+                # Only clear cache AFTER successful and complete deletion
+                self._projects_cache = None
+                logger.info(f"Successfully deleted project {project_id}")
+            return success and not has_errors
+        except Exception as e:
+            logger.error(
+                f"Failed to delete project directory {pdir}: {e}", exc_info=True
+            )
+            return False
 
     def save_yaml(self, data: BaseModel, filename: str):
         """Saves a Pydantic model as a human-readable YAML file."""

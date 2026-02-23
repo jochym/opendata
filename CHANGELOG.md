@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.22] - 2026-02-23
+### Added
+- **YAML Communication**: Migrated AI-Agent communication from JSON to YAML format for improved robustness and error tolerance
+- **Project Manager UI**: Added "Manage Projects" dialog with visual indicators for project health status
+- **Testing**: Added 15 integration tests for Project Agent behavior and state management
+- **Testing**: Added realistic test fixtures from actual research projects (3C-SiC, FeSi)
+- **Testing**: Added comprehensive YAML parser tests with real-world metadata scenarios
+- **Tooltips**: Added status tooltips explaining project health indicators (✓ OK, ❌ Corrupt/Orphaned)
+
+### Changed
+- **Parser**: Enhanced `extract_metadata_from_ai_response()` to support both JSON and YAML formats
+- **UI**: Simplified project deletion workflow - single "Manage Projects" button replaces individual delete buttons
+- **UX**: Added confirmation dialog before project deletion (destructive operation protection)
+- **Workspace**: Improved cache invalidation and error handling when deleting projects
+
+### Fixed
+- **Project Deletion**: Fixed inability to delete corrupt/orphaned projects (missing fingerprint, unknown paths)
+- **UI Errors**: Fixed "parent element deleted" errors in NiceGUI by correcting dialog close/refresh order
+- **Agent Integration**: Added comprehensive integration tests for Project Agent initialization and Metadata field requirements
+
+### Documentation
+- **Audit Report**: Added comprehensive test system audit (`AUDIT_REPORT.md`) with coverage analysis and improvement plan
+
 ## [0.22.21] - 2026-02-20
 ### Fixed
 - **UI**: Fixed a bug where the inventory window state was not updating after a scan triggered from the Analysis/Chat panel.

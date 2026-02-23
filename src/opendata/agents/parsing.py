@@ -1,6 +1,7 @@
 import json
 import re
 import yaml
+import json_repair
 import logging
 from pathlib import Path
 from typing import Tuple, Optional, Any
@@ -63,6 +64,7 @@ def extract_metadata_from_ai_response(
 
         return clean_text, None, updated_metadata
 
+    data = None
     try:
         parts = response_text.split("METADATA:", 1)
         after_metadata = parts[1]
@@ -75,45 +77,89 @@ def extract_metadata_from_ai_response(
             clean_text = ""
 
         json_section = json_section.strip()
-        json_section = re.sub(r"^```json\s*", "", json_section)
-        json_section = re.sub(r"\s*```$", "", json_section)
 
-        start = json_section.find("{")
-        if start == -1:
-            return clean_text if clean_text else response_text, None, updated_metadata
+        # Determine if we are dealing with JSON or YAML
+        # Try to extract JSON object even if AI prepends explanatory text
+        # First check for explicit markers, then try to find JSON object in content
+        is_json = json_section.startswith("{") or json_section.startswith("```json")
 
-        brace_count = 0
-        end = -1
-        for i in range(start, len(json_section)):
-            if json_section[i] == "{":
-                brace_count += 1
-            elif json_section[i] == "}":
-                brace_count -= 1
-                if brace_count == 0:
-                    end = i + 1
-                    break
+        # If not obviously JSON but contains JSON-like content, try to extract it
+        if not is_json and "{" in json_section and "}" in json_section:
+            # Check if it looks like JSON (has quotes around keys)
+            if re.search(r'"[^"]+"\s*:', json_section):
+                is_json = True
 
-        if end == -1:
-            return clean_text if clean_text else response_text, None, updated_metadata
+        # Save original section for potential YAML fallback
+        original_section = json_section
 
-        json_str = json_section[start:end]
-        json_str = re.sub(r"\bNone\b", "null", json_str)
-        json_str = re.sub(r"\bTrue\b", "true", json_str)
-        json_str = re.sub(r"\bFalse\b", "false", json_str)
+        if is_json:
+            start = -1
+            json_section = re.sub(r"^```json\s*", "", json_section)
+            json_section = re.sub(r"\s*```$", "", json_section)
 
-        try:
-            data = json.loads(json_str)
-        except json.JSONDecodeError:
-            if json_str.count("'") > json_str.count('"'):
-                data = json.loads(json_str.replace("'", '"'))
+            start = json_section.find("{")
+            if start == -1:
+                is_json = False
             else:
-                raise
+                json_candidate = json_section[start:]
+                # Normalise Python literals so the library can handle them
+                json_candidate = re.sub(r"\bNone\b", "null", json_candidate)
+                json_candidate = re.sub(r"\bTrue\b", "true", json_candidate)
+                json_candidate = re.sub(r"\bFalse\b", "false", json_candidate)
 
-        if ("METADATA" in data) or ("ANALYSIS" in data):
-            updates = data.get("METADATA", {})
+                try:
+                    data = json_repair.loads(json_candidate)
+                    if not isinstance(data, dict):
+                        is_json = False
+                except (ValueError, TypeError, SyntaxError) as e:
+                    logger.warning(f"json_repair failed, falling back to YAML: {e}")
+                    is_json = False
+
+        if not is_json:
+            # YAML Path - use original section to avoid JSON-specific cleanup artifacts
+            yaml_content = original_section
+            # Strip any markdown code fences (json, yaml, or plain)
+            yaml_content = re.sub(r"```(?:json|yaml|metadata)?\s*", "", yaml_content)
+            yaml_content = yaml_content.replace("```", "")
+
+            # QUESTION: already split off at line 70-72, yaml_content is clean
+            # (we check again here as a safety measure)
+            if "QUESTION:" in yaml_content:
+                yaml_content, question_part = yaml_content.split("QUESTION:", 1)
+                clean_text = question_part.strip()
+
             try:
-                analysis_data = data.get("ANALYSIS")
-                if analysis_data:
+                data = yaml.safe_load(yaml_content)
+            except yaml.YAMLError as e:
+                logger.error(f"YAML parse failed: {e}")
+                return (
+                    clean_text if clean_text else response_text,
+                    None,
+                    updated_metadata,
+                )
+
+        if not data or not isinstance(data, dict):
+            return clean_text if clean_text else response_text, None, updated_metadata
+
+        # Extract updates and analysis from data
+        updates = {}
+        analysis_data = None
+
+        if "METADATA" in data:
+            updates = data["METADATA"]
+            if not isinstance(updates, dict):
+                updates = {}
+
+        if "ANALYSIS" in data:
+            analysis_data = data["ANALYSIS"]
+
+        # If no explicit sections found, treat the whole thing as metadata
+        if not updates and not analysis_data:
+            updates = data
+
+        if updates or analysis_data:
+            try:
+                if analysis_data and isinstance(analysis_data, dict):
                     # Normalize keys for AIAnalysis model aliases (missing_fields -> missingfields)
                     normalized_analysis = {}
                     mapping = {
