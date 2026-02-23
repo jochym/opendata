@@ -65,7 +65,6 @@ def extract_metadata_from_ai_response(
         return clean_text, None, updated_metadata
 
     data = None
-    start = -1
     try:
         parts = response_text.split("METADATA:", 1)
         after_metadata = parts[1]
@@ -94,6 +93,7 @@ def extract_metadata_from_ai_response(
         original_section = json_section
 
         if is_json:
+            start = -1
             json_section = re.sub(r"^```json\s*", "", json_section)
             json_section = re.sub(r"\s*```$", "", json_section)
 
@@ -111,7 +111,7 @@ def extract_metadata_from_ai_response(
                     data = json_repair.loads(json_candidate)
                     if not isinstance(data, dict):
                         is_json = False
-                except Exception as e:
+                except (ValueError, TypeError, SyntaxError) as e:
                     logger.warning(f"json_repair failed, falling back to YAML: {e}")
                     is_json = False
 

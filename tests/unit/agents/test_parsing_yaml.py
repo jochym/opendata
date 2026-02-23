@@ -19,9 +19,10 @@ authors:
 
 def test_parsing_yaml_with_analysis():
     """
-    Test behavior: Parser should correctly parse YAML with ANALYSIS and METADATA sections.
+    Test behavior: Parser should correctly parse YAML with nested ANALYSIS and METADATA.
     """
     current = Metadata()
+    # Correct YAML structure: METADATA and ANALYSIS are top-level keys in the parsed dict
     ai_response = """METADATA:
 ANALYSIS:
   summary: YAML analysis works.
@@ -52,7 +53,6 @@ QUESTION: Is this metadata correct?"""
 def test_parsing_handles_metadata_null():
     """
     Test behavior: Parser should handle METADATA: null gracefully.
-    Addresses low-confidence Copilot comment about AttributeError.
     """
     current = Metadata()
     ai_response = """METADATA:
