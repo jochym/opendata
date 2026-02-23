@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - 2026-02-23
 
+## [0.22.23] - 2026-02-23
+### Fixed
+- **PyPI Documentation Links**: Converted all relative documentation links in README to absolute GitHub URLs (`https://github.com/jochym/opendata/blob/main/...`) to fix broken links on PyPI package page
+
 ## [0.22.22] - 2026-02-23
 ### Added
 - **PyPI Metadata**: Added comprehensive PyPI metadata including README, license, keywords, classifiers, and project URLs for better discoverability and documentation on PyPI

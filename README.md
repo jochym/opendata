@@ -1,6 +1,6 @@
 # OpenData Tool
 
-**Version:** 0.22.22 | **Status:** Alpha | **License:** MIT
+**Version:** 0.22.23 | **Status:** Alpha | **License:** MIT
 
 A browser-centric, AI-assisted tool for preparing scientific metadata and packaging research projects for the **RODBUK** repository.
 
