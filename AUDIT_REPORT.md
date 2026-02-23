@@ -4,15 +4,15 @@
 
 ## 1. Executive Summary
 
-The current test suite is stable and functional, with **72 passing tests** and **42 skipped tests** (correctly skipping AI/Local tests in this environment). The core infrastructure uses `pytest` effectively.
+The current test suite is stable and functional, with **107 passing tests** and **42 skipped tests** (correctly skipping AI/Local tests in this environment). The core infrastructure uses `pytest` effectively.
 
-However, **code coverage is low (34%)**, with critical gaps in the "intelligence" layer of the application (Extractors, Agent Logic) and the UI layer. While the core data models are well-tested (100%), the logic that actually populates them is under-tested.
+However, **code coverage is low (45%)**, with critical gaps in the "intelligence" layer of the application (Extractors, Agent Logic) and the UI layer. While the core data models are well-tested (100%), the logic that actually populates them is under-tested.
 
 ### Key Statistics
 - **Total Tests:** 114
 - **Passing:** 72
 - **Skipped:** 42 (AI interaction, local only)
-- **Total Coverage:** 34%
+- **Total Coverage:** 45%
 - **High Risk Areas:** `src/opendata/extractors` (24-35%), `src/opendata/ui` (4-19%).
 
 ## 2. Detailed Test File Audit

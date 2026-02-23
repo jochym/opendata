@@ -178,14 +178,14 @@ async def handle_manage_projects(ctx: AppContext):
 
                 # Visual indicator for corrupt/orphaned projects
                 if path_display == "Unknown" or not path_exists:
-                    status_icon = "❌"
+                    status_icon = "error"
                     status_color = "red"
                     status_text = _("Corrupt/Orphaned")
                     tooltip_msg = _(
                         "Project data is incomplete or the original location no longer exists. Safe to remove."
                     )
                 else:
-                    status_icon = "✓"
+                    status_icon = "check_circle"
                     status_color = "green"
                     status_text = _("OK")
                     tooltip_msg = _("Project is valid and accessible.")

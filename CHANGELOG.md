@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **Project Deletion**: Fixed inability to delete corrupt/orphaned projects (missing fingerprint, unknown paths)
 - **UI Errors**: Fixed "parent element deleted" errors in NiceGUI by correcting dialog close/refresh order
-- **Agent Integration**: Fixed test failures related to ProjectFingerprint initialization and Metadata field requirements
+- **Agent Integration**: Added comprehensive integration tests for Project Agent initialization and Metadata field requirements
 
 ### Documentation
 - **Audit Report**: Added comprehensive test system audit (`AUDIT_REPORT.md`) with coverage analysis and improvement plan
