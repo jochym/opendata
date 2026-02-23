@@ -1,6 +1,7 @@
 import json
 import re
 import yaml
+import json_repair
 import logging
 from pathlib import Path
 from typing import Tuple, Optional, Any
@@ -81,7 +82,7 @@ def extract_metadata_from_ai_response(
         # Try to extract JSON object even if AI prepends explanatory text
         # First check for explicit markers, then try to find JSON object in content
         is_json = json_section.startswith("{") or json_section.startswith("```json")
-        
+
         # If not obviously JSON but contains JSON-like content, try to extract it
         if not is_json and "{" in json_section and "}" in json_section:
             # Check if it looks like JSON (has quotes around keys)
@@ -90,13 +91,46 @@ def extract_metadata_from_ai_response(
 
         # Save original section for potential YAML fallback
         original_section = json_section
-        
+
         if is_json:
             json_section = re.sub(r"^```json\s*", "", json_section)
             json_section = re.sub(r"\s*```$", "", json_section)
 
             start = json_section.find("{")
             if start == -1:
+                is_json = False
+            else:
+                json_candidate = json_section[start:]
+                # Normalise Python literals so the library can handle them
+                json_candidate = re.sub(r"\bNone\b", "null", json_candidate)
+                json_candidate = re.sub(r"\bTrue\b", "true", json_candidate)
+                json_candidate = re.sub(r"\bFalse\b", "false", json_candidate)
+
+                try:
+                    data = json_repair.loads(json_candidate)
+                    if not isinstance(data, dict):
+                        is_json = False
+                except Exception as e:
+                    logger.warning(f"json_repair failed, falling back to YAML: {e}")
+                    is_json = False
+
+        if not is_json:
+            # YAML Path - use original section to avoid JSON-specific cleanup artifacts
+            yaml_content = original_section
+            # Strip any markdown code fences (json, yaml, or plain)
+            yaml_content = re.sub(r"^```(?:json|yaml|metadata)?\s*", "", yaml_content)
+            yaml_content = re.sub(r"\s*```$", "", yaml_content)
+
+            # QUESTION: already split off at line 70-72, yaml_content is clean
+            # (we check again here as a safety measure)
+            if "QUESTION:" in yaml_content:
+                yaml_content, question_part = yaml_content.split("QUESTION:", 1)
+                clean_text = question_part.strip()
+
+            try:
+                data = yaml.safe_load(yaml_content)
+            except yaml.YAMLError as e:
+                logger.error(f"YAML parse failed: {e}")
                 return (
                     clean_text if clean_text else response_text,
                     None,
@@ -114,7 +148,7 @@ def extract_metadata_from_ai_response(
                     # Count preceding backslashes to handle escaped quotes
                     bs_count = 0
                     idx = i - 1
-                    while idx >= start and json_section[idx] == '\\':
+                    while idx >= start and json_section[idx] == "\\":
                         bs_count += 1
                         idx -= 1
                     # Only toggle if not escaped (even number of backslashes)

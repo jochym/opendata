@@ -38,26 +38,10 @@ class SessionState:
 
     def reset(self):
         """Resets session state to default values without replacing the object."""
-        self.inventory_cache = []
-        self.last_inventory_project = ""
-        self.is_loading_inventory = False
-        self.inventory_lock = False
-        self.last_refresh_time = 0.0
-        self.pending_refresh = False
-        self._is_refreshing_global = False
-        self.is_project_loading = False
-        self.total_files_count = 0
-        self.total_files_size = 0
-        self.inventory_total_count = 0
-        self.inventory_total_size = 0
-        self.grid_rows = []
-        self.show_only_included = False
-        self.show_suggestions_banner = True
-        self.explorer_path = ""
-        self.extension_stats = {}
-        self.folder_children_map = {}
-        self.folder_stats = {}
-        self.ai_stop_event = None
+        # Reinitialize all fields from a fresh default instance to avoid
+        # duplicating default values and to stay in sync with dataclass fields.
+        for key, value in SessionState().__dict__.items():
+            setattr(self, key, value)
 
 
 @dataclass

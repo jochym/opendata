@@ -255,6 +255,8 @@ class WorkspaceManager:
         try:
             gc.collect()
             shutil.rmtree(pdir, ignore_errors=True)
+
+            has_errors = False
             if pdir.exists():
                 for root, dirs, files in os.walk(str(pdir), topdown=False):
                     for name in files:
@@ -264,6 +266,7 @@ class WorkspaceManager:
                             logger.warning(
                                 f"Could not remove file: {os.path.join(root, name)}"
                             )
+                            has_errors = True
                     for name in dirs:
                         try:
                             os.rmdir(os.path.join(root, name))
@@ -271,17 +274,19 @@ class WorkspaceManager:
                             logger.warning(
                                 f"Could not remove directory: {os.path.join(root, name)}"
                             )
+                            has_errors = True
                 try:
                     os.rmdir(str(pdir))
                 except (OSError, PermissionError):
                     logger.warning(f"Could not remove project directory: {pdir}")
+                    has_errors = True
 
             success = not pdir.exists()
-            if success:
-                # Only clear cache AFTER successful deletion
+            if success and not has_errors:
+                # Only clear cache AFTER successful and complete deletion
                 self._projects_cache = None
                 logger.info(f"Successfully deleted project {project_id}")
-            return success
+            return success and not has_errors
         except Exception as e:
             logger.error(
                 f"Failed to delete project directory {pdir}: {e}", exc_info=True
