@@ -38,9 +38,10 @@ class SessionState:
 
     def reset(self):
         """Resets session state to default values without replacing the object."""
-        # Reinitialize all fields from a fresh default instance to avoid
-        # duplicating default values and to stay in sync with dataclass fields.
-        for key, value in SessionState().__dict__.items():
+        # Note: We use a temporary instance to get default values defined in dataclass.
+        # This ensures we stay in sync with field definitions without manual duplication.
+        defaults = SessionState().__dict__
+        for key, value in defaults.items():
             setattr(self, key, value)
 
 
