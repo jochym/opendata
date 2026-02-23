@@ -1,6 +1,7 @@
 # OpenData Tool - Documentation Index
 
-**Last Updated:** February 18, 2026
+**Last Updated:** February 23, 2026
+**Current Version:** v0.22.22
 
 ---
 

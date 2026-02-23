@@ -1,4 +1,6 @@
-# OpenData Tool (Alpha)
+# OpenData Tool
+
+**Version:** 0.22.22 | **Status:** Alpha | **License:** MIT
 
 A browser-centric, AI-assisted tool for preparing scientific metadata and packaging research projects for the **RODBUK** repository.
 
@@ -94,38 +96,51 @@ See `docs/` for comprehensive manuals.
 
 ### Quick Start
 ```bash
-# Run all tests (automated)
+# Run all CI/CD safe tests (automated)
 ./tests/run_all_tests.sh
 
 # Or run specific categories
-pytest                          # CI/CD safe tests (78 tests, ~4s)
-pytest -m ai_interaction        # AI tests (needs app running)
+pytest                          # CI/CD safe tests (79+ tests, ~4s)
+pytest -m ai_interaction        # AI tests (local only, needs app running)
 ./tests/run_e2e_tests.sh        # Full E2E suite (needs Xvfb)
 ```
 
-### Documentation
-- `docs/TESTING_QUICKSTART.md` - Quick start guide
-- `docs/TESTING_GUIDE.md` - Complete testing guide
-- `docs/AI_TESTING_GUIDE.md` - AI testing specifics
-
 ### Test Coverage
-- **Unit Tests:** 53 tests (~2s)
-- **Integration Tests:** 8 tests (~2s)
-- **AI Tests:** 10 tests (~3s)
-- **E2E Tests:** 30 tests (~90s)
+- **Unit Tests:** 53+ tests (~2s)
+- **Integration Tests:** 8+ tests (~2s)
+- **AI Tests:** 10+ tests (~3s, local only)
+- **E2E Tests:** 30+ tests (~90s)
 
-**Total:** 101 tests, all automated
+**Total:** 101+ tests, all automated
+
+### Documentation
+- `docs/TESTING.md` - Complete testing guide
+- `docs/TESTING_QUICKSTART.md` - Quick start guide
+- `docs/AI_TESTING_GUIDE.md` - AI testing specifics
 
 ## Documentation
 
-**For Users:**
-- `docs/TESTING.md` - Complete testing guide
+### For Users
+- **[Testing Guide](docs/TESTING.md)** - How to run tests and verify installation
+- **[AI Setup Guide](docs/AI_SETUP.md)** - Configure AI providers (Google GenAI, OpenAI)
+- **[Tester Manual](docs/TESTER_MANUAL.md)** - Complete QA and manual testing workflows
+- **[Supported Platforms](docs/SUPPORTED_PLATFORMS.md)** - OS and Python version compatibility
 
-**For Developers:**
-- `docs/TEST_INFRASTRUCTURE.md` - Technical implementation details
-- `docs/TEST_RESULTS.md` - Test results and coverage
+### For Developers
+- **[Developer Manual](docs/DEVELOPER_MANUAL.md)** - Core development guide
+- **[API Reference](docs/dev/API.md)** - Internal REST API documentation
+- **[Test Infrastructure](docs/dev/TEST_INFRASTRUCTURE.md)** - Testing architecture deep dive
+- **[Test Results](docs/dev/TEST_RESULTS.md)** - Coverage analysis and metrics
+- **[Field Protocol Design](docs/dev/FIELD_PROTOCOL_DECOUPLING.md)** - Hierarchical protocol system
+- **[Prompt Architecture](docs/dev/PROMPT_ARCHITECTURE.md)** - AI prompt system design
 
-**Other Documentation:**
-- `docs/ACCOMPLISHMENTS.md` - Historical development log
-- `docs/DEVELOPER_MANUAL.md` - Developer guide
-- `docs/TESTER_MANUAL.md` - Tester guide
+### Project Status
+- **[Accomplishments](docs/dev/ACCOMPLISHMENTS.md)** - Historical development log
+- **[Roadmap](docs/dev/ROADMAP.md)** - Future plans and upcoming features
+- **[Changelog](CHANGELOG.md)** - Version history and release notes
+
+## Badges
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![PyPI](https://img.shields.io/pypi/v/opendata-tool.svg)](https://pypi.org/project/opendata-tool/)

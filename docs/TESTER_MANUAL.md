@@ -1,7 +1,7 @@
 # OpenData Tool - Beta Tester Manual
 
-**Version:** v0.18.0
-**Status:** Proof of Concept (PoC) / Beta
+**Version:** v0.22.22
+**Status:** Alpha (Active Development)
 **Target Audience:** Domain Scientists (Physics, Medical Physics) & Research Data Stewards
 
 ---

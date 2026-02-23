@@ -1,6 +1,6 @@
 # OpenData Tool - Developer Manual
 
-**Version:** v0.18.0
+**Version:** v0.22.22
 **Maintained By:** Pawel T. Jochym & AI Agents
 
 ---
