@@ -44,7 +44,7 @@ Configuration files: `pyproject.toml` (build, pytest, ruff), `.gitignore`.
 # Development install — always run before building or testing
 pip install -e ".[dev]"
 ```
-Requires Python 3.11+. On Linux, system packages `xvfb python3-tk libxcb-xinerama0 libxcb-cursor0` are needed for GUI tests but not for unit/integration tests.
+Requires Python 3.11+. On Linux, CI installs system packages `xvfb python3-tk libxcb-xinerama0 libxcb-cursor0` for both logic and GUI jobs; they are strictly required for GUI/e2e tests, and recommended locally if you want to replicate CI behavior even when running only unit/integration tests.
 
 ## Running the App
 ```bash
