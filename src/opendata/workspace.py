@@ -252,44 +252,41 @@ class WorkspaceManager:
             logger.error(f"Project path exists but is not a directory: {pdir}")
             return False
 
-        if pdir.is_dir():
-            try:
-                gc.collect()
-                shutil.rmtree(pdir, ignore_errors=True)
-                if pdir.exists():
-                    for root, dirs, files in os.walk(str(pdir), topdown=False):
-                        for name in files:
-                            try:
-                                os.remove(os.path.join(root, name))
-                            except (OSError, PermissionError):
-                                logger.warning(
-                                    f"Could not remove file: {os.path.join(root, name)}"
-                                )
-                        for name in dirs:
-                            try:
-                                os.rmdir(os.path.join(root, name))
-                            except (OSError, PermissionError):
-                                logger.warning(
-                                    f"Could not remove directory: {os.path.join(root, name)}"
-                                )
-                    try:
-                        os.rmdir(str(pdir))
-                    except (OSError, PermissionError):
-                        logger.warning(f"Could not remove project directory: {pdir}")
+        try:
+            gc.collect()
+            shutil.rmtree(pdir, ignore_errors=True)
+            if pdir.exists():
+                for root, dirs, files in os.walk(str(pdir), topdown=False):
+                    for name in files:
+                        try:
+                            os.remove(os.path.join(root, name))
+                        except (OSError, PermissionError):
+                            logger.warning(
+                                f"Could not remove file: {os.path.join(root, name)}"
+                            )
+                    for name in dirs:
+                        try:
+                            os.rmdir(os.path.join(root, name))
+                        except (OSError, PermissionError):
+                            logger.warning(
+                                f"Could not remove directory: {os.path.join(root, name)}"
+                            )
+                try:
+                    os.rmdir(str(pdir))
+                except (OSError, PermissionError):
+                    logger.warning(f"Could not remove project directory: {pdir}")
 
-                success = not pdir.exists()
-                if success:
-                    # Only clear cache AFTER successful deletion
-                    self._projects_cache = None
-                    logger.info(f"Successfully deleted project {project_id}")
-                return success
-            except Exception as e:
-                logger.error(
-                    f"Failed to delete project directory {pdir}: {e}", exc_info=True
-                )
-                return False
-
-        return False
+            success = not pdir.exists()
+            if success:
+                # Only clear cache AFTER successful deletion
+                self._projects_cache = None
+                logger.info(f"Successfully deleted project {project_id}")
+            return success
+        except Exception as e:
+            logger.error(
+                f"Failed to delete project directory {pdir}: {e}", exc_info=True
+            )
+            return False
 
     def save_yaml(self, data: BaseModel, filename: str):
         """Saves a Pydantic model as a human-readable YAML file."""
