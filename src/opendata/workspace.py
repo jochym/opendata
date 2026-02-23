@@ -247,8 +247,10 @@ class WorkspaceManager:
             logger.warning(f"Project {project_id} does not exist, nothing to delete.")
             return False
 
-        # Clear cache before deletion
-        self._projects_cache = None
+        # Handle edge case: path exists but is not a directory (e.g., it's a file)
+        if not pdir.is_dir():
+            logger.error(f"Project path exists but is not a directory: {pdir}")
+            return False
 
         if pdir.is_dir():
             try:
@@ -277,6 +279,8 @@ class WorkspaceManager:
 
                 success = not pdir.exists()
                 if success:
+                    # Only clear cache AFTER successful deletion
+                    self._projects_cache = None
                     logger.info(f"Successfully deleted project {project_id}")
                 return success
             except Exception as e:
