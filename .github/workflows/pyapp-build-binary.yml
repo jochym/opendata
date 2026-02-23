@@ -1,0 +1,76 @@
+name: Build pyApp Binary
+
+on:
+  workflow_call:
+    inputs:
+      os:
+        required: true
+        type: string
+      artifact_name:
+        required: true
+        type: string
+      target:
+        required: true
+        type: string
+    secrets:
+      GOOGLE_CLIENT_ID:
+        required: false
+      GOOGLE_CLIENT_SECRET:
+        required: false
+
+jobs:
+  build:
+    name: Build pyApp (${{ inputs.os }})
+    runs-on: ${{ inputs.os }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install System Dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb python3-tk libxcb-xinerama0 libxcb-cursor0 binutils
+      
+      - name: Install pyApp and dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+          pip install pyapp-pack
+      
+      - name: Prepare client_secrets.json
+        shell: bash
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          SHA: ${{ github.sha }}
+        run: |
+          python -c "import os; v=open('src/opendata/VERSION').read().strip(); open('src/opendata/VERSION', 'w').write(f'{v}+{os.environ[\"SHA\"][:7]}')"
+          if [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ]; then
+            echo "{\"installed\":{\"client_id\":\"$GOOGLE_CLIENT_ID\",\"project_id\":\"opendata-tool\",\"auth_uri\":\"https://accounts.google.com/o/oauth2/auth\",\"token_uri\":\"https://oauth2.googleapis.com/token\",\"auth_provider_x509_cert_url\":\"https://www.googleapis.com/oauth2/v1/certs\",\"client_secret\":\"$GOOGLE_CLIENT_SECRET\",\"redirect_uris\":[\"http://localhost\"]}}" > client_secrets.json
+          fi
+      
+      - name: Build with pyApp
+        shell: bash
+        run: |
+          if [[ "${{ inputs.target }}" == macos-* ]]; then
+            ARCH=${{ inputs.target == 'macos-arm64' && 'arm64' || 'x86_64' }}
+            pyapp pack --name ${{ inputs.artifact_name }} --output dist/ --target ${ARCH}-apple-darwin
+          elif [[ "${{ inputs.target }}" == linux-* ]]; then
+            pyapp pack --name ${{ inputs.artifact_name }} --output dist/
+          elif [[ "${{ inputs.target }}" == windows-* ]]; then
+            pyapp pack --name ${{ inputs.artifact_name }} --output dist/
+          else
+            pyapp pack --name ${{ inputs.artifact_name }} --output dist/
+          fi
+      
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: dist/${{ inputs.artifact_name }}${{ runner.os == 'Windows' && '.exe' || '' }}
