@@ -5,28 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.22.22] - 2026-02-23
+## [Unreleased] - 2026-02-23
 ### Added
-- **YAML Communication**: Migrated AI-Agent communication from JSON to YAML format for improved robustness and error tolerance
-- **Project Manager UI**: Added "Manage Projects" dialog with visual indicators for project health status
-- **Testing**: Added 15 integration tests for Project Agent behavior and state management
-- **Testing**: Added realistic test fixtures from actual research projects (3C-SiC, FeSi)
-- **Testing**: Added comprehensive YAML parser tests with real-world metadata scenarios
-- **Tooltips**: Added status tooltips explaining project health indicators (✓ OK, ❌ Corrupt/Orphaned)
+- **YAML Communication**: Migrated AI-Agent communication to YAML format with `json-repair` library for robust error handling and automatic fallback from malformed JSON
+- **Project Manager UI**: New "Manage Projects" dialog with full project list, health indicators (✓ OK, ❌ Corrupt/Orphaned), and one-click deletion
+- **Testing**: Added 15 Agent integration tests covering state management, field protocols, and significant files workflow
+- **Testing**: Added realistic test fixtures from actual research projects (3C-SiC, FeSi) with complete metadata extraction scenarios
+- **Testing**: Added 7 YAML parser tests including QUESTION: section handling and null metadata edge cases
+- **Testing**: Added workspace deletion tests with proper temporary directory cleanup
+- **Accessibility**: Added Material Design icons with screen reader support and tooltips for all status indicators
+- **I18n**: All new UI strings wrapped in `_()` for internationalization
 
 ### Changed
-- **Parser**: Enhanced `extract_metadata_from_ai_response()` to support both JSON and YAML formats
-- **UI**: Simplified project deletion workflow - single "Manage Projects" button replaces individual delete buttons
-- **UX**: Added confirmation dialog before project deletion (destructive operation protection)
-- **Workspace**: Improved cache invalidation and error handling when deleting projects
+- **Parser**: Complete refactoring of `extract_metadata_from_ai_response()` to use `json-repair` with intelligent YAML fallback
+- **Parser**: Improved JSON extraction to handle braces in string literals (proper backslash counting)
+- **UI**: Replaced emoji status icons with Material Design icons for better accessibility
+- **UI**: Project deletion now uses confirmation dialog with project name display
+- **Session**: Optimized `SessionState.reset()` to use DRY approach with automatic field synchronization
+- **Workspace**: `delete_project()` now tracks partial failures with `has_errors` flag and proper logging
+- **Header**: Path truncation now uses middle ellipsis to preserve readability of long paths
 
 ### Fixed
-- **Project Deletion**: Fixed inability to delete corrupt/orphaned projects (missing fingerprint, unknown paths)
-- **UI Errors**: Fixed "parent element deleted" errors in NiceGUI by correcting dialog close/refresh order
-- **Agent Integration**: Added comprehensive integration tests for Project Agent initialization and Metadata field requirements
+- **Critical**: Fixed QUESTION: section handling bug where line 77 was overwriting split result
+- **Critical**: Fixed `AttributeError` when AI returns `METADATA: null` or `ANALYSIS: null`
+- **UI**: Fixed "parent element deleted" NiceGUI errors by correcting dialog close/refresh order
+- **UI**: Fixed session state binding breakage by using `reset()` instead of object replacement
+- **Tests**: Fixed YAML test formatting to avoid ambiguous structure in multi-level dictionaries
+- **Tests**: Fixed unused imports and dead code in test fixtures
 
 ### Documentation
-- **Audit Report**: Added comprehensive test system audit (`AUDIT_REPORT.md`) with coverage analysis and improvement plan
+- **Audit Report**: Added comprehensive test system audit (`AUDIT_REPORT.md`) with coverage analysis (34% overall), gap identification, and prioritized action plan
+- **Testing Guide**: Updated `docs/TESTING.md` with realistic fixture usage examples and best practices
+- **Skill Update**: Enhanced `github-copilot-pr-cycle` skill with `gh run watch --compact --exit-status` for deterministic CI/CD monitoring
+
+### Technical Notes
+- **Dependencies**: Added `json-repair>=0.30.0` to `pyproject.toml`
+- **Review Process**: This update underwent 21 rounds of automated Copilot review with 126 total comments addressed
+- **Test Coverage**: Increased from 72 to 108 passing tests across all platforms (Windows/Linux/macOS)
 
 ## [0.22.21] - 2026-02-20
 ### Fixed
