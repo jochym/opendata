@@ -165,7 +165,8 @@ def extract_metadata_from_ai_response(
             # YAML Path - use original section to avoid JSON-specific cleanup artifacts
             yaml_content = original_section
             # Strip potential markdown blocks
-            yaml_content = re.sub(r"^```(?:yaml)?\s*", "", yaml_content)
+            # Strip any markdown code fences (json, yaml, or plain)
+            yaml_content = re.sub(r"^```(?:json|yaml|metadata)?\s*", "", yaml_content)
             yaml_content = re.sub(r"\s*```$", "", yaml_content)
 
             # QUESTION: already split off at line 70-72, yaml_content is clean

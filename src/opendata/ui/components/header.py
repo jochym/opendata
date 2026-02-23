@@ -165,7 +165,7 @@ async def handle_manage_projects(ctx: AppContext):
 
         with ui.column().classes("gap-3 mt-4 max-h-96 overflow-y-auto"):
             for p in projects:
-                path_display = p.get("path") or _("Unknown")
+                path_display = p.get("path") or "Unknown"
                 # Guard against invalid path values (empty, NUL, etc.)
                 if not path_display or path_display == "Unknown":
                     path_exists = False
