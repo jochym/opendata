@@ -234,7 +234,10 @@ async def handle_manage_projects(ctx: AppContext):
                                 async def confirm():
                                     confirm_dialog.close()
                                     try:
-                                        success = ctx.wm.delete_project(pid)
+                                        # Use asyncio.to_thread for blocking I/O to avoid freezing UI
+                                        success = await asyncio.to_thread(
+                                            ctx.wm.delete_project, pid
+                                        )
                                         if success:
                                             ui.notify(
                                                 _("Project removed."), type="positive"

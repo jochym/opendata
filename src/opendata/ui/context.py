@@ -32,6 +32,8 @@ class SessionState:
     show_suggestions_banner: bool = True
     explorer_path: str = ""
     extension_stats: dict[str, dict[str, int]] = field(default_factory=dict)
+    folder_children_map: dict[str, set[str]] = field(default_factory=dict)
+    folder_stats: dict[str, dict[str, int]] = field(default_factory=dict)
     ai_stop_event: Optional[threading.Event] = None
 
     def reset(self):
@@ -53,6 +55,8 @@ class SessionState:
         self.show_suggestions_banner = True
         self.explorer_path = ""
         self.extension_stats = {}
+        self.folder_children_map = {}
+        self.folder_stats = {}
         self.ai_stop_event = None
 
 
