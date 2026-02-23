@@ -57,7 +57,7 @@ python src/opendata/main.py --version                # Print version and exit
 ## Testing (CI-Safe)
 Always run the CI-safe suite after making changes:
 ```bash
-pytest   # Runs 84 tests in ~3 s; excludes ai_interaction and local_only markers
+pytest   # Runs the CI-safe test suite; excludes ai_interaction and local_only markers
 ```
 This is exactly what CI runs. The `pyproject.toml` sets `addopts = "-m 'not ai_interaction and not local_only'"` by default.
 
