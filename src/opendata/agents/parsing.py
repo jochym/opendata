@@ -77,10 +77,15 @@ def extract_metadata_from_ai_response(
         json_section = json_section.strip()
 
         # Determine if we are dealing with JSON or YAML
-        # Heuristic: Check for JSON markers. Note: YAML flow-style ({key: value}) could be
-        # misidentified as JSON, but AI responses typically use clear format markers.
-        # For robustness, we could try JSON parse first and fall back to YAML if it fails.
+        # Try to extract JSON object even if AI prepends explanatory text
+        # First check for explicit markers, then try to find JSON object in content
         is_json = json_section.startswith("{") or json_section.startswith("```json")
+        
+        # If not obviously JSON but contains JSON-like content, try to extract it
+        if not is_json and "{" in json_section and "}" in json_section:
+            # Check if it looks like JSON (has quotes around keys)
+            if re.search(r'"[^"]+"\s*:', json_section):
+                is_json = True
 
         if is_json:
             json_section = re.sub(r"^```json\s*", "", json_section)

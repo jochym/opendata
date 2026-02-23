@@ -99,6 +99,7 @@ def header_content_ui(ctx: AppContext):
                 .classes("text-xs") as manage_btn
             ):
                 ui.tooltip(_("Manage all projects"))
+                # Button visible when not loading (i.e., always after initial load)
                 manage_btn.bind_visibility_from(
                     ctx.session, "is_project_loading", backward=lambda x: not x
                 )
