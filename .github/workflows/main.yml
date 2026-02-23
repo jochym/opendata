@@ -30,7 +30,7 @@ jobs:
       os: ${{ matrix.os }}
 
   build-binaries:
-    name: Build
+    name: Build (PyInstaller)
     needs: gui-tests
     if: startsWith(github.ref, 'refs/tags/v')
     strategy:
@@ -48,8 +48,34 @@ jobs:
       artifact_name: ${{ matrix.artifact_name }}
     secrets: inherit
 
+  build-pyapp-binaries:
+    name: Build (pyApp)
+    needs: gui-tests
+    if: startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            artifact_name: opendata-linux-pyapp
+            target: linux-x86_64
+          - os: windows-latest
+            artifact_name: opendata-win-pyapp
+            target: windows-x86_64
+          - os: macos-latest
+            artifact_name: opendata-macos-arm-pyapp
+            target: macos-arm64
+          - os: macos-latest
+            artifact_name: opendata-macos-intel-pyapp
+            target: macos-x86_64
+    uses: ./.github/workflows/pyapp-build-binary.yml
+    with:
+      os: ${{ matrix.os }}
+      artifact_name: ${{ matrix.artifact_name }}
+      target: ${{ matrix.target }}
+    secrets: inherit
+
   verify-binaries-native:
-    name: Verify Native
+    name: Verify Native (PyInstaller)
     needs: build-binaries
     if: startsWith(github.ref, 'refs/tags/v')
     strategy:
@@ -62,6 +88,27 @@ jobs:
             artifact_name: opendata-win
           - os: macos-latest
             artifact_name: opendata-macos-arm
+    uses: ./.github/workflows/reusable-verify-binary.yml
+    with:
+      os: ${{ matrix.os }}
+      artifact_name: ${{ matrix.artifact_name }}
+
+  verify-pyapp-binaries:
+    name: Verify pyApp
+    needs: build-pyapp-binaries
+    if: startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            artifact_name: opendata-linux-pyapp
+          - os: windows-latest
+            artifact_name: opendata-win-pyapp
+          - os: macos-latest
+            artifact_name: opendata-macos-arm-pyapp
+          - os: macos-latest
+            artifact_name: opendata-macos-intel-pyapp
     uses: ./.github/workflows/reusable-verify-binary.yml
     with:
       os: ${{ matrix.os }}
@@ -130,7 +177,7 @@ jobs:
 
   release:
     name: Create Release
-    needs: [verify-binaries-native, verify-linux-distros, build-pypi]
+    needs: [verify-binaries-native, verify-pyapp-binaries, verify-linux-distros, build-pypi]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
@@ -149,6 +196,10 @@ jobs:
             artifacts/opendata-win/opendata-win.exe
             artifacts/opendata-linux/opendata-linux
             artifacts/opendata-macos-arm/opendata-macos-arm
+            artifacts/opendata-win-pyapp/opendata-win-pyapp.exe
+            artifacts/opendata-linux-pyapp/opendata-linux-pyapp
+            artifacts/opendata-macos-arm-pyapp/opendata-macos-arm-pyapp
+            artifacts/opendata-macos-intel-pyapp/opendata-macos-intel-pyapp
           generate_release_notes: true
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
