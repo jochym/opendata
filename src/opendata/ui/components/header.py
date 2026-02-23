@@ -234,8 +234,6 @@ async def handle_manage_projects(ctx: AppContext):
                                 async def confirm():
                                     confirm_dialog.close()
                                     try:
-                # Note: delete_project performs blocking I/O in async context
-                # For large projects, consider moving to executor
                                         success = ctx.wm.delete_project(pid)
                                         if success:
                                             ui.notify(

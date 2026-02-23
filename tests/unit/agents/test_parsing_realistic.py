@@ -35,7 +35,7 @@ ANALYSIS:
   missing_fields: []
   non_compliant: []
 METADATA:
-  title: "{expected["title"]}"
+  title: {expected['title']}
   authors:
     - name: "Jochym, Paweł T."
       affiliations:
