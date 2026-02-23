@@ -27,7 +27,7 @@ src/opendata/
   protocols/            # Field Protocol YAML storage and manager
   ui/app.py             # NiceGUI app startup
   ui/components/        # Decoupled UI components (chat, metadata, package, …)
-  i18n/                 # Translation files (PL/EN)
+  i18n/                 # Translation files (PL; EN uses gettext default)
   prompts/              # Markdown prompt templates for agents
 tests/
   conftest.py           # Session fixtures; app_with_api requires running server
