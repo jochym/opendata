@@ -65,6 +65,7 @@ def extract_metadata_from_ai_response(
         return clean_text, None, updated_metadata
 
     data = None
+    start = -1
     try:
         parts = response_text.split("METADATA:", 1)
         after_metadata = parts[1]
@@ -118,8 +119,8 @@ def extract_metadata_from_ai_response(
             # YAML Path - use original section to avoid JSON-specific cleanup artifacts
             yaml_content = original_section
             # Strip any markdown code fences (json, yaml, or plain)
-            yaml_content = re.sub(r"^```(?:json|yaml|metadata)?\s*", "", yaml_content)
-            yaml_content = re.sub(r"\s*```$", "", yaml_content)
+            yaml_content = re.sub(r"```(?:json|yaml|metadata)?\s*", "", yaml_content)
+            yaml_content = yaml_content.replace("```", "")
 
             # QUESTION: already split off at line 70-72, yaml_content is clean
             # (we check again here as a safety measure)
@@ -137,92 +138,27 @@ def extract_metadata_from_ai_response(
                     updated_metadata,
                 )
 
-            # Note: Simple brace counting doesn't handle braces in string literals
-            # This is a known limitation. For robust JSON extraction, use YAML format instead.
-            brace_count = 0
-            end = -1
-            in_string = False
-            for i in range(start, len(json_section)):
-                char = json_section[i]
-                if char == '"':
-                    # Count preceding backslashes to handle escaped quotes
-                    bs_count = 0
-                    idx = i - 1
-                    while idx >= start and json_section[idx] == "\\":
-                        bs_count += 1
-                        idx -= 1
-                    # Only toggle if not escaped (even number of backslashes)
-                    if bs_count % 2 == 0:
-                        in_string = not in_string
-                # Only count braces outside strings
-                if not in_string:
-                    if char == "{":
-                        brace_count += 1
-                    elif char == "}":
-                        brace_count -= 1
-                        if brace_count == 0:
-                            end = i + 1
-                            break
-
-            if end == -1:
-                return (
-                    clean_text if clean_text else response_text,
-                    None,
-                    updated_metadata,
-                )
-
-            json_str = json_section[start:end]
-            json_str = re.sub(r"\bNone\b", "null", json_str)
-            json_str = re.sub(r"\bTrue\b", "true", json_str)
-            json_str = re.sub(r"\bFalse\b", "false", json_str)
-
-            try:
-                # Basic cleanup of common AI JSON errors
-                # 1. Trailing commas in arrays/objects: [1, 2,] -> [1, 2]
-                json_str_clean = re.sub(r",\s*([\]}])", r"\1", json_str)
-                data = json.loads(json_str_clean)
-            except json.JSONDecodeError:
-                # 2. Single quotes recovery
-                if json_str.count("'") > json_str.count('"'):
-                    try:
-                        # Also apply trailing comma fix to single-quoted version
-                        sq_json = json_str.replace("'", '"')
-                        sq_json = re.sub(r",\s*([\]}])", r"\1", sq_json)
-                        data = json.loads(sq_json)
-                    except json.JSONDecodeError:
-                        # Fallback to YAML if JSON fails
-                        is_json = False
-                else:
-                    # Fallback to YAML if JSON fails
-                    is_json = False
-        if not is_json:
-            # YAML Path - use original section to avoid JSON-specific cleanup artifacts
-            yaml_content = original_section
-            # Strip potential markdown blocks
-            # Strip any markdown code fences (json, yaml, or plain)
-            yaml_content = re.sub(r"^```(?:json|yaml|metadata)?\s*", "", yaml_content)
-            yaml_content = re.sub(r"\s*```$", "", yaml_content)
-
-            # QUESTION: already split off at line 70-72, yaml_content is clean
-            try:
-                data = yaml.safe_load(yaml_content)
-            except yaml.YAMLError as e:
-                logger.error(f"YAML parse failed: {e}")
-                return (
-                    clean_text if clean_text else response_text,
-                    None,
-                    updated_metadata,
-                )
-
         if not data or not isinstance(data, dict):
             return clean_text if clean_text else response_text, None, updated_metadata
 
-        if ("METADATA" in data) or ("ANALYSIS" in data):
-            updates = data.get("METADATA")
+        # Extract updates and analysis from data
+        updates = {}
+        analysis_data = None
+
+        if "METADATA" in data:
+            updates = data["METADATA"]
             if not isinstance(updates, dict):
                 updates = {}
+
+        if "ANALYSIS" in data:
+            analysis_data = data["ANALYSIS"]
+
+        # If no explicit sections found, treat the whole thing as metadata
+        if not updates and not analysis_data:
+            updates = data
+
+        if updates or analysis_data:
             try:
-                analysis_data = data.get("ANALYSIS")
                 if analysis_data and isinstance(analysis_data, dict):
                     # Normalize keys for AIAnalysis model aliases (missing_fields -> missingfields)
                     normalized_analysis = {}
