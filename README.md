@@ -114,30 +114,30 @@ pytest -m ai_interaction        # AI tests (local only, needs app running)
 **Total:** 101+ tests, all automated
 
 ### Documentation
-- `docs/TESTING.md` - Complete testing guide
-- `docs/TESTING_QUICKSTART.md` - Quick start guide
-- `docs/AI_TESTING_GUIDE.md` - AI testing specifics
+- **[Testing Guide](https://github.com/jochym/opendata/blob/main/docs/TESTING.md)** - Complete testing guide
+- **[Testing Quickstart](https://github.com/jochym/opendata/blob/main/docs/TESTING_QUICKSTART.md)** - Quick start guide
+- **[AI Testing Guide](https://github.com/jochym/opendata/blob/main/docs/AI_TESTING_GUIDE.md)** - AI testing specifics
 
 ## Documentation
 
 ### For Users
-- **[Testing Guide](docs/TESTING.md)** - How to run tests and verify installation
-- **[AI Setup Guide](docs/AI_SETUP.md)** - Configure AI providers (Google GenAI, OpenAI)
-- **[Tester Manual](docs/TESTER_MANUAL.md)** - Complete QA and manual testing workflows
-- **[Supported Platforms](docs/SUPPORTED_PLATFORMS.md)** - OS and Python version compatibility
+- **[Testing Guide](https://github.com/jochym/opendata/blob/main/docs/TESTING.md)** - How to run tests and verify installation
+- **[AI Setup Guide](https://github.com/jochym/opendata/blob/main/docs/AI_SETUP.md)** - Configure AI providers (Google GenAI, OpenAI)
+- **[Tester Manual](https://github.com/jochym/opendata/blob/main/docs/TESTER_MANUAL.md)** - Complete QA and manual testing workflows
+- **[Supported Platforms](https://github.com/jochym/opendata/blob/main/docs/SUPPORTED_PLATFORMS.md)** - OS and Python version compatibility
 
 ### For Developers
-- **[Developer Manual](docs/DEVELOPER_MANUAL.md)** - Core development guide
-- **[API Reference](docs/dev/API.md)** - Internal REST API documentation
-- **[Test Infrastructure](docs/dev/TEST_INFRASTRUCTURE.md)** - Testing architecture deep dive
-- **[Test Results](docs/dev/TEST_RESULTS.md)** - Coverage analysis and metrics
-- **[Field Protocol Design](docs/dev/FIELD_PROTOCOL_DECOUPLING.md)** - Hierarchical protocol system
-- **[Prompt Architecture](docs/dev/PROMPT_ARCHITECTURE.md)** - AI prompt system design
+- **[Developer Manual](https://github.com/jochym/opendata/blob/main/docs/DEVELOPER_MANUAL.md)** - Core development guide
+- **[API Reference](https://github.com/jochym/opendata/blob/main/docs/dev/API.md)** - Internal REST API documentation
+- **[Test Infrastructure](https://github.com/jochym/opendata/blob/main/docs/dev/TEST_INFRASTRUCTURE.md)** - Testing architecture deep dive
+- **[Test Results](https://github.com/jochym/opendata/blob/main/docs/dev/TEST_RESULTS.md)** - Coverage analysis and metrics
+- **[Field Protocol Design](https://github.com/jochym/opendata/blob/main/docs/dev/FIELD_PROTOCOL_DECOUPLING.md)** - Hierarchical protocol system
+- **[Prompt Architecture](https://github.com/jochym/opendata/blob/main/docs/dev/PROMPT_ARCHITECTURE.md)** - AI prompt system design
 
 ### Project Status
-- **[Accomplishments](docs/dev/ACCOMPLISHMENTS.md)** - Historical development log
-- **[Roadmap](docs/dev/ROADMAP.md)** - Future plans and upcoming features
-- **[Changelog](CHANGELOG.md)** - Version history and release notes
+- **[Accomplishments](https://github.com/jochym/opendata/blob/main/docs/dev/ACCOMPLISHMENTS.md)** - Historical development log
+- **[Roadmap](https://github.com/jochym/opendata/blob/main/docs/dev/ROADMAP.md)** - Future plans and upcoming features
+- **[Changelog](https://github.com/jochym/opendata/blob/main/CHANGELOG.md)** - Version history and release notes
 
 ## Badges
 

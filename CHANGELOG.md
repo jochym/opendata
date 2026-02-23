@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **PyPI Metadata**: Added comprehensive PyPI metadata including README, license, keywords, classifiers, and project URLs for better discoverability and documentation on PyPI
 - **Documentation**: Updated all documentation files with current version (v0.22.22) and improved navigation structure
-- **README**: Enhanced with badges, better organization, and comprehensive documentation links
+- **README**: Enhanced with badges, better organization, and comprehensive documentation links with absolute GitHub URLs
 - **YAML Communication**: Migrated AI-Agent communication to YAML format with `json-repair` library for robust error handling and automatic fallback from malformed JSON
 - **Project Manager UI**: New "Manage Projects" dialog with full project list, health indicators (✓ OK, ❌ Corrupt/Orphaned), and one-click deletion
 - **Testing**: Added 15 Agent integration tests covering state management, field protocols, and significant files workflow
