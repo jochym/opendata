@@ -124,6 +124,7 @@ async def handle_load_project(ctx: AppContext, path: str):
         # Reset session state for new project
         # Reset session state and start loading
         ctx.session.reset()
+        # Loading state already managed in handle_load_project via reset() or explicitly
         ctx.session.is_project_loading = True
 
         success = await asyncio.to_thread(ctx.agent.load_project, path_obj)
@@ -164,7 +165,7 @@ async def handle_manage_projects(ctx: AppContext):
 
         with ui.column().classes("gap-3 mt-4 max-h-96 overflow-y-auto"):
             for p in projects:
-                path_display = p.get("path") or "Unknown"
+                path_display = p.get("path") or _("Unknown")
                 # Guard against invalid path values (empty, NUL, etc.)
                 if not path_display or path_display == "Unknown":
                     path_exists = False
@@ -200,7 +201,7 @@ async def handle_manage_projects(ctx: AppContext):
                         )  # Hidden from visual, visible to screen readers
 
                     with ui.column().classes("flex-1"):
-                        ui.label(p.get("title", "Untitled")[:50]).classes("font-bold")
+                        ui.label(p.get("title", _("Untitled"))[:50]).classes("font-bold")
                         # Only show ellipsis if path is actually truncated
                         path_label = (
                             f"{path_display[:60]}..."
@@ -212,7 +213,7 @@ async def handle_manage_projects(ctx: AppContext):
                     ui.chip(status_text).props(f"color={status_color} outline")
 
                     async def do_delete(
-                        pid=p["id"], title=p.get("title", "Untitled")[:40]
+                        pid=p["id"], title=p.get("title", _("Untitled"))[:40]
                     ):
                         # Show confirmation dialog before destructive operation
                         with (

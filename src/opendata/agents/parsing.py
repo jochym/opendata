@@ -87,6 +87,9 @@ def extract_metadata_from_ai_response(
             if re.search(r'"[^"]+"\s*:', json_section):
                 is_json = True
 
+        # Save original section for potential YAML fallback
+        original_section = json_section
+        
         if is_json:
             json_section = re.sub(r"^```json\s*", "", json_section)
             json_section = re.sub(r"\s*```$", "", json_section)
@@ -151,8 +154,8 @@ def extract_metadata_from_ai_response(
                     # Fallback to YAML if JSON fails
                     is_json = False
         if not is_json:
-            # YAML Path
-            yaml_content = json_section
+            # YAML Path - use original section to avoid JSON-specific cleanup artifacts
+            yaml_content = original_section
             # Strip potential markdown blocks
             yaml_content = re.sub(r"^```(?:yaml)?\s*", "", yaml_content)
             yaml_content = re.sub(r"\s*```$", "", yaml_content)
