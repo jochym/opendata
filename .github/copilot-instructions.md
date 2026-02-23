@@ -105,7 +105,7 @@ pytest -m "not ai_interaction and not local_only"
 
 ## Dependencies That Aren't Obvious
 - `google-genai` and `google-generativeai` are both listed; the latter is deprecated — new AI code should use `google-genai`.
-- `pypandoc` requires Pandoc to be installed on the system for full-text DOCX→text conversion; tests mock this when Pandoc is absent.
+- DOCX metadata/text extraction uses `python-docx`; there is no `pypandoc`/Pandoc dependency.
 - `playwright` is a runtime dependency; run `playwright install chromium` for GUI smoke tests.
 - Workspace data is persisted at `~/.opendata_tool/` (never inside the repo).
 
