@@ -99,16 +99,25 @@ def extract_metadata_from_ai_response(
                     updated_metadata,
                 )
 
+            # Note: Simple brace counting doesn't handle braces in string literals
+            # This is a known limitation. For robust JSON extraction, use YAML format instead.
             brace_count = 0
             end = -1
+            in_string = False
             for i in range(start, len(json_section)):
-                if json_section[i] == "{":
-                    brace_count += 1
-                elif json_section[i] == "}":
-                    brace_count -= 1
-                    if brace_count == 0:
-                        end = i + 1
-                        break
+                char = json_section[i]
+                # Toggle string state (ignoring escaped quotes for simplicity)
+                if char == '"' and (i == 0 or json_section[i-1] != '\\'):
+                    in_string = not in_string
+                # Only count braces outside strings
+                if not in_string:
+                    if char == "{":
+                        brace_count += 1
+                    elif char == "}":
+                        brace_count -= 1
+                        if brace_count == 0:
+                            end = i + 1
+                            break
 
             if end == -1:
                 return (
