@@ -11,7 +11,7 @@ OpenData Tool is a browser-centric, AI-assisted desktop application for preparin
 - **Data validation:** Pydantic v2  
 - **Config format:** YAML (preferred over JSON for human-facing files)  
 - **i18n:** `gettext` — all user-visible strings must use `_()`  
-- **Paths:** Always use `pathlib.Path`; always pass `encoding="utf-8"` to file ops  
+- **Paths:** Always use `pathlib.Path`; prefer passing `encoding="utf-8"` to text file operations for consistency  
 
 ## Key Source Layout
 ```
