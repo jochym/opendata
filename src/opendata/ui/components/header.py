@@ -165,9 +165,15 @@ async def handle_manage_projects(ctx: AppContext):
         with ui.column().classes("gap-3 mt-4 max-h-96 overflow-y-auto"):
             for p in projects:
                 path_display = p.get("path") or "Unknown"
-                path_exists = (
-                    Path(path_display).exists() if path_display != "Unknown" else False
-                )
+                # Guard against invalid path values (empty, NUL, etc.)
+                if not path_display or path_display == "Unknown":
+                    path_exists = False
+                else:
+                    try:
+                        path_exists = Path(path_display).exists()
+                    except (ValueError, OSError):
+                        # Invalid path (e.g., contains NUL, too long, etc.)
+                        path_exists = False
 
                 # Visual indicator for corrupt/orphaned projects
                 if path_display == "Unknown" or not path_exists:

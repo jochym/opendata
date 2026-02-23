@@ -66,7 +66,7 @@ class TestAgentContextBuilding:
         # Note: loaded may be False if no prior state exists, which is expected
         assert agent.project_id is not None
 
-    def test_agent_builds_context_from_significant_files(
+    def test_agent_fixture_files_are_readable(
         self, agent, project_3csic_path, workspace_manager
     ):
         """
