@@ -110,7 +110,7 @@ def extract_metadata_from_ai_response(
             for i in range(start, len(json_section)):
                 char = json_section[i]
                 # Toggle string state (ignoring escaped quotes for simplicity)
-                if char == '"' and (i == 0 or json_section[i-1] != '\\'):
+                if char == '"' and (i == start or json_section[i-1] != '\\'):
                     in_string = not in_string
                 # Only count braces outside strings
                 if not in_string:
