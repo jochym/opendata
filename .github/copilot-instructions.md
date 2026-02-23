@@ -99,7 +99,7 @@ pytest -m "not ai_interaction and not local_only"
 - Add new extractors in `src/opendata/extractors/`.
 - New features go in `feature/*` branches; bug fixes in `fix/*` branches. Never commit directly to `main`.
 - Every substantial change needs a corresponding test in `tests/unit/` or `tests/integration/`.
-- Use `YAML` for config/metadata files, never raw JSON.
+- Prefer `YAML` for human-facing config/metadata (drafts, field protocols); JSON is fine for persisted artifacts (e.g., `chat_history.json`, `fingerprint.json`, `analysis.json`, `project_config.json`, `package_manifest.json`).
 - Never modify files inside the user's research directory (strictly read-only).
 - Background tasks must report progress to the NiceGUI UI.
 
