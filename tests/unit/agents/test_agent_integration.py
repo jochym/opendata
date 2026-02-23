@@ -59,7 +59,7 @@ class TestAgentContextBuilding:
         project_id = workspace_manager.get_project_id(project_3csic_path)
 
         # Act: Load the project
-        loaded = agent.load_project(project_3csic_path)
+        agent.load_project(project_3csic_path)
 
         # Assert: Project is loaded with ID
         assert agent.project_id == project_id
@@ -274,7 +274,7 @@ class TestAgentRealisticProjects:
         assert project_3csic_path.exists()
 
         # Act: Load project
-        loaded = agent.load_project(project_3csic_path)
+        agent.load_project(project_3csic_path)
 
         # Assert: Project loaded (may be False for new projects without prior state)
         assert agent.project_id is not None
@@ -295,7 +295,7 @@ class TestAgentRealisticProjects:
         assert project_fesi_path.exists()
 
         # Act: Load project (may return False if no prior state, which is OK)
-        loaded = agent.load_project(project_fesi_path)
+        agent.load_project(project_fesi_path)
 
         # Assert: Project ID is set (structure created in workspace)
         assert agent.project_id is not None

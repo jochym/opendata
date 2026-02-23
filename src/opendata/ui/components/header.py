@@ -3,7 +3,7 @@ import asyncio
 import logging
 from nicegui import ui
 from opendata.i18n.translator import _
-from opendata.ui.state import ScanState, UIState
+from opendata.ui.state import ScanState
 from opendata.ui.context import AppContext
 from opendata.utils import get_app_version
 
@@ -234,6 +234,8 @@ async def handle_manage_projects(ctx: AppContext):
                                 async def confirm():
                                     confirm_dialog.close()
                                     try:
+                # Note: delete_project performs blocking I/O in async context
+                # For large projects, consider moving to executor
                                         success = ctx.wm.delete_project(pid)
                                         if success:
                                             ui.notify(
