@@ -23,7 +23,7 @@ authors:
 
 def test_parsing_yaml_with_analysis():
     """
-    Test behavior: Parser should correctly parse nested YAML structure (ANALYSIS + METADATA).
+    Test behavior: Parser should correctly parse YAML with ANALYSIS and METADATA sections.
     """
     current = Metadata()
     ai_response = """

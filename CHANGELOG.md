@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Parser**: Enhanced `extract_metadata_from_ai_response()` to support both JSON and YAML formats
 - **UI**: Simplified project deletion workflow - single "Manage Projects" button replaces individual delete buttons
 - **UX**: Added confirmation dialog before project deletion (destructive operation protection)
-- **Workspace**: Improved cache invalidation when deleting projects for immediate UI updates
+- **Workspace**: Improved cache invalidation and error handling when deleting projects
 
 ### Fixed
 - **Project Deletion**: Fixed inability to delete corrupt/orphaned projects (missing fingerprint, unknown paths)

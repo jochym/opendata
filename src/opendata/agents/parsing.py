@@ -77,8 +77,9 @@ def extract_metadata_from_ai_response(
         json_section = json_section.strip()
 
         # Determine if we are dealing with JSON or YAML
-        # Note: AI responses typically use clear format markers. YAML flow-style ({key: value})
-        # is rare in AI output. If needed, we could try JSON parse first and fall back to YAML.
+        # Heuristic: Check for JSON markers. Note: YAML flow-style ({key: value}) could be
+        # misidentified as JSON, but AI responses typically use clear format markers.
+        # For robustness, we could try JSON parse first and fall back to YAML if it fails.
         is_json = json_section.startswith("{") or json_section.startswith("```json")
 
         if is_json:

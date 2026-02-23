@@ -235,8 +235,6 @@ async def handle_manage_projects(ctx: AppContext):
                                             # Clear state if deleted project is currently loaded
                                             if ctx.agent.project_id == pid:
                                                 ctx.agent.reset_agent_state()
-                                                from opendata.ui.state import ScanState
-
                                                 ScanState.current_path = ""
                                             # Cache already cleared by delete_project()
                                             # Close manage dialog and refresh

@@ -143,11 +143,10 @@ def test_parsing_yaml_robustness():
     current = Metadata()
     ai_response = """
 METADATA:
-  METADATA:
-    title: Single Quote Title
-    keywords:
-      - physics
-      - anharmonicity
+title: Single Quote Title
+keywords:
+  - physics
+  - anharmonicity
 """
     msg, analysis, updated = extract_metadata_from_ai_response(ai_response, current)
     assert updated.title == "Single Quote Title"
@@ -161,10 +160,9 @@ def test_parsing_locked_fields_protection():
     current = Metadata(title="User Title", locked_fields=["title"])
     ai_response = """
 METADATA:
-  METADATA:
-    title: "AI Title"
-    keywords:
-      - "new"
+title: "AI Title"
+keywords:
+  - "new"
 """
     msg, analysis, updated = extract_metadata_from_ai_response(ai_response, current)
     assert updated.title == "User Title"
