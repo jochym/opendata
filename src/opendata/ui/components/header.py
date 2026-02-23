@@ -122,7 +122,7 @@ async def handle_load_project(ctx: AppContext, path: str):
         ctx.agent.project_id = project_id
 
         # Reset session state for new project
-        # Reset session state instead of replacing the object to preserve UI bindings
+        # Reset session state and start loading
         ctx.session.reset()
         ctx.session.is_project_loading = True
 

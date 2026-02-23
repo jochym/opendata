@@ -87,9 +87,7 @@ class TestAgentContextBuilding:
             primary_file=None,
         )
 
-        # Act: Run AI analysis phase (mock AI service)
-        mock_ai = MagicMock()
-        mock_ai.ask_agent.return_value = "METADATA:\n  title: Test Title"
+        # Verify files are readable
 
         # We can't easily test the full prompt without calling the actual method,
         # but we can verify the context files are read
