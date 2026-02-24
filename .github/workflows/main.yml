@@ -320,24 +320,12 @@ jobs:
       - name: Test Version
         run: |
           . /tmp/test_venv/bin/activate
-          python3 -c "
-            from opendata.utils import get_app_version
-            v = get_app_version()
-            print(f'Version: {v}')
-            assert v != '0.0.0', 'Version not found'
-            assert '+' not in v, 'Version should not have git SHA in installed mode'
-            print('✅ Version test passed')
-          "
+          python3 -c "from opendata.utils import get_app_version; v = get_app_version(); print(f'Version: {v}'); assert v != '0.0.0'; assert '+' not in v; print('✅ Version test passed')"
       
       - name: Test client_secrets.json
         run: |
           . /tmp/test_venv/bin/activate
-          python3 -c "
-            from opendata.utils import get_resource_path
-            p = get_resource_path('src/opendata/client_secrets.json')
-            assert p.exists(), f'client_secrets.json not found at {p}'
-            print(f'✅ client_secrets.json found at: {p}')
-          "
+          python3 -c "from opendata.utils import get_resource_path; p = get_resource_path('src/opendata/client_secrets.json'); assert p.exists(); print(f'✅ client_secrets.json found at: {p}')"
       
       - name: Test API (Headless)
         run: |
@@ -374,27 +362,12 @@ jobs:
       - name: Test UI Import
         run: |
           . /tmp/test_venv/bin/activate
-          python3 -c "
-            import nicegui
-            from opendata.ui.app import create_ui
-            print(f'NiceGUI version: {nicegui.__version__}')
-            print('✅ UI modules imported successfully')
-          "
+          python3 -c "import nicegui; from opendata.ui.app import create_ui; print(f'NiceGUI version: {nicegui.__version__}'); print('✅ UI modules imported successfully')"
       
       - name: Test Dependencies
         run: |
           . /tmp/test_venv/bin/activate
-          python3 -c "
-            import google.generativeai
-            import google.genai
-            import pydantic
-            import yaml
-            import docx
-            import pydicom
-            import bibtexparser
-            import h5py
-            print('✅ All critical dependencies imported')
-          "
+          python3 -c "import google.generativeai; import google.genai; import pydantic; import yaml; import docx; import pydicom; import bibtexparser; import h5py; print('✅ All critical dependencies imported')"
 
   build-pypi:
     name: PyPI Package
