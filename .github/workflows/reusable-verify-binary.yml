@@ -51,12 +51,32 @@ jobs:
           echo "Found binary at: $BIN_PATH"
           chmod +x "$BIN_PATH" || true
           
+          # Test binary startup
+          echo "Testing binary startup..."
+          timeout 5 "$BIN_PATH" --version || echo "Version check failed or timed out"
+          
           # Start binary in headless mode with API enabled
-          "$BIN_PATH" --headless --port 8080 --api &
+          echo "Starting binary in headless mode..."
+          "$BIN_PATH" --headless --port 8080 --api --verbose &
           BIN_PID=$!
           
-          # Wait for startup
-          sleep 15
+          # Wait for startup with progress
+          echo "Waiting for binary to start (PID: $BIN_PID)..."
+          for i in {1..15}; do
+            sleep 1
+            if kill -0 $BIN_PID 2>/dev/null; then
+              echo "  Process still running ($i/15)..."
+            else
+              echo "  Process died at second $i!"
+              break
+            fi
+          done
+          
+          # Check if process is still alive
+          if ! kill -0 $BIN_PID 2>/dev/null; then
+            echo "❌ Binary crashed during startup"
+            exit 1
+          fi
           
           # Determine HTTP tool
           if command -v curl &> /dev/null; then
@@ -65,16 +85,21 @@ jobs:
             HTTP_GET="wget -qO-"
           else
             echo "❌ No HTTP tool found (curl or wget)"
+            kill $BIN_PID 2>/dev/null || true
             exit 1
           fi
           
           # Test API endpoint - projects list
           echo "Testing API endpoint: /api/projects..."
           API_URL="http://127.0.0.1:8080/api/projects"
-          if $HTTP_GET "$API_URL" | grep -q "projects"; then
+          API_RESPONSE=$($HTTP_GET "$API_URL" 2>&1 || echo "REQUEST_FAILED")
+          echo "API Response: $API_RESPONSE"
+          
+          if echo "$API_RESPONSE" | grep -q "projects"; then
             echo "✅ API /api/projects is working on ${{ inputs.os }}"
           else
             echo "❌ API /api/projects failed on ${{ inputs.os }}"
+            echo "Response was: $($HTTP_GET "$API_URL" 2>&1 | head -20)"
             kill $BIN_PID 2>/dev/null || true
             exit 1
           fi
