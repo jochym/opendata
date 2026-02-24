@@ -81,8 +81,15 @@ jobs:
           cd pyapp-latest
           mkdir -p ../dist_bin
           
-          # Get absolute path to project root (one level up from pyapp-latest)
-          PROJECT_ROOT=$(pwd)/..
+          # Get absolute path to project root (resolve .. properly)
+          PROJECT_ROOT=$(dirname "$(pwd)")
+          
+          # Verify pyproject.toml exists
+          if [ ! -f "$PROJECT_ROOT/pyproject.toml" ]; then
+            echo "❌ pyproject.toml not found at: $PROJECT_ROOT"
+            ls -la "$PROJECT_ROOT" || true
+            exit 1
+          fi
           
           # Set PyApp configuration
           export PYAPP_PROJECT_NAME="opendata-tool"
@@ -93,6 +100,7 @@ jobs:
           export PYAPP_PYTHON_VERSION="3.11"
           
           echo "✅ Building from project at: $PYAPP_PROJECT_PATH"
+          echo "✅ pyproject.toml exists: $(test -f $PYAPP_PROJECT_PATH/pyproject.toml && echo yes || echo no)"
           
           VERSION=$(cat ../src/opendata/VERSION | sed 's/+.*//')
           
