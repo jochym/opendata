@@ -34,11 +34,17 @@ jobs:
           name: wheel-package
           path: dist/
       
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
-          target: ${{ inputs.target == 'macos-x86_64' && 'x86_64-apple-darwin' || '' }}
+      - name: Verify Rust
+        shell: bash
+        run: |
+          rustc --version || (echo "Rust not found!" && exit 1)
+          cargo --version || (echo "Cargo not found!" && exit 1)
+      
+      - name: Add macOS Intel Target (if needed)
+        if: inputs.target == 'macos-x86_64'
+        shell: bash
+        run: |
+          rustup target add x86_64-apple-darwin
       
       - name: Get PyApp Source
         shell: bash
