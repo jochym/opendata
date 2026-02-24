@@ -417,7 +417,9 @@ jobs:
 
   release:
     name: Create Release
-    needs: [verify-binaries-native, verify-pyapp-binaries, verify-linux-distros, verify-pyapp-linux-distros, build-pypi]
+    # PyPI release depends only on wheel tests passing
+    # GitHub Release binaries depend on native PyInstaller verification (pyApp is optional/experimental)
+    needs: [verify-binaries-native, verify-linux-distros, build-pypi]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
