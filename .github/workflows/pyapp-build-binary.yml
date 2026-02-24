@@ -105,9 +105,12 @@ jobs:
           export PYAPP_EXEC_MODULE="opendata.main"
           export PYAPP_EXEC_FUNCTION="main"
           export PYAPP_PYTHON_VERSION="3.11"
+          # Embed the package in the binary (install at build time, not runtime)
+          export PYAPP_EMBED="1"
           
           echo "✅ Building from sdist: ./$SDIST_BASENAME"
           echo "✅ Version: $WHEEL_VERSION"
+          echo "✅ Embed: $PYAPP_EMBED"
           ls -la "./$SDIST_BASENAME"
           
           VERSION=$(cat ../src/opendata/VERSION | sed 's/+.*//')
