@@ -74,6 +74,9 @@ jobs:
       - name: Build Source Distribution
         shell: bash
         run: |
+          # Install build tool
+          pip install build
+          
           # Build sdist (tar.gz) which pyApp can use
           python -m build --sdist
           SDIST_FILE=$(ls dist/*.tar.gz | head -n 1)
