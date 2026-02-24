@@ -86,7 +86,6 @@ jobs:
           export PYAPP_PROJECT_NAME="opendata-tool"
           export PYAPP_PROJECT_PATH="$WHEEL_ABS_PATH"
           export PYAPP_EXEC_MODULE="opendata.main"
-          export PYAPP_EXEC_FUNCTION="main"
           export PYAPP_PYTHON_VERSION="3.11"
           
           echo "✅ Building from wheel: $PYAPP_PROJECT_PATH"
