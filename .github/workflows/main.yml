@@ -146,8 +146,9 @@ jobs:
       - name: Run Binary and Verify API
         shell: bash
         run: |
-          chmod +x /tmp/verify-bin/opendata-linux
-          /tmp/verify-bin/opendata-linux --headless --port 8080 --api &
+          BIN_PATH=$(find /tmp/verify-bin -maxdepth 1 -type f -not -name "*.whl" | head -n 1)
+          chmod +x "$BIN_PATH"
+          "$BIN_PATH" --headless --port 8080 --api &
           BIN_PID=$!
           sleep 15
           if curl -s http://127.0.0.1:8080/api/projects | grep -q "projects"; then
@@ -192,8 +193,9 @@ jobs:
       - name: Run Binary and Verify API
         shell: bash
         run: |
-          chmod +x /tmp/verify-bin/opendata-linux-pyapp
-          /tmp/verify-bin/opendata-linux-pyapp --headless --port 8081 --api &
+          BIN_PATH=$(find /tmp/verify-bin -maxdepth 1 -type f -not -name "*.whl" | head -n 1)
+          chmod +x "$BIN_PATH"
+          "$BIN_PATH" --headless --port 8081 --api &
           BIN_PID=$!
           sleep 15
           if curl -s http://127.0.0.1:8081/api/projects | grep -q "projects"; then
@@ -245,13 +247,13 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            artifacts/opendata-win/opendata-win.exe
-            artifacts/opendata-linux/opendata-linux
-            artifacts/opendata-macos-arm/opendata-macos-arm
-            artifacts/opendata-win-pyapp/opendata-win-pyapp.exe
-            artifacts/opendata-linux-pyapp/opendata-linux-pyapp
-            artifacts/opendata-macos-arm-pyapp/opendata-macos-arm-pyapp
-            artifacts/opendata-macos-intel-pyapp/opendata-macos-intel-pyapp
+            artifacts/opendata-win/*.exe
+            artifacts/opendata-linux/opendata-linux*
+            artifacts/opendata-macos-arm/opendata-macos-arm*
+            artifacts/opendata-win-pyapp/*.exe
+            artifacts/opendata-linux-pyapp/opendata-linux-pyapp*
+            artifacts/opendata-macos-arm-pyapp/opendata-macos-arm-pyapp*
+            artifacts/opendata-macos-intel-pyapp/opendata-macos-intel-pyapp*
           generate_release_notes: true
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1

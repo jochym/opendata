@@ -49,15 +49,10 @@ jobs:
       - name: Build with PyInstaller
         shell: bash
         run: |
-          pyinstaller --onefile --name ${{ inputs.artifact_name }} \
-            --add-data "src/opendata/ui:opendata/ui" \
-            --add-data "src/opendata/prompts:opendata/prompts" \
-            --add-data "src/opendata/VERSION:." \
-            --add-data "client_secrets.json:." \
-            --exclude-module matplotlib --exclude-module PyQt5 --exclude-module PyQt6 --exclude-module PySide2 --exclude-module PySide6 --exclude-module IPython --exclude-module PIL \
-            src/opendata/main.py
+          VERSION=$(cat src/opendata/VERSION | sed 's/+.*//')
+          pyinstaller --onefile --name ${{ inputs.artifact_name }}-$VERSION \\\n            --add-data \"src/opendata/ui:opendata/ui\" \\\n            --add-data \"src/opendata/prompts:opendata/prompts\" \\\n            --add-data \"src/opendata/VERSION:.\" \\\n            --add-data \"src/opendata/client_secrets.json:.\" \\\n            --exclude-module matplotlib --exclude-module PyQt5 --exclude-module PyQt6 --exclude-module PySide2 --exclude-module PySide6 --exclude-module IPython --exclude-module PIL \\\n            src/opendata/main.py
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.artifact_name }}
-          path: dist/${{ inputs.artifact_name }}${{ runner.os == 'Windows' && '.exe' || '' }}
+          path: dist/*

@@ -30,12 +30,21 @@ jobs:
         shell: bash
         run: |
           BIN_DIR="verify-bin"
-          BIN_NAME="${{ inputs.artifact_name }}"
+          # Find the binary in the directory (it might have version in name)
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            BIN_PATH="./${BIN_DIR}/${BIN_NAME}.exe"
+            BIN_PATH=$(find "$BIN_DIR" -maxdepth 1 -name "*.exe" | head -n 1)
           else
-            BIN_PATH="./${BIN_DIR}/${BIN_NAME}"
+            # On Unix, look for executable files or files matching artifact name
+            BIN_PATH=$(find "$BIN_DIR" -maxdepth 1 -type f -not -name "*.whl" | head -n 1)
           fi
+          
+          if [ -z "$BIN_PATH" ]; then
+            echo "❌ No binary found in $BIN_DIR"
+            ls -R "$BIN_DIR"
+            exit 1
+          fi
+          
+          echo "Found binary at: $BIN_PATH"
           chmod +x "$BIN_PATH" || true
           
           # Start binary in headless mode with API enabled
