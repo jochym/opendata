@@ -81,9 +81,10 @@ jobs:
           # Build a local wheel that includes client_secrets.json
           pip install build
           python -m build --wheel
-          # Store wheel path for PyApp
-          WHEEL_PATH=$(ls dist/*.whl | head -n 1)
+          # Store ABSOLUTE wheel path for PyApp
+          WHEEL_PATH=$(pwd)/$(ls dist/*.whl | head -n 1)
           echo "PYAPP_PROJECT_PATH=$WHEEL_PATH" >> $GITHUB_ENV
+          echo "Built wheel at: $WHEEL_PATH"
       
       - name: Build with PyApp
         shell: bash
@@ -91,10 +92,18 @@ jobs:
           cd pyapp-latest
           mkdir -p ../dist_bin
           
+          # Verify wheel exists at the path
+          if [ ! -f "$PYAPP_PROJECT_PATH" ]; then
+            echo "❌ Wheel not found at: $PYAPP_PROJECT_PATH"
+            ls -la ../dist/ || true
+            exit 1
+          fi
+          echo "✅ Using wheel from: $PYAPP_PROJECT_PATH"
+          
           # Set PyApp configuration
           export PYAPP_PROJECT_NAME="opendata-tool"
-          # Use the locally built wheel
-          export PYAPP_PROJECT_PATH="../$PYAPP_PROJECT_PATH"
+          # Use the locally built wheel (absolute path)
+          export PYAPP_PROJECT_PATH="$PYAPP_PROJECT_PATH"
           export PYAPP_EXEC_MODULE="opendata.main"
           export PYAPP_EXEC_FUNCTION="main"
           export PYAPP_PYTHON_VERSION="3.11"
