@@ -71,26 +71,50 @@ jobs:
           ls -la dist/
           echo "✅ Using wheel: ${{ inputs.wheel_file }}"
       
-      # STEP 2: Build pyApp from wheel
+      - name: Build Source Distribution
+        shell: bash
+        run: |
+          # Install build tool
+          pip install build
+          
+          # Build sdist (tar.gz) which pyApp can use
+          python -m build --sdist
+          SDIST_FILE=$(ls dist/*.tar.gz | head -n 1)
+          SDIST_ABS_PATH="$(pwd)/$SDIST_FILE"
+          echo "SDIST_ABS_PATH=$SDIST_ABS_PATH" >> $GITHUB_ENV
+          echo "✅ Built sdist: $SDIST_ABS_PATH"
+      
+      # STEP 2: Build pyApp from sdist
       - name: Build with PyApp
         shell: bash
         run: |
           cd pyapp-latest
           mkdir -p ../dist_bin
           
-          # Copy wheel to pyapp-latest directory and get absolute path
-          cp ../dist/${{ inputs.wheel_file }} .
-          WHEEL_ABS_PATH="$(pwd)/${{ inputs.wheel_file }}"
+          # Get version from wheel filename (e.g., opendata_tool-0.22.24-py3-none-any.whl)
+          WHEEL_VERSION=$(echo "${{ inputs.wheel_file }}" | sed 's/opendata_tool-\(.*\)-py.*/\1/')
+          
+          # Copy sdist to pyapp-latest directory using absolute path
+          cp "$SDIST_ABS_PATH" .
+          SDIST_BASENAME=$(basename "$SDIST_ABS_PATH")
+          
+          # Create dependency file to force installation
+          echo "opendata-tool==$WHEEL_VERSION" > requirements.txt
           
           # Set PyApp configuration
           export PYAPP_PROJECT_NAME="opendata-tool"
-          export PYAPP_PROJECT_PATH="$WHEEL_ABS_PATH"
+          export PYAPP_PROJECT_PATH="./$SDIST_BASENAME"
+          export PYAPP_PROJECT_VERSION="$WHEEL_VERSION"
+          export PYAPP_PROJECT_DEPENDENCY_FILE="./requirements.txt"
           export PYAPP_EXEC_MODULE="opendata.main"
           export PYAPP_EXEC_FUNCTION="main"
           export PYAPP_PYTHON_VERSION="3.11"
           
-          echo "✅ Building from wheel: $PYAPP_PROJECT_PATH"
-          ls -la "$PYAPP_PROJECT_PATH"
+          echo "✅ Building from sdist: ./$SDIST_BASENAME"
+          echo "✅ Version: $WHEEL_VERSION"
+          echo "✅ Dependencies: ./requirements.txt"
+          cat requirements.txt
+          ls -la "./$SDIST_BASENAME"
           
           VERSION=$(cat ../src/opendata/VERSION | sed 's/+.*//')
           

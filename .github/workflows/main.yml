@@ -68,9 +68,10 @@ jobs:
           - os: macos-latest
             artifact_name: opendata-macos-arm-pyapp
             target: macos-arm64
-          - os: macos-latest
-            artifact_name: opendata-macos-intel-pyapp
-            target: macos-x86_64
+          # TODO: macOS Intel cross-compile needs PYAPP_PROJECT_VERSION fix
+          # - os: macos-latest
+          #   artifact_name: opendata-macos-intel-pyapp
+          #   target: macos-x86_64
     uses: ./.github/workflows/pyapp-build-binary.yml
     with:
       os: ${{ matrix.os }}
@@ -112,8 +113,9 @@ jobs:
             artifact_name: opendata-win-pyapp
           - os: macos-latest
             artifact_name: opendata-macos-arm-pyapp
-          - os: macos-latest
-            artifact_name: opendata-macos-intel-pyapp
+          # TODO: Re-enable when macOS Intel build is fixed
+          # - os: macos-latest
+          #   artifact_name: opendata-macos-intel-pyapp
     uses: ./.github/workflows/reusable-verify-binary.yml
     with:
       os: ${{ matrix.os }}
@@ -428,3 +430,4 @@ jobs:
         with:
           packages-dir: artifacts/pypi-package/
           skip-existing: true
+# CI debug
