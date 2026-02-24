@@ -105,6 +105,7 @@ jobs:
           elif [[ "${{ inputs.target }}" == "windows-x86_64" ]]; then
             cargo build --release
             cp target/release/pyapp.exe ../dist_bin/${{ inputs.artifact_name }}-$VERSION.exe
+          fi
       
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
