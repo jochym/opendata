@@ -339,9 +339,9 @@ jobs:
           python3 -c "
           from opendata.utils import PromptManager
           pm = PromptManager()
-          # Test critical prompt templates (system_prompt has no required variables)
-          assert pm.render('system_prompt', {})
-          assert pm.render('system_prompt_metadata', {})
+          # Test that templates are accessible (full_text_extraction has no required variables)
+          result = pm.render('full_text_extraction', {})
+          assert len(result) > 100  # Should be a substantial template
           print('✅ All prompt templates accessible')
           "
       
