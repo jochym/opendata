@@ -50,7 +50,7 @@ jobs:
 
   build-pyapp-binaries:
     name: Build (pyApp)
-    needs: gui-tests
+    needs: [gui-tests, build-wheel]
     if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
     strategy:
       matrix:
@@ -72,6 +72,7 @@ jobs:
       os: ${{ matrix.os }}
       artifact_name: ${{ matrix.artifact_name }}
       target: ${{ matrix.target }}
+      wheel_file: ${{ needs.build-wheel.outputs.wheel_file }}
     secrets: inherit
 
   verify-binaries-native:
@@ -234,18 +235,29 @@ jobs:
             exit 1
           fi
 
-  build-pypi:
-    name: PyPI Package
+  build-wheel:
+    name: Build Wheel
     needs: gui-tests
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    outputs:
+      wheel_file: ${{ steps.build_wheel.outputs.WHEEL_FILE }}
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
+      
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      # STEP 1: Inject client_secrets.json for PyPI build
+      
+      - name: Get Version
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(cat src/opendata/VERSION | sed 's/+.*//')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+      
       - name: Prepare client_secrets.json
         shell: bash
         env:
@@ -254,26 +266,52 @@ jobs:
         run: |
           if [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ]; then
             echo "{\"installed\":{\"client_id\":\"$GOOGLE_CLIENT_ID\",\"project_id\":\"opendata-tool\",\"auth_uri\":\"https://accounts.google.com/o/oauth2/auth\",\"token_uri\":\"https://oauth2.googleapis.com/token\",\"auth_provider_x509_cert_url\":\"https://www.googleapis.com/oauth2/v1/certs\",\"client_secret\":\"$GOOGLE_CLIENT_SECRET\",\"redirect_uris\":[\"http://localhost\"]}}" > src/opendata/client_secrets.json
-            echo "[INFO] client_secrets.json created for PyPI build"
           else
             echo "{}" > src/opendata/client_secrets.json
-            echo "[WARN] GOOGLE_CLIENT_ID/SECRET not found, creating empty secrets file"
           fi
-      # STEP 2: Build wheel with secrets
-      - name: Build package
+      
+      - name: Build Wheel with Secrets
+        id: build_wheel
+        shell: bash
         run: |
           pip install build
-          python -m build
-      # STEP 3: Test wheel
+          python -m build --wheel
+          WHEEL_FILE=$(ls dist/*.whl | head -n 1 | xargs basename)
+          echo "WHEEL_FILE=$WHEEL_FILE" >> $GITHUB_OUTPUT
+          echo "✅ Built wheel: dist/$WHEEL_FILE"
+      
       - name: Test Wheel Installation
+        shell: bash
         run: |
-          WHEEL_FILE=$(ls dist/*.whl | head -n 1)
           python -m venv test_venv
           source test_venv/bin/activate
-          pip install "$WHEEL_FILE"
+          pip install dist/${{ steps.build_wheel.outputs.WHEEL_FILE }}
           python -c "import opendata; print('✅ opendata module imported')"
-          python -c "from opendata.utils import get_resource_path; p = get_resource_path('src/opendata/client_secrets.json'); assert p.exists(), 'client_secrets.json not found'; print('✅ client_secrets.json found in package')"
+          python -c "from opendata.utils import get_resource_path; p = get_resource_path('src/opendata/client_secrets.json'); assert p.exists(), 'client_secrets.json not found'; print('✅ client_secrets.json found')"
           echo "✅ Wheel tests passed"
+      
+      - name: Upload Wheel Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-package
+          path: dist/*.whl
+
+  build-pypi:
+    name: PyPI Package
+    needs: build-wheel
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Wheel
+        uses: actions/download-artifact@v4
+        with:
+          name: wheel-package
+          path: dist/
+      - name: Verify Wheel
+        run: |
+          ls -la dist/
+          echo "✅ Using pre-built wheel: ${{ needs.build-wheel.outputs.wheel_file }}"
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -305,6 +343,8 @@ jobs:
             artifacts/opendata-linux-pyapp/opendata-linux-pyapp*
             artifacts/opendata-macos-arm-pyapp/opendata-macos-arm-pyapp*
             artifacts/opendata-macos-intel-pyapp/opendata-macos-intel-pyapp*
+            artifacts/pypi-package/*.whl
+            artifacts/pypi-package/*.tar.gz
           generate_release_notes: true
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
