@@ -340,7 +340,7 @@ jobs:
           from opendata.utils import PromptManager
           pm = PromptManager()
           # Test critical prompt templates
-          assert pm.render('chat_wrapper', {'messages': [], 'context': {}, 'history': []})
+          assert pm.render('chat_wrapper', {'messages': [], 'context': {}, 'history': [], 'user_input': ''})
           assert pm.render('system_prompt', {})
           print('✅ All prompt templates accessible')
           "
