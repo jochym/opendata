@@ -1,0 +1,116 @@
+name: Build pyApp Binary
+
+on:
+  workflow_call:
+    inputs:
+      os:
+        required: true
+        type: string
+      artifact_name:
+        required: true
+        type: string
+      target:
+        required: true
+        type: string
+      wheel_file:
+        required: true
+        type: string
+    secrets:
+      GOOGLE_CLIENT_ID:
+        required: false
+      GOOGLE_CLIENT_SECRET:
+        required: false
+
+jobs:
+  build:
+    name: Build pyApp (${{ inputs.os }})
+    runs-on: ${{ inputs.os }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download Wheel
+        uses: actions/download-artifact@v4
+        with:
+          name: wheel-package
+          path: dist/
+      
+      - name: Verify Rust
+        shell: bash
+        run: |
+          rustc --version || (echo "Rust not found!" && exit 1)
+          cargo --version || (echo "Cargo not found!" && exit 1)
+      
+      - name: Add macOS Intel Target (if needed)
+        if: inputs.target == 'macos-x86_64'
+        shell: bash
+        run: |
+          rustup target add x86_64-apple-darwin
+      
+      - name: Get PyApp Source
+        shell: bash
+        run: |
+          PYAPP_VERSION="v0.29.0"
+          curl -L "https://github.com/ofek/pyapp/releases/download/${PYAPP_VERSION}/source.tar.gz" -o pyapp-source.tar.gz
+          tar -xzf pyapp-source.tar.gz
+          mv pyapp-v* pyapp-latest
+          cd pyapp-latest
+          echo "PYAPP_DIR=$(pwd)" >> $GITHUB_ENV
+          echo "PYAPP_VERSION=${PYAPP_VERSION}" >> $GITHUB_ENV
+      
+      - name: Get Version
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(cat src/opendata/VERSION | sed 's/+.*//')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+      
+      # STEP 1: Verify wheel (already tested in build-wheel job)
+      - name: Verify Wheel
+        shell: bash
+        run: |
+          ls -la dist/
+          echo "✅ Using wheel: ${{ inputs.wheel_file }}"
+      
+      # STEP 2: Build pyApp from wheel
+      - name: Build with PyApp
+        shell: bash
+        run: |
+          cd pyapp-latest
+          mkdir -p ../dist_bin
+          
+          # Copy wheel to pyapp-latest directory and get absolute path
+          cp ../dist/${{ inputs.wheel_file }} .
+          WHEEL_ABS_PATH="$(pwd)/${{ inputs.wheel_file }}"
+          
+          # Set PyApp configuration
+          export PYAPP_PROJECT_NAME="opendata-tool"
+          export PYAPP_PROJECT_PATH="$WHEEL_ABS_PATH"
+          export PYAPP_EXEC_MODULE="opendata.main"
+          export PYAPP_EXEC_FUNCTION="main"
+          export PYAPP_PYTHON_VERSION="3.11"
+          
+          echo "✅ Building from wheel: $PYAPP_PROJECT_PATH"
+          ls -la "$PYAPP_PROJECT_PATH"
+          
+          VERSION=$(cat ../src/opendata/VERSION | sed 's/+.*//')
+          
+          # Cross-platform build
+          if [[ "${{ inputs.target }}" == "macos-x86_64" ]]; then
+            cargo build --release --target x86_64-apple-darwin
+            cp target/x86_64-apple-darwin/release/pyapp ../dist_bin/${{ inputs.artifact_name }}-$VERSION
+          elif [[ "${{ inputs.target }}" == "macos-arm64" ]]; then
+            cargo build --release
+            cp target/release/pyapp ../dist_bin/${{ inputs.artifact_name }}-$VERSION
+          elif [[ "${{ inputs.target }}" == "linux-x86_64" ]]; then
+            cargo build --release
+            cp target/release/pyapp ../dist_bin/${{ inputs.artifact_name }}-$VERSION
+          elif [[ "${{ inputs.target }}" == "windows-x86_64" ]]; then
+            cargo build --release
+            cp target/release/pyapp.exe ../dist_bin/${{ inputs.artifact_name }}-$VERSION.exe
+          fi
+      
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: dist_bin/*

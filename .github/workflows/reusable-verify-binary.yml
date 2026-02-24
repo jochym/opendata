@@ -24,47 +24,95 @@ jobs:
       - name: Install Test Dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update && sudo apt-get install -y curl wget || true
+          sudo apt-get update
+          sudo apt-get install -y curl wget
+      
+      - name: Verify HTTP Tools Available
+        run: |
+          command -v curl || (echo "❌ curl not found!" && exit 1)
+          echo "✅ curl is available"
 
       - name: Run Binary and Verify API
         shell: bash
         run: |
           BIN_DIR="verify-bin"
-          BIN_NAME="${{ inputs.artifact_name }}"
+          echo "Checking directory: $BIN_DIR"
+          ls -R "$BIN_DIR"
+          
+          # Find the binary in the directory (it might have version in name)
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            BIN_PATH="./${BIN_DIR}/${BIN_NAME}.exe"
+            BIN_PATH=$(find "$BIN_DIR" -maxdepth 2 -name "*.exe" | head -n 1)
           else
-            BIN_PATH="./${BIN_DIR}/${BIN_NAME}"
+            # On Unix, look for executable files or files matching artifact name
+            # Exclude .whl files and look into subdirectories (actions/download-artifact behavior)
+            BIN_PATH=$(find "$BIN_DIR" -maxdepth 2 -type f -not -name "*.whl" -not -name "*.json" | head -n 1)
           fi
-          chmod +x "$BIN_PATH" || true
           
-          # Start binary in headless mode with API enabled
-          "$BIN_PATH" --headless --port 8080 --api &
-          BIN_PID=$!
-          
-          # Wait for startup
-          sleep 15
-          
-          # Determine HTTP tool
-          if command -v curl &> /dev/null; then
-            HTTP_GET="curl -s"
-          elif command -v wget &> /dev/null; then
-            HTTP_GET="wget -qO-"
-          else
-            echo "❌ No HTTP tool found (curl or wget)"
+          if [ -z "$BIN_PATH" ]; then
+            echo "❌ No binary found in $BIN_DIR"
+            ls -R "$BIN_DIR"
             exit 1
           fi
           
-          # Test API endpoint - projects list
-          echo "Testing API endpoint: /api/projects..."
-          API_URL="http://127.0.0.1:8080/api/projects"
-          if $HTTP_GET "$API_URL" | grep -q "projects"; then
-            echo "✅ API /api/projects is working on ${{ inputs.os }}"
+          echo "Found binary at: $BIN_PATH"
+          chmod +x "$BIN_PATH" || true
+          
+          # Test binary startup
+          echo "Testing binary startup..."
+          timeout 5 "$BIN_PATH" --version || echo "Version check failed or timed out"
+          
+          # Start binary in headless mode with API enabled
+          echo "Starting binary in headless mode..."
+          "$BIN_PATH" --headless --port 8080 --api > /tmp/binary.log 2>&1 &
+          BIN_PID=$!
+          echo "Binary PID: $BIN_PID"
+          
+          # Wait for startup (CI can be slow)
+          echo "Waiting for binary to start (up to 30 seconds)..."
+          sleep 20
+          
+          # Check if process is alive
+          if ! kill -0 $BIN_PID 2>/dev/null; then
+            echo "❌ Binary died during startup"
+            echo "=== Binary output ==="
+            cat /tmp/binary.log
+            exit 1
+          fi
+          
+          # Show binary output for debugging
+          echo "=== Binary output (last 20 lines) ==="
+          tail -20 /tmp/binary.log || echo "No log file"
+          
+          # Determine HTTP tool
+          if command -v curl &> /dev/null; then
+            HTTP_GET="curl -s --retry 3 --retry-delay 2"
+          elif command -v wget &> /dev/null; then
+            HTTP_GET="wget -qO- --tries=3"
           else
-            echo "❌ API /api/projects failed on ${{ inputs.os }}"
+            echo "❌ No HTTP tool found (curl or wget)"
             kill $BIN_PID 2>/dev/null || true
             exit 1
           fi
           
-          echo "✅ Verification tests passed"
+          # Test API endpoint with retry
+          echo "Testing API endpoint..."
+          API_URL="http://127.0.0.1:8080/api/projects"
+          
+          for i in {1..5}; do
+            echo "  Attempt $i/5..."
+            API_RESPONSE=$($HTTP_GET "$API_URL" 2>&1 || echo "FAILED")
+            
+            if echo "$API_RESPONSE" | grep -q "projects"; then
+              echo "✅ API is working on ${{ inputs.os }}"
+              kill $BIN_PID 2>/dev/null || true
+              exit 0
+            fi
+            
+            echo "  Response: ${API_RESPONSE:0:100}..."
+            sleep 2
+          done
+          
+          echo "❌ API failed after 5 attempts"
+          echo "Final response: $API_RESPONSE"
           kill $BIN_PID 2>/dev/null || true
+          exit 1

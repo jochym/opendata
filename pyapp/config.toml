@@ -1,0 +1,19 @@
+# PyApp Configuration for OpenData Tool
+# This file documents the settings used in CI/CD and for local builds.
+
+[project]
+name = "opendata-tool"
+module = "opendata.main"
+function = "main"
+
+[python]
+version = "3.11"
+
+[distribution]
+# The package will be installed from PyPI
+# In CI/CD, the version is dynamically set from src/opendata/VERSION
+source = "pypi"
+
+[build]
+# Optimization settings
+git-metadata = true

@@ -44,20 +44,23 @@ jobs:
         run: |
           python -c "import os; v=open('src/opendata/VERSION').read().strip(); open('src/opendata/VERSION', 'w').write(f'{v}+{os.environ[\"SHA\"][:7]}')"
           if [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ]; then
-            echo "{\"installed\":{\"client_id\":\"$GOOGLE_CLIENT_ID\",\"project_id\":\"opendata-tool\",\"auth_uri\":\"https://accounts.google.com/o/oauth2/auth\",\"token_uri\":\"https://oauth2.googleapis.com/token\",\"auth_provider_x509_cert_url\":\"https://www.googleapis.com/oauth2/v1/certs\",\"client_secret\":\"$GOOGLE_CLIENT_SECRET\",\"redirect_uris\":[\"http://localhost\"]}}" > client_secrets.json
+            echo "{\"installed\":{\"client_id\":\"$GOOGLE_CLIENT_ID\",\"project_id\":\"opendata-tool\",\"auth_uri\":\"https://accounts.google.com/o/oauth2/auth\",\"token_uri\":\"https://oauth2.googleapis.com/token\",\"auth_provider_x509_cert_url\":\"https://www.googleapis.com/oauth2/v1/certs\",\"client_secret\":\"$GOOGLE_CLIENT_SECRET\",\"redirect_uris\":[\"http://localhost\"]}}" > src/opendata/client_secrets.json
+          else
+            echo "{}" > src/opendata/client_secrets.json
           fi
       - name: Build with PyInstaller
         shell: bash
         run: |
-          pyinstaller --onefile --name ${{ inputs.artifact_name }} \
+          VERSION=$(cat src/opendata/VERSION | sed 's/+.*//')
+          pyinstaller --onefile --name ${{ inputs.artifact_name }}-$VERSION \
             --add-data "src/opendata/ui:opendata/ui" \
             --add-data "src/opendata/prompts:opendata/prompts" \
             --add-data "src/opendata/VERSION:." \
-            --add-data "client_secrets.json:." \
+            --add-data "src/opendata/client_secrets.json:." \
             --exclude-module matplotlib --exclude-module PyQt5 --exclude-module PyQt6 --exclude-module PySide2 --exclude-module PySide6 --exclude-module IPython --exclude-module PIL \
             src/opendata/main.py
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.artifact_name }}
-          path: dist/${{ inputs.artifact_name }}${{ runner.os == 'Windows' && '.exe' || '' }}
+          path: dist/*
