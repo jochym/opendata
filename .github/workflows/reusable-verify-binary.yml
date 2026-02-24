@@ -47,14 +47,7 @@ jobs:
           echo "Found binary at: $BIN_PATH"
           chmod +x "$BIN_PATH" || true
           
-          # Start binary in headless mode with API enabled
-          "$BIN_PATH" --headless --port 8080 --api &
-          BIN_PID=$!
-          
-          # Wait for startup
-          sleep 15
-          
-          # Determine HTTP tool
+          # Determine HTTP tool before starting binary
           if command -v curl &> /dev/null; then
             HTTP_GET="curl -s"
           elif command -v wget &> /dev/null; then
@@ -64,16 +57,28 @@ jobs:
             exit 1
           fi
           
-          # Test API endpoint - projects list
-          echo "Testing API endpoint: /api/projects..."
-          API_URL="http://127.0.0.1:8080/api/projects"
-          if $HTTP_GET "$API_URL" | grep -q "projects"; then
-            echo "✅ API /api/projects is working on ${{ inputs.os }}"
-          else
-            echo "❌ API /api/projects failed on ${{ inputs.os }}"
-            kill $BIN_PID 2>/dev/null || true
-            exit 1
-          fi
+          # Start binary in headless mode with API enabled
+          "$BIN_PATH" --headless --port 8080 --api &
+          BIN_PID=$!
           
+          # Poll for startup (PyApp first-run bootstrap installs Python + packages,
+          # which can take 2-3 minutes; poll instead of fixed sleep)
+          API_URL="http://127.0.0.1:8080/api/projects"
+          MAX_WAIT=180
+          WAITED=0
+          INTERVAL=5
+          echo "Waiting for server to start (up to ${MAX_WAIT}s)..."
+          until $HTTP_GET "$API_URL" 2>/dev/null | grep -q "projects"; do
+            if [ $WAITED -ge $MAX_WAIT ]; then
+              echo "❌ Server did not start within ${MAX_WAIT}s on ${{ inputs.os }}"
+              kill $BIN_PID 2>/dev/null || true
+              exit 1
+            fi
+            sleep $INTERVAL
+            WAITED=$((WAITED + INTERVAL))
+            echo "Still waiting... (${WAITED}s elapsed)"
+          done
+          
+          echo "✅ API /api/projects is working on ${{ inputs.os }}"
           echo "✅ Verification tests passed"
           kill $BIN_PID 2>/dev/null || true

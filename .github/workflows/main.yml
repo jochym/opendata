@@ -149,9 +149,6 @@ jobs:
           fi
           echo "Found binary at: $BIN_PATH"
           chmod +x "$BIN_PATH"
-          "$BIN_PATH" --headless --port 8080 --api &
-          BIN_PID=$!
-          sleep 15
           
           # Determine HTTP tool
           if command -v curl &> /dev/null; then
@@ -160,19 +157,30 @@ jobs:
             HTTP_GET="wget -qO-"
           else
             echo "❌ No HTTP tool found (curl or wget)"
-            kill $BIN_PID
             exit 1
           fi
           
-          if $HTTP_GET http://127.0.0.1:8080/api/projects | grep -q "projects"; then
-            echo "✅ API is working on ${{ matrix.distro.name }}"
-            kill $BIN_PID
-            exit 0
-          else
-            echo "❌ API failed on ${{ matrix.distro.name }}"
-            kill $BIN_PID
-            exit 1
-          fi
+          "$BIN_PATH" --headless --port 8080 --api &
+          BIN_PID=$!
+          
+          # Poll for startup (up to 60s for PyInstaller)
+          API_URL="http://127.0.0.1:8080/api/projects"
+          MAX_WAIT=60
+          WAITED=0
+          INTERVAL=5
+          echo "Waiting for server to start (up to ${MAX_WAIT}s)..."
+          until $HTTP_GET "$API_URL" 2>/dev/null | grep -q "projects"; do
+            if [ $WAITED -ge $MAX_WAIT ]; then
+              echo "❌ API failed on ${{ matrix.distro.name }}"
+              kill $BIN_PID 2>/dev/null || true
+              exit 1
+            fi
+            sleep $INTERVAL
+            WAITED=$((WAITED + INTERVAL))
+            echo "Still waiting... (${WAITED}s elapsed)"
+          done
+          echo "✅ API is working on ${{ matrix.distro.name }}"
+          kill $BIN_PID 2>/dev/null || true
 
   verify-pyapp-linux-distros:
     name: Verify Linux (pyApp)
@@ -209,9 +217,6 @@ jobs:
           fi
           echo "Found binary at: $BIN_PATH"
           chmod +x "$BIN_PATH"
-          "$BIN_PATH" --headless --port 8081 --api &
-          BIN_PID=$!
-          sleep 15
           
           # Determine HTTP tool
           if command -v curl &> /dev/null; then
@@ -220,19 +225,31 @@ jobs:
             HTTP_GET="wget -qO-"
           else
             echo "❌ No HTTP tool found (curl or wget)"
-            kill $BIN_PID
             exit 1
           fi
           
-          if $HTTP_GET http://127.0.0.1:8081/api/projects | grep -q "projects"; then
-            echo "✅ pyApp API is working on ${{ matrix.distro.name }}"
-            kill $BIN_PID
-            exit 0
-          else
-            echo "❌ pyApp API failed on ${{ matrix.distro.name }}"
-            kill $BIN_PID
-            exit 1
-          fi
+          "$BIN_PATH" --headless --port 8081 --api &
+          BIN_PID=$!
+          
+          # Poll for startup (PyApp first-run bootstrap installs Python + packages,
+          # which can take 2-3 minutes; poll instead of fixed sleep)
+          API_URL="http://127.0.0.1:8081/api/projects"
+          MAX_WAIT=180
+          WAITED=0
+          INTERVAL=5
+          echo "Waiting for server to start (up to ${MAX_WAIT}s)..."
+          until $HTTP_GET "$API_URL" 2>/dev/null | grep -q "projects"; do
+            if [ $WAITED -ge $MAX_WAIT ]; then
+              echo "❌ pyApp API failed on ${{ matrix.distro.name }}"
+              kill $BIN_PID 2>/dev/null || true
+              exit 1
+            fi
+            sleep $INTERVAL
+            WAITED=$((WAITED + INTERVAL))
+            echo "Still waiting... (${WAITED}s elapsed)"
+          done
+          echo "✅ pyApp API is working on ${{ matrix.distro.name }}"
+          kill $BIN_PID 2>/dev/null || true
 
   build-pypi:
     name: PyPI Package
