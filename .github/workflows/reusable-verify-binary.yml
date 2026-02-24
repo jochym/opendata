@@ -30,12 +30,16 @@ jobs:
         shell: bash
         run: |
           BIN_DIR="verify-bin"
+          echo "Checking directory: $BIN_DIR"
+          ls -R "$BIN_DIR"
+          
           # Find the binary in the directory (it might have version in name)
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            BIN_PATH=$(find "$BIN_DIR" -maxdepth 1 -name "*.exe" | head -n 1)
+            BIN_PATH=$(find "$BIN_DIR" -maxdepth 2 -name "*.exe" | head -n 1)
           else
             # On Unix, look for executable files or files matching artifact name
-            BIN_PATH=$(find "$BIN_DIR" -maxdepth 1 -type f -not -name "*.whl" | head -n 1)
+            # Exclude .whl files and look into subdirectories (actions/download-artifact behavior)
+            BIN_PATH=$(find "$BIN_DIR" -maxdepth 2 -type f -not -name "*.whl" -not -name "*.json" | head -n 1)
           fi
           
           if [ -z "$BIN_PATH" ]; then
