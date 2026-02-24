@@ -71,31 +71,27 @@ jobs:
           ls -la dist/
           echo "✅ Using wheel: ${{ inputs.wheel_file }}"
       
-      # STEP 2: Build pyApp from wheel
+      # STEP 2: Build pyApp from source
       - name: Build with PyApp
         shell: bash
         run: |
           cd pyapp-latest
           mkdir -p ../dist_bin
           
-          # Copy wheel to pyapp-latest directory
-          cp ../dist/${{ inputs.wheel_file }} .
-          
           # Get version from wheel filename (e.g., opendata_tool-0.22.24-py3-none-any.whl)
           WHEEL_VERSION=$(echo "${{ inputs.wheel_file }}" | sed 's/opendata_tool-\(.*\)-py.*/\1/')
           
-          # Set PyApp configuration
-          # PYAPP_PROJECT_SOURCE tells pyApp to install from wheel at build time
+          # Set PyApp configuration to use project source
           export PYAPP_PROJECT_NAME="opendata-tool"
-          export PYAPP_PROJECT_SOURCE="./${{ inputs.wheel_file }}"
+          export PYAPP_PROJECT_PATH="../"
           export PYAPP_PROJECT_VERSION="$WHEEL_VERSION"
           export PYAPP_EXEC_MODULE="opendata.main"
           export PYAPP_EXEC_FUNCTION="main"
           export PYAPP_PYTHON_VERSION="3.11"
           
-          echo "✅ Building from wheel: ./${{ inputs.wheel_file }}"
+          echo "✅ Building from source: ../"
           echo "✅ Version: $WHEEL_VERSION"
-          ls -la "./${{ inputs.wheel_file }}"
+          ls -la ../pyproject.toml
           
           VERSION=$(cat ../src/opendata/VERSION | sed 's/+.*//')
           
