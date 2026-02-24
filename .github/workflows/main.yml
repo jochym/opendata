@@ -135,7 +135,14 @@ jobs:
           path: /tmp/verify-bin
       - name: Install Test Dependencies
         run: |
-          apt-get update && apt-get install -y curl wget || true
+          apt-get update
+          apt-get install -y curl wget
+      - name: Verify curl is available
+        run: |
+          if ! command -v curl &> /dev/null; then
+            echo "❌ curl is not available"
+            exit 1
+          fi
       - name: Run Binary and Verify API
         shell: bash
         run: |
@@ -174,7 +181,14 @@ jobs:
           path: /tmp/verify-bin
       - name: Install Test Dependencies
         run: |
-          apt-get update && apt-get install -y curl wget || true
+          apt-get update
+          apt-get install -y curl wget
+      - name: Verify curl is available
+        run: |
+          if ! command -v curl &> /dev/null; then
+            echo "❌ curl is not available"
+            exit 1
+          fi
       - name: Run Binary and Verify API
         shell: bash
         run: |
