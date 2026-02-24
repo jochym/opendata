@@ -19,15 +19,17 @@ PyApp is a Rust-based wrapper that creates standalone Python application binarie
    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
    ```
 
-2. **Get PyApp source** (latest release):
+2. **Get PyApp source** (pinned version for reproducibility):
    ```bash
    # Linux/macOS
-   curl -L https://github.com/ofek/pyapp/releases/latest/download/source.tar.gz -o pyapp-source.tar.gz
+   PYAPP_VERSION="v0.29.0"
+   curl -L "https://github.com/ofek/pyapp/releases/download/${PYAPP_VERSION}/source.tar.gz" -o pyapp-source.tar.gz
    tar -xzf pyapp-source.tar.gz
    mv pyapp-v* pyapp-latest
    
    # Windows (PowerShell)
-   Invoke-WebRequest https://github.com/ofek/pyapp/releases/latest/download/source.zip -OutFile pyapp-source.zip
+   $PYAPP_VERSION = "v0.29.0"
+   Invoke-WebRequest "https://github.com/ofek/pyapp/releases/download/${PYAPP_VERSION}/source.zip" -OutFile pyapp-source.zip
    Expand-Archive pyapp-source.zip
    Move-Item pyapp-v* pyapp-latest
    ```
@@ -51,8 +53,9 @@ PyApp is configured via environment variables. The key variables are:
 ```bash
 # Linux
 cd pyapp-latest
+VERSION=$(cat ../src/opendata/VERSION | sed 's/+.*//')
 PYAPP_PROJECT_NAME=opendata-tool \
-PYAPP_PROJECT_VERSION=0.22.24 \
+PYAPP_PROJECT_VERSION="$VERSION" \
 PYAPP_EXEC_MODULE=opendata.main \
 PYAPP_EXEC_FUNCTION=main \
 PYAPP_PYTHON_VERSION=3.11 \
@@ -65,7 +68,7 @@ cargo build --release
 # Windows (PowerShell)
 cd pyapp-latest
 $env:PYAPP_PROJECT_NAME="opendata-tool"
-$env:PYAPP_PROJECT_VERSION="0.22.24"
+$env:PYAPP_PROJECT_VERSION=$(Get-Content ../src/opendata/VERSION).Split('+')[0]
 $env:PYAPP_EXEC_MODULE="opendata.main"
 $env:PYAPP_EXEC_FUNCTION="main"
 $env:PYAPP_PYTHON_VERSION="3.11"

@@ -46,33 +46,39 @@ jobs:
       - name: Get PyApp Source
         shell: bash
         run: |
-          curl -L https://github.com/ofek/pyapp/releases/latest/download/source.tar.gz -o pyapp-source.tar.gz
+          # Pin to specific PyApp version for reproducibility and security
+          PYAPP_VERSION="v0.29.0"
+          curl -L "https://github.com/ofek/pyapp/releases/download/${PYAPP_VERSION}/source.tar.gz" -o pyapp-source.tar.gz
           tar -xzf pyapp-source.tar.gz
           mv pyapp-v* pyapp-latest
           cd pyapp-latest
           echo "PYAPP_DIR=$(pwd)" >> $GITHUB_ENV
+          echo "PYAPP_VERSION=${PYAPP_VERSION}" >> $GITHUB_ENV
       
       - name: Get Version
         id: version
         shell: bash
         run: |
+          # Use clean version from VERSION file (must exist on PyPI)
           VERSION=$(cat src/opendata/VERSION | sed 's/+.*//')
-          SHA_SHORT=$(echo ${{ github.sha }} | cut -c1-7)
-          echo "version=$VERSION+$SHA_SHORT" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
       
-      - name: Prepare client_secrets.json
+      - name: Prepare client_secrets.json (optional)
         shell: bash
         env:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         run: |
+          # Note: pyApp installs from PyPI, so client_secrets.json cannot be bundled.
+          # Users must provide their own OAuth credentials via:
+          # 1. ~/.opendata_tool/client_secrets.json
+          # 2. Working directory client_secrets.json
+          # 3. Environment variables
           if [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ]; then
-            echo "{\"installed\":{\"client_id\":\"$GOOGLE_CLIENT_ID\",\"project_id\":\"opendata-tool\",\"auth_uri\":\"https://accounts.google.com/o/oauth2/auth\",\"token_uri\":\"https://oauth2.googleapis.com/token\",\"auth_provider_x509_cert_url\":\"https://www.googleapis.com/oauth2/v1/certs\",\"client_secret\":\"$GOOGLE_CLIENT_SECRET\",\"redirect_uris\":[\"http://localhost\"]}}" > client_secrets.json
-          else
-            echo "{}" > client_secrets.json
+            mkdir -p ~/.opendata_tool
+            echo "{\"installed\":{\"client_id\":\"$GOOGLE_CLIENT_ID\",\"project_id\":\"opendata-tool\",\"auth_uri\":\"https://accounts.google.com/o/oauth2/auth\",\"token_uri\":\"https://oauth2.googleapis.com/token\",\"auth_provider_x509_cert_url\":\"https://www.googleapis.com/oauth2/v1/certs\",\"client_secret\":\"$GOOGLE_CLIENT_SECRET\",\"redirect_uris\":[\"http://localhost\"]}}" > ~/.opendata_tool/client_secrets.json
+            chmod 600 ~/.opendata_tool/client_secrets.json
           fi
-          # Copy to source directory so it gets included in the package
-          cp client_secrets.json src/opendata/
       
       - name: Build with PyApp
         shell: bash
