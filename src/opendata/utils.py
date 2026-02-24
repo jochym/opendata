@@ -10,14 +10,40 @@ logger = logging.getLogger("opendata.utils")
 
 
 def get_resource_path(relative_path: str) -> Path:
-    """Get absolute path to resource, works for dev and for PyInstaller"""
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
+    """Get absolute path to resource, works for dev, PyInstaller and installed mode (pyApp/pip)"""
+    # 1. PyInstaller case - bundled executable
+    if hasattr(sys, "_MEIPASS"):
         base_path = Path(sys._MEIPASS)
-    except Exception:
-        base_path = Path(__file__).parent.parent.parent.absolute()
+        # PyInstaller structure depends on --add-data flags
+        # We added: "src/opendata/VERSION:." so VERSION is in base_path
+        if relative_path.startswith("src/opendata/"):
+            stripped = relative_path.replace("src/opendata/", "", 1)
+            if (base_path / stripped).exists():
+                return base_path / stripped
+        return base_path / relative_path
 
-    return base_path / relative_path
+    # 2. Installed mode (pyApp / pip) or Development mode
+    # Path to the 'opendata' package directory
+    package_root = Path(__file__).parent.absolute()
+
+    # Check if we're in development mode (src layout)
+    # In dev: __file__ is /path/to/OpenData/src/opendata/utils.py
+    # parent.parent = /path/to/OpenData/src -> has 'src' dir
+    project_src = package_root.parent
+    if project_src.name == "src" and (project_src.parent / ".git").exists():
+        # Development mode - return path relative to project root
+        return project_src.parent / relative_path
+
+    # 3. Installed mode (pyApp / pip)
+    # __file__ is /path/to/site-packages/opendata/utils.py
+    # Files are in /path/to/site-packages/opendata/
+    # So "src/opendata/VERSION" should become just "VERSION"
+    if relative_path.startswith("src/opendata/"):
+        stripped = relative_path.replace("src/opendata/", "", 1)
+        return package_root / stripped
+
+    # Fallback for other paths
+    return package_root / relative_path
 
 
 def get_app_version() -> str:

@@ -7,6 +7,10 @@ on:
   pull_request:
     branches: [ main ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   logic-tests:
     name: Logic
@@ -30,9 +34,9 @@ jobs:
       os: ${{ matrix.os }}
 
   build-binaries:
-    name: Build
+    name: Build (PyInstaller)
     needs: gui-tests
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
     strategy:
       matrix:
         include:
@@ -48,10 +52,38 @@ jobs:
       artifact_name: ${{ matrix.artifact_name }}
     secrets: inherit
 
+  build-pyapp-binaries:
+    name: Build (pyApp)
+    needs: [gui-tests, build-wheel, test-wheel]
+    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            artifact_name: opendata-linux-pyapp
+            target: linux-x86_64
+          - os: windows-latest
+            artifact_name: opendata-win-pyapp
+            target: windows-x86_64
+          - os: macos-latest
+            artifact_name: opendata-macos-arm-pyapp
+            target: macos-arm64
+          # TODO: macOS Intel cross-compile needs PYAPP_PROJECT_VERSION fix
+          # - os: macos-latest
+          #   artifact_name: opendata-macos-intel-pyapp
+          #   target: macos-x86_64
+    uses: ./.github/workflows/pyapp-build-binary.yml
+    with:
+      os: ${{ matrix.os }}
+      artifact_name: ${{ matrix.artifact_name }}
+      target: ${{ matrix.target }}
+      wheel_file: ${{ needs.build-wheel.outputs.wheel_file }}
+    secrets: inherit
+
   verify-binaries-native:
-    name: Verify Native
+    name: Verify Native (PyInstaller)
     needs: build-binaries
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
     strategy:
       fail-fast: false
       matrix:
@@ -67,17 +99,38 @@ jobs:
       os: ${{ matrix.os }}
       artifact_name: ${{ matrix.artifact_name }}
 
+  verify-pyapp-binaries:
+    name: Verify pyApp
+    needs: build-pyapp-binaries
+    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            artifact_name: opendata-linux-pyapp
+          - os: windows-latest
+            artifact_name: opendata-win-pyapp
+          - os: macos-latest
+            artifact_name: opendata-macos-arm-pyapp
+          # TODO: Re-enable when macOS Intel build is fixed
+          # - os: macos-latest
+          #   artifact_name: opendata-macos-intel-pyapp
+    uses: ./.github/workflows/reusable-verify-binary.yml
+    with:
+      os: ${{ matrix.os }}
+      artifact_name: ${{ matrix.artifact_name }}
+
   verify-linux-distros:
-    name: Verify Linux
+    name: Verify Linux (PyInstaller)
     needs: build-binaries
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
     strategy:
       fail-fast: false
       matrix:
         distro:
           - { name: "Ubuntu 24.04", image: "ubuntu:24.04" }
           - { name: "Debian 12", image: "debian:12" }
-          - { name: "Debian 13", image: "debian:13" }
           - { name: "Debian 13", image: "debian:13" }
     runs-on: ubuntu-latest
     container: ${{ matrix.distro.image }}
@@ -89,15 +142,36 @@ jobs:
           path: /tmp/verify-bin
       - name: Install Test Dependencies
         run: |
-          apt-get update && apt-get install -y curl wget || true
+          apt-get update
+          apt-get install -y curl wget || true
       - name: Run Binary and Verify API
         shell: bash
         run: |
-          chmod +x /tmp/verify-bin/opendata-linux
-          /tmp/verify-bin/opendata-linux --headless --port 8080 --api &
+          echo "Checking directory: /tmp/verify-bin"
+          ls -R /tmp/verify-bin
+          BIN_PATH=$(find /tmp/verify-bin -maxdepth 2 -type f -not -name "*.whl" -not -name "*.json" | head -n 1)
+          if [ -z "$BIN_PATH" ]; then
+            echo "❌ No binary found"
+            exit 1
+          fi
+          echo "Found binary at: $BIN_PATH"
+          chmod +x "$BIN_PATH"
+          "$BIN_PATH" --headless --port 8080 --api &
           BIN_PID=$!
           sleep 15
-          if curl -s http://127.0.0.1:8080/api/projects | grep -q "projects"; then
+          
+          # Determine HTTP tool
+          if command -v curl &> /dev/null; then
+            HTTP_GET="curl -s"
+          elif command -v wget &> /dev/null; then
+            HTTP_GET="wget -qO-"
+          else
+            echo "❌ No HTTP tool found (curl or wget)"
+            kill $BIN_PID
+            exit 1
+          fi
+          
+          if $HTTP_GET http://127.0.0.1:8080/api/projects | grep -q "projects"; then
             echo "✅ API is working on ${{ matrix.distro.name }}"
             kill $BIN_PID
             exit 0
@@ -107,21 +181,246 @@ jobs:
             exit 1
           fi
 
-  build-pypi:
-    name: PyPI Package
-    needs: gui-tests
-    if: startsWith(github.ref, 'refs/tags/v')
+  verify-pyapp-linux-distros:
+    name: Verify Linux (pyApp)
+    needs: build-pyapp-binaries
+    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      fail-fast: false
+      matrix:
+        distro:
+          - { name: "Ubuntu 24.04", image: "ubuntu:24.04" }
+          - { name: "Debian 12", image: "debian:12" }
+          - { name: "Debian 13", image: "debian:13" }
     runs-on: ubuntu-latest
+    container: ${{ matrix.distro.image }}
+    steps:
+      - name: Download Binary
+        uses: actions/download-artifact@v4
+        with:
+          name: opendata-linux-pyapp
+          path: /tmp/verify-bin
+      - name: Install Test Dependencies
+        run: |
+          apt-get update
+          apt-get install -y curl wget || true
+      - name: Run Binary and Verify API
+        shell: bash
+        run: |
+          echo "Checking directory: /tmp/verify-bin"
+          ls -R /tmp/verify-bin
+          BIN_PATH=$(find /tmp/verify-bin -maxdepth 2 -type f -not -name "*.whl" -not -name "*.json" | head -n 1)
+          if [ -z "$BIN_PATH" ]; then
+            echo "❌ No binary found"
+            exit 1
+          fi
+          echo "Found binary at: $BIN_PATH"
+          chmod +x "$BIN_PATH"
+          "$BIN_PATH" --headless --port 8081 --api &
+          BIN_PID=$!
+          sleep 15
+          
+          # Determine HTTP tool
+          if command -v curl &> /dev/null; then
+            HTTP_GET="curl -s"
+          elif command -v wget &> /dev/null; then
+            HTTP_GET="wget -qO-"
+          else
+            echo "❌ No HTTP tool found (curl or wget)"
+            kill $BIN_PID
+            exit 1
+          fi
+          
+          if $HTTP_GET http://127.0.0.1:8081/api/projects | grep -q "projects"; then
+            echo "✅ pyApp API is working on ${{ matrix.distro.name }}"
+            kill $BIN_PID
+            exit 0
+          else
+            echo "❌ pyApp API failed on ${{ matrix.distro.name }}"
+            kill $BIN_PID
+            exit 1
+          fi
+
+  build-wheel:
+    name: Build Wheel
+    needs: gui-tests
+    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    outputs:
+      wheel_file: ${{ steps.build_wheel.outputs.WHEEL_FILE }}
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
+      
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Build package
+      
+      - name: Get Version
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(cat src/opendata/VERSION | sed 's/+.*//')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+      
+      - name: Prepare client_secrets.json
+        shell: bash
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+        run: |
+          if [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ]; then
+            echo "{\"installed\":{\"client_id\":\"$GOOGLE_CLIENT_ID\",\"project_id\":\"opendata-tool\",\"auth_uri\":\"https://accounts.google.com/o/oauth2/auth\",\"token_uri\":\"https://oauth2.googleapis.com/token\",\"auth_provider_x509_cert_url\":\"https://www.googleapis.com/oauth2/v1/certs\",\"client_secret\":\"$GOOGLE_CLIENT_SECRET\",\"redirect_uris\":[\"http://localhost\"]}}" > src/opendata/client_secrets.json
+          else
+            echo "{}" > src/opendata/client_secrets.json
+          fi
+      
+      - name: Build Wheel with Secrets
+        id: build_wheel
+        shell: bash
         run: |
           pip install build
-          python -m build
+          python -m build --wheel
+          WHEEL_FILE=$(ls dist/*.whl | head -n 1 | xargs basename)
+          echo "WHEEL_FILE=$WHEEL_FILE" >> $GITHUB_OUTPUT
+          echo "✅ Built wheel: dist/$WHEEL_FILE"
+      
+      - name: Upload Wheel Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-package
+          path: dist/*.whl
+
+  test-wheel:
+    name: Test Wheel
+    needs: build-wheel
+    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: "Debian 13", image: "debian:13" }
+          - { name: "Ubuntu 24.04", image: "ubuntu:24.04" }
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    steps:
+      - name: Download Wheel
+        uses: actions/download-artifact@v4
+        with:
+          name: wheel-package
+          path: /tmp/wheel
+      
+      - name: Install Dependencies
+        run: |
+          apt-get update
+          apt-get install -y python3 python3-pip python3-venv curl
+      
+      - name: Install Wheel
+        run: |
+          python3 -m venv /tmp/test_venv
+          . /tmp/test_venv/bin/activate
+          pip install --upgrade pip
+          pip install /tmp/wheel/*.whl
+      
+      - name: Test Version
+        run: |
+          . /tmp/test_venv/bin/activate
+          python3 -c "from opendata.utils import get_app_version; v = get_app_version(); print(f'Version: {v}'); assert v != '0.0.0'; assert '+' not in v; print('✅ Version test passed')"
+      
+      - name: Test client_secrets.json
+        run: |
+          . /tmp/test_venv/bin/activate
+          python3 -c "from opendata.utils import get_resource_path; p = get_resource_path('client_secrets.json'); assert p.exists(); print(f'✅ client_secrets.json found at: {p}')"
+      
+      - name: Test prompt templates
+        run: |
+          . /tmp/test_venv/bin/activate
+          python3 -c "
+          from opendata.utils import PromptManager
+          pm = PromptManager()
+          # Test critical prompt templates
+          assert pm.render('chat_wrapper', {'messages': [], 'context': {}, 'history': []})
+          assert pm.render('system_prompt', {})
+          print('✅ All prompt templates accessible')
+          "
+      
+      - name: Test field protocols
+        run: |
+          . /tmp/test_venv/bin/activate
+          python3 -c "
+          from opendata.protocols.manager import ProtocolManager
+          from opendata.workspace import WorkspaceManager
+          import tempfile
+          from pathlib import Path
+          
+          with tempfile.TemporaryDirectory() as tmpdir:
+              workspace = WorkspaceManager(Path(tmpdir))
+              pm = ProtocolManager(workspace)
+              # Test physics field protocol
+              physics = pm.get_field_protocol('physics')
+              assert physics.name == 'Physics'
+              print('✅ Field protocols working')
+          "
+      
+      - name: Test API (Headless)
+        run: |
+          . /tmp/test_venv/bin/activate
+          
+          # Start API server
+          opendata --headless --port 8080 --api &
+          API_PID=$!
+          
+          # Wait for startup
+          sleep 10
+          
+          # Test API endpoint
+          if command -v curl &> /dev/null; then
+            HTTP_GET="curl -s"
+          else
+            apt-get install -y curl
+            HTTP_GET="curl -s"
+          fi
+          
+          API_RESPONSE=$($HTTP_GET http://127.0.0.1:8080/api/projects || echo "FAILED")
+          echo "API Response: $API_RESPONSE"
+          
+          if echo "$API_RESPONSE" | grep -q "projects"; then
+            echo "✅ API test passed on ${{ matrix.name }}"
+          else
+            echo "❌ API test failed on ${{ matrix.name }}"
+            kill $API_PID 2>/dev/null || true
+            exit 1
+          fi
+          
+          kill $API_PID 2>/dev/null || true
+      
+      - name: Test UI Import
+        run: |
+          . /tmp/test_venv/bin/activate
+          python3 -c "import nicegui; from opendata.ui.app import start_ui; print(f'NiceGUI version: {nicegui.__version__}'); print('✅ UI modules imported successfully')"
+      
+      - name: Test Dependencies
+        run: |
+          . /tmp/test_venv/bin/activate
+          python3 -c "import google.generativeai; import google.genai; import pydantic; import yaml; import docx; import pydicom; import bibtexparser; import h5py; print('✅ All critical dependencies imported')"
+
+  build-pypi:
+    name: PyPI Package
+    needs: [build-wheel, test-wheel]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Wheel
+        uses: actions/download-artifact@v4
+        with:
+          name: wheel-package
+          path: dist/
+      - name: Verify Wheel
+        run: |
+          ls -la dist/
+          echo "✅ Using pre-built wheel: ${{ needs.build-wheel.outputs.wheel_file }}"
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -130,7 +429,7 @@ jobs:
 
   release:
     name: Create Release
-    needs: [verify-binaries-native, verify-linux-distros, build-pypi]
+    needs: [verify-binaries-native, verify-pyapp-binaries, verify-linux-distros, verify-pyapp-linux-distros, build-pypi]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
@@ -146,12 +445,19 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            artifacts/opendata-win/opendata-win.exe
-            artifacts/opendata-linux/opendata-linux
-            artifacts/opendata-macos-arm/opendata-macos-arm
+            artifacts/opendata-win/*.exe
+            artifacts/opendata-linux/opendata-linux*
+            artifacts/opendata-macos-arm/opendata-macos-arm*
+            artifacts/opendata-win-pyapp/*.exe
+            artifacts/opendata-linux-pyapp/opendata-linux-pyapp*
+            artifacts/opendata-macos-arm-pyapp/opendata-macos-arm-pyapp*
+            artifacts/opendata-macos-intel-pyapp/opendata-macos-intel-pyapp*
+            artifacts/pypi-package/*.whl
+            artifacts/pypi-package/*.tar.gz
           generate_release_notes: true
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: artifacts/pypi-package/
           skip-existing: true
+# CI debug

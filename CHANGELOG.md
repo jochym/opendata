@@ -5,7 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2026-02-23
+## [0.22.25] - 2026-02-24
+### Fixed
+- **Critical PyPI Packaging**: Fixed wheel packaging to include all required data files
+  - Added `*.json` pattern to include `client_secrets.json` for Google OAuth2 authentication
+  - Added `protocols/fields/*.yaml` pattern to include field protocol definitions
+  - Resolves: "Authorization failed. Please ensure client_secrets.json is present." error
+  - Resolves: "Prompt template not found: chat_wrapper" error
+- **CI Testing**: Fixed wheel test to use correct path (`client_secrets.json` instead of `src/opendata/client_secrets.json`)
+- **CI Testing**: Added comprehensive wheel packaging tests to prevent future regressions
+  - Tests verify all data files are included in wheel
+  - Tests verify `get_resource_path()` works correctly after installation
+  - Tests verify PromptManager can load templates from installed wheel
+
+### Added
+- **Testing**: New test suite (`tests/test_wheel_packaging.py`) with 10 tests covering:
+  - Wheel contents verification (VERSION, client_secrets.json, prompts, field protocols)
+  - Resource path resolution in installed mode
+  - PromptManager template loading and rendering
+- **CI Testing**: Added wheel validation steps for prompt templates and field protocols
+
+### Changed
+- **pyproject.toml**: Updated `[tool.setuptools.package-data]` to include all required data files:
+  ```toml
+  "opendata" = ["prompts/*.md", "ui/**/*", "VERSION", "*.json", "protocols/fields/*.yaml"]
+  ```
+
+## [0.22.24] - 2026-02-23
+### Fixed
+- **PyPI Documentation Links**: Converted all relative documentation links in README to absolute GitHub URLs
 
 ## [0.22.23] - 2026-02-23
 ### Fixed
