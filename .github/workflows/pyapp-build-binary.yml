@@ -63,6 +63,7 @@ jobs:
           VERSION=$(cat src/opendata/VERSION | sed 's/+.*//')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
       
+      # STEP 1: Build wheel with secrets
       - name: Prepare client_secrets.json
         shell: bash
         env:
@@ -76,17 +77,41 @@ jobs:
           fi
       
       - name: Build Wheel with Secrets
+        id: build_wheel
         shell: bash
         run: |
           # Build wheel that includes client_secrets.json
           pip install build
           python -m build --wheel
           
-          # Get wheel filename (without path)
+          # Get wheel filename
           WHEEL_FILE=$(ls dist/*.whl | head -n 1 | xargs basename)
-          echo "WHEEL_FILE=$WHEEL_FILE" >> $GITHUB_ENV
+          echo "WHEEL_FILE=$WHEEL_FILE" >> $GITHUB_OUTPUT
           echo "✅ Built wheel: dist/$WHEEL_FILE"
       
+      # STEP 2: Test wheel
+      - name: Test Wheel Installation
+        shell: bash
+        run: |
+          # Create test venv and install wheel
+          python -m venv test_venv
+          source test_venv/bin/activate
+          
+          # Install the wheel
+          pip install dist/${{ steps.build_wheel.outputs.WHEEL_FILE }}
+          
+          # Test that opendata module is importable
+          python -c "import opendata; print('✅ opendata module imported successfully')"
+          
+          # Test that client_secrets.json is included
+          python -c "from opendata.utils import get_resource_path; p = get_resource_path('src/opendata/client_secrets.json'); print(f'✅ client_secrets.json found at: {p}'); assert p.exists(), 'File not found'"
+          
+          # Test version
+          python -c "from opendata.utils import get_app_version; v = get_app_version(); print(f'✅ Version: {v}'); assert v != '0.0.0', 'Version not found'"
+          
+          echo "✅ Wheel tests passed"
+      
+      # STEP 3: Build pyApp from wheel
       - name: Build with PyApp
         shell: bash
         run: |
@@ -94,12 +119,12 @@ jobs:
           mkdir -p ../dist_bin
           
           # Copy wheel to pyapp-latest directory for easier access
-          cp ../dist/$WHEEL_FILE .
+          cp ../dist/${{ steps.build_wheel.outputs.WHEEL_FILE }} .
           
           # Set PyApp configuration
           export PYAPP_PROJECT_NAME="opendata-tool"
           # Point to wheel file in current directory
-          export PYAPP_PROJECT_PATH="./$WHEEL_FILE"
+          export PYAPP_PROJECT_PATH="./${{ steps.build_wheel.outputs.WHEEL_FILE }}"
           export PYAPP_EXEC_MODULE="opendata.main"
           export PYAPP_EXEC_FUNCTION="main"
           export PYAPP_PYTHON_VERSION="3.11"
