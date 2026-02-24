@@ -38,7 +38,7 @@ jobs:
           sudo apt-get install -y xvfb python3-tk libxcb-xinerama0 libxcb-cursor0 binutils
       
       - name: Install Rust
-        uses: dtolnay/rust-action@stable
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
           target: ${{ inputs.target == 'macos-x86_64' && 'x86_64-apple-darwin' || '' }}
@@ -57,7 +57,8 @@ jobs:
         shell: bash
         run: |
           VERSION=$(cat src/opendata/VERSION | sed 's/+.*//')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          SHA_SHORT=$(echo ${{ github.sha }} | cut -c1-7)
+          echo "version=$VERSION+$SHA_SHORT" >> $GITHUB_OUTPUT
       
       - name: Prepare client_secrets.json
         shell: bash
@@ -77,6 +78,7 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           cd pyapp-latest
+          mkdir -p ../dist
           
           # Set PyApp configuration
           export PYAPP_PROJECT_NAME="opendata-tool"
@@ -88,20 +90,22 @@ jobs:
           # Cross-platform build
           if [[ "${{ inputs.target }}" == "macos-x86_64" ]]; then
             cargo build --release --target x86_64-apple-darwin
-            mv target/x86_64-apple-darwin/release/pyapp ../dist/${{ inputs.artifact_name }}
+            cp target/x86_64-apple-darwin/release/pyapp ../dist/${{ inputs.artifact_name }}
           elif [[ "${{ inputs.target }}" == "macos-arm64" ]]; then
             cargo build --release
-            mv target/release/pyapp ../dist/${{ inputs.artifact_name }}
+            cp target/release/pyapp ../dist/${{ inputs.artifact_name }}
           elif [[ "${{ inputs.target }}" == "linux-x86_64" ]]; then
             cargo build --release
-            mv target/release/pyapp ../dist/${{ inputs.artifact_name }}
+            cp target/release/pyapp ../dist/${{ inputs.artifact_name }}
           elif [[ "${{ inputs.target }}" == "windows-x86_64" ]]; then
             cargo build --release
-            mv target/release/pyapp.exe ../dist/${{ inputs.artifact_name }}.exe
+            cp target/release/pyapp.exe ../dist/${{ inputs.artifact_name }}.exe
           fi
       
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.artifact_name }}
-          path: dist/${{ inputs.artifact_name }}${{ runner.os == 'Windows' && '.exe' || '' }}
+          path: |
+            dist/${{ inputs.artifact_name }}
+            dist/${{ inputs.artifact_name }}.exe
