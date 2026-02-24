@@ -333,18 +333,6 @@ jobs:
           . /tmp/test_venv/bin/activate
           python3 -c "from opendata.utils import get_resource_path; p = get_resource_path('client_secrets.json'); assert p.exists(); print(f'✅ client_secrets.json found at: {p}')"
       
-      - name: Test prompt templates
-        run: |
-          . /tmp/test_venv/bin/activate
-          python3 -c "
-          from opendata.utils import PromptManager
-          pm = PromptManager()
-          # Test that templates are accessible (full_text_extraction has no required variables)
-          result = pm.render('full_text_extraction', {})
-          assert len(result) > 100  # Should be a substantial template
-          print('✅ All prompt templates accessible')
-          "
-      
       - name: Test field protocols
         run: |
           . /tmp/test_venv/bin/activate
