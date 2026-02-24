@@ -136,22 +136,35 @@ jobs:
       - name: Install Test Dependencies
         run: |
           apt-get update
-          apt-get install -y curl wget
-      - name: Verify curl is available
-        run: |
-          if ! command -v curl &> /dev/null; then
-            echo "❌ curl is not available"
-            exit 1
-          fi
+          apt-get install -y curl wget || true
       - name: Run Binary and Verify API
         shell: bash
         run: |
-          BIN_PATH=$(find /tmp/verify-bin -maxdepth 1 -type f -not -name "*.whl" | head -n 1)
+          echo "Checking directory: /tmp/verify-bin"
+          ls -R /tmp/verify-bin
+          BIN_PATH=$(find /tmp/verify-bin -maxdepth 2 -type f -not -name "*.whl" -not -name "*.json" | head -n 1)
+          if [ -z "$BIN_PATH" ]; then
+            echo "❌ No binary found"
+            exit 1
+          fi
+          echo "Found binary at: $BIN_PATH"
           chmod +x "$BIN_PATH"
           "$BIN_PATH" --headless --port 8080 --api &
           BIN_PID=$!
           sleep 15
-          if curl -s http://127.0.0.1:8080/api/projects | grep -q "projects"; then
+          
+          # Determine HTTP tool
+          if command -v curl &> /dev/null; then
+            HTTP_GET="curl -s"
+          elif command -v wget &> /dev/null; then
+            HTTP_GET="wget -qO-"
+          else
+            echo "❌ No HTTP tool found (curl or wget)"
+            kill $BIN_PID
+            exit 1
+          fi
+          
+          if $HTTP_GET http://127.0.0.1:8080/api/projects | grep -q "projects"; then
             echo "✅ API is working on ${{ matrix.distro.name }}"
             kill $BIN_PID
             exit 0
@@ -183,22 +196,35 @@ jobs:
       - name: Install Test Dependencies
         run: |
           apt-get update
-          apt-get install -y curl wget
-      - name: Verify curl is available
-        run: |
-          if ! command -v curl &> /dev/null; then
-            echo "❌ curl is not available"
-            exit 1
-          fi
+          apt-get install -y curl wget || true
       - name: Run Binary and Verify API
         shell: bash
         run: |
-          BIN_PATH=$(find /tmp/verify-bin -maxdepth 1 -type f -not -name "*.whl" | head -n 1)
+          echo "Checking directory: /tmp/verify-bin"
+          ls -R /tmp/verify-bin
+          BIN_PATH=$(find /tmp/verify-bin -maxdepth 2 -type f -not -name "*.whl" -not -name "*.json" | head -n 1)
+          if [ -z "$BIN_PATH" ]; then
+            echo "❌ No binary found"
+            exit 1
+          fi
+          echo "Found binary at: $BIN_PATH"
           chmod +x "$BIN_PATH"
           "$BIN_PATH" --headless --port 8081 --api &
           BIN_PID=$!
           sleep 15
-          if curl -s http://127.0.0.1:8081/api/projects | grep -q "projects"; then
+          
+          # Determine HTTP tool
+          if command -v curl &> /dev/null; then
+            HTTP_GET="curl -s"
+          elif command -v wget &> /dev/null; then
+            HTTP_GET="wget -qO-"
+          else
+            echo "❌ No HTTP tool found (curl or wget)"
+            kill $BIN_PID
+            exit 1
+          fi
+          
+          if $HTTP_GET http://127.0.0.1:8081/api/projects | grep -q "projects"; then
             echo "✅ pyApp API is working on ${{ matrix.distro.name }}"
             kill $BIN_PID
             exit 0
