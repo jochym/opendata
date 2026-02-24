@@ -313,13 +313,13 @@ jobs:
       - name: Install Wheel
         run: |
           python3 -m venv /tmp/test_venv
-          source /tmp/test_venv/bin/activate
+          . /tmp/test_venv/bin/activate
           pip install --upgrade pip
           pip install /tmp/wheel/*.whl
       
       - name: Test Version
         run: |
-          source /tmp/test_venv/bin/activate
+          . /tmp/test_venv/bin/activate
           python3 -c "
             from opendata.utils import get_app_version
             v = get_app_version()
@@ -331,7 +331,7 @@ jobs:
       
       - name: Test client_secrets.json
         run: |
-          source /tmp/test_venv/bin/activate
+          . /tmp/test_venv/bin/activate
           python3 -c "
             from opendata.utils import get_resource_path
             p = get_resource_path('src/opendata/client_secrets.json')
@@ -341,7 +341,7 @@ jobs:
       
       - name: Test API (Headless)
         run: |
-          source /tmp/test_venv/bin/activate
+          . /tmp/test_venv/bin/activate
           
           # Start API server
           opendata --headless --port 8080 --api &
@@ -373,7 +373,7 @@ jobs:
       
       - name: Test UI Import
         run: |
-          source /tmp/test_venv/bin/activate
+          . /tmp/test_venv/bin/activate
           python3 -c "
             import nicegui
             from opendata.ui.app import create_ui
@@ -383,7 +383,7 @@ jobs:
       
       - name: Test Dependencies
         run: |
-          source /tmp/test_venv/bin/activate
+          . /tmp/test_venv/bin/activate
           python3 -c "
             import google.generativeai
             import google.genai
