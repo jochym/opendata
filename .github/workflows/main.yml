@@ -32,7 +32,7 @@ jobs:
   build-binaries:
     name: Build (PyInstaller)
     needs: gui-tests
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
     strategy:
       matrix:
         include:
@@ -51,7 +51,7 @@ jobs:
   build-pyapp-binaries:
     name: Build (pyApp)
     needs: gui-tests
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
     strategy:
       matrix:
         include:
@@ -77,7 +77,7 @@ jobs:
   verify-binaries-native:
     name: Verify Native (PyInstaller)
     needs: build-binaries
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
     strategy:
       fail-fast: false
       matrix:
@@ -96,7 +96,7 @@ jobs:
   verify-pyapp-binaries:
     name: Verify pyApp
     needs: build-pyapp-binaries
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
     strategy:
       fail-fast: false
       matrix:
@@ -117,7 +117,7 @@ jobs:
   verify-linux-distros:
     name: Verify Linux (PyInstaller)
     needs: build-binaries
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
     strategy:
       fail-fast: false
       matrix:
@@ -156,7 +156,7 @@ jobs:
   verify-pyapp-linux-distros:
     name: Verify Linux (pyApp)
     needs: build-pyapp-binaries
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
     strategy:
       fail-fast: false
       matrix:
