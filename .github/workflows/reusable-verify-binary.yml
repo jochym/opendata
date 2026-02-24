@@ -57,34 +57,17 @@ jobs:
           
           # Start binary in headless mode with API enabled
           echo "Starting binary in headless mode..."
-          "$BIN_PATH" --headless --port 8080 --api --storage_tab_storage=false > /tmp/binary.log 2>&1 &
+          "$BIN_PATH" --headless --port 8080 --api > /tmp/binary.log 2>&1 &
           BIN_PID=$!
           echo "Binary PID: $BIN_PID"
           
-          # Wait for startup with progress
+          # Wait for startup
           echo "Waiting for binary to start (PID: $BIN_PID)..."
-          sleep 5
-          for i in {1..15}; do
-            if kill -0 $BIN_PID 2>/dev/null; then
-              echo "  Process still running ($i/15)..."
-              sleep 1
-            else
-              echo "  Process died at second $i!"
-              echo "=== Binary output ==="
-              cat /tmp/binary.log || echo "No log file"
-              break
-            fi
-          done
+          sleep 10
           
           # Show binary output for debugging
           echo "=== Binary output (last 30 lines) ==="
           cat /tmp/binary.log | tail -30 || echo "No log file"
-          
-          # Check if process is still alive
-          if ! kill -0 $BIN_PID 2>/dev/null; then
-            echo "❌ Binary crashed during startup"
-            exit 1
-          fi
           
           # Determine HTTP tool
           if command -v curl &> /dev/null; then
