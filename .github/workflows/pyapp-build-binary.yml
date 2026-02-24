@@ -63,57 +63,61 @@ jobs:
           VERSION=$(cat src/opendata/VERSION | sed 's/+.*//')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
       
-      - name: Prepare client_secrets.json (optional)
+      - name: Prepare client_secrets.json
         shell: bash
         env:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         run: |
-          # Note: pyApp installs from PyPI, so client_secrets.json cannot be bundled.
-          # Users must provide their own OAuth credentials via:
-          # 1. ~/.opendata_tool/client_secrets.json
-          # 2. Working directory client_secrets.json
-          # 3. Environment variables
           if [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ]; then
-            mkdir -p ~/.opendata_tool
-            echo "{\"installed\":{\"client_id\":\"$GOOGLE_CLIENT_ID\",\"project_id\":\"opendata-tool\",\"auth_uri\":\"https://accounts.google.com/o/oauth2/auth\",\"token_uri\":\"https://oauth2.googleapis.com/token\",\"auth_provider_x509_cert_url\":\"https://www.googleapis.com/oauth2/v1/certs\",\"client_secret\":\"$GOOGLE_CLIENT_SECRET\",\"redirect_uris\":[\"http://localhost\"]}}" > ~/.opendata_tool/client_secrets.json
-            chmod 600 ~/.opendata_tool/client_secrets.json
+            echo "{\"installed\":{\"client_id\":\"$GOOGLE_CLIENT_ID\",\"project_id\":\"opendata-tool\",\"auth_uri\":\"https://accounts.google.com/o/oauth2/auth\",\"token_uri\":\"https://oauth2.googleapis.com/token\",\"auth_provider_x509_cert_url\":\"https://www.googleapis.com/oauth2/v1/certs\",\"client_secret\":\"$GOOGLE_CLIENT_SECRET\",\"redirect_uris\":[\"http://localhost\"]}}" > src/opendata/client_secrets.json
+          else
+            echo "{}" > src/opendata/client_secrets.json
           fi
+      
+      - name: Build Wheel with Secrets
+        shell: bash
+        run: |
+          # Build a local wheel that includes client_secrets.json
+          pip install build
+          python -m build --wheel
+          # Store wheel path for PyApp
+          WHEEL_PATH=$(ls dist/*.whl | head -n 1)
+          echo "PYAPP_PROJECT_PATH=$WHEEL_PATH" >> $GITHUB_ENV
       
       - name: Build with PyApp
         shell: bash
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
         run: |
           cd pyapp-latest
-          mkdir -p ../dist
+          mkdir -p ../dist_bin
           
           # Set PyApp configuration
           export PYAPP_PROJECT_NAME="opendata-tool"
-          export PYAPP_PROJECT_VERSION="$VERSION"
+          # Use the locally built wheel
+          export PYAPP_PROJECT_PATH="../$PYAPP_PROJECT_PATH"
           export PYAPP_EXEC_MODULE="opendata.main"
           export PYAPP_EXEC_FUNCTION="main"
           export PYAPP_PYTHON_VERSION="3.11"
           
+          VERSION=$(cat ../src/opendata/VERSION | sed 's/+.*//')
+          
           # Cross-platform build
           if [[ "${{ inputs.target }}" == "macos-x86_64" ]]; then
             cargo build --release --target x86_64-apple-darwin
-            cp target/x86_64-apple-darwin/release/pyapp ../dist/${{ inputs.artifact_name }}
+            cp target/x86_64-apple-darwin/release/pyapp ../dist_bin/${{ inputs.artifact_name }}-$VERSION
           elif [[ "${{ inputs.target }}" == "macos-arm64" ]]; then
             cargo build --release
-            cp target/release/pyapp ../dist/${{ inputs.artifact_name }}
+            cp target/release/pyapp ../dist_bin/${{ inputs.artifact_name }}-$VERSION
           elif [[ "${{ inputs.target }}" == "linux-x86_64" ]]; then
             cargo build --release
-            cp target/release/pyapp ../dist/${{ inputs.artifact_name }}
+            cp target/release/pyapp ../dist_bin/${{ inputs.artifact_name }}-$VERSION
           elif [[ "${{ inputs.target }}" == "windows-x86_64" ]]; then
             cargo build --release
-            cp target/release/pyapp.exe ../dist/${{ inputs.artifact_name }}.exe
+            cp target/release/pyapp.exe ../dist_bin/${{ inputs.artifact_name }}-$VERSION.exe
           fi
       
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.artifact_name }}
-          path: |
-            dist/${{ inputs.artifact_name }}
-            dist/${{ inputs.artifact_name }}.exe
+          path: dist_bin/*
