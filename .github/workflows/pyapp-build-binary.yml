@@ -71,6 +71,8 @@ jobs:
           else
             echo "{}" > client_secrets.json
           fi
+          # Copy to source directory so it gets included in the package
+          cp client_secrets.json src/opendata/
       
       - name: Build with PyApp
         shell: bash
