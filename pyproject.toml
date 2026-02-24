@@ -73,7 +73,7 @@ readme = {file = "README.md", content-type = "text/markdown"}
 where = ["src"]
 
 [tool.setuptools.package-data]
-"opendata" = ["prompts/*.md", "ui/**/*", "VERSION"]
+"opendata" = ["prompts/*.md", "ui/**/*", "VERSION", "*.json"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
