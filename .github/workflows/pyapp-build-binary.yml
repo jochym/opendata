@@ -80,8 +80,9 @@ jobs:
           # Build sdist (tar.gz) which pyApp can use
           python -m build --sdist
           SDIST_FILE=$(ls dist/*.tar.gz | head -n 1)
-          echo "SDIST_FILE=$SDIST_FILE" >> $GITHUB_ENV
-          echo "✅ Built sdist: $SDIST_FILE"
+          SDIST_ABS_PATH="$(pwd)/$SDIST_FILE"
+          echo "SDIST_ABS_PATH=$SDIST_ABS_PATH" >> $GITHUB_ENV
+          echo "✅ Built sdist: $SDIST_ABS_PATH"
       
       # STEP 2: Build pyApp from sdist
       - name: Build with PyApp
@@ -93,9 +94,9 @@ jobs:
           # Get version from wheel filename (e.g., opendata_tool-0.22.24-py3-none-any.whl)
           WHEEL_VERSION=$(echo "${{ inputs.wheel_file }}" | sed 's/opendata_tool-\(.*\)-py.*/\1/')
           
-          # Copy sdist to pyapp-latest directory
-          cp "$SDIST_FILE" .
-          SDIST_BASENAME=$(basename "$SDIST_FILE")
+          # Copy sdist to pyapp-latest directory using absolute path
+          cp "$SDIST_ABS_PATH" .
+          SDIST_BASENAME=$(basename "$SDIST_ABS_PATH")
           
           # Set PyApp configuration
           export PYAPP_PROJECT_NAME="opendata-tool"
