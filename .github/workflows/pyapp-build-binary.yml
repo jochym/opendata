@@ -78,19 +78,19 @@ jobs:
           cd pyapp-latest
           mkdir -p ../dist_bin
           
-          # Copy wheel to pyapp-latest directory and get absolute path
+          # Copy wheel to pyapp-latest directory
           cp ../dist/${{ inputs.wheel_file }} .
-          WHEEL_ABS_PATH="$(pwd)/${{ inputs.wheel_file }}"
           
           # Set PyApp configuration
+          # PYAPP_PROJECT_SOURCE tells pyApp to install from wheel at build time
           export PYAPP_PROJECT_NAME="opendata-tool"
-          export PYAPP_PROJECT_PATH="$WHEEL_ABS_PATH"
+          export PYAPP_PROJECT_SOURCE="./${{ inputs.wheel_file }}"
           export PYAPP_EXEC_MODULE="opendata.main"
           export PYAPP_EXEC_FUNCTION="main"
           export PYAPP_PYTHON_VERSION="3.11"
           
-          echo "✅ Building from wheel: $PYAPP_PROJECT_PATH"
-          ls -la "$PYAPP_PROJECT_PATH"
+          echo "✅ Building from wheel: ./${{ inputs.wheel_file }}"
+          ls -la "./${{ inputs.wheel_file }}"
           
           VERSION=$(cat ../src/opendata/VERSION | sed 's/+.*//')
           
