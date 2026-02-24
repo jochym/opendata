@@ -115,7 +115,7 @@ jobs:
       artifact_name: ${{ matrix.artifact_name }}
 
   verify-linux-distros:
-    name: Verify Linux
+    name: Verify Linux (PyInstaller)
     needs: build-binaries
     if: startsWith(github.ref, 'refs/tags/v')
     strategy:
@@ -124,7 +124,6 @@ jobs:
         distro:
           - { name: "Ubuntu 24.04", image: "ubuntu:24.04" }
           - { name: "Debian 12", image: "debian:12" }
-          - { name: "Debian 13", image: "debian:13" }
           - { name: "Debian 13", image: "debian:13" }
     runs-on: ubuntu-latest
     container: ${{ matrix.distro.image }}
@@ -154,6 +153,45 @@ jobs:
             exit 1
           fi
 
+  verify-pyapp-linux-distros:
+    name: Verify Linux (pyApp)
+    needs: build-pyapp-binaries
+    if: startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      fail-fast: false
+      matrix:
+        distro:
+          - { name: "Ubuntu 24.04", image: "ubuntu:24.04" }
+          - { name: "Debian 12", image: "debian:12" }
+          - { name: "Debian 13", image: "debian:13" }
+    runs-on: ubuntu-latest
+    container: ${{ matrix.distro.image }}
+    steps:
+      - name: Download Binary
+        uses: actions/download-artifact@v4
+        with:
+          name: opendata-linux-pyapp
+          path: /tmp/verify-bin
+      - name: Install Test Dependencies
+        run: |
+          apt-get update && apt-get install -y curl wget || true
+      - name: Run Binary and Verify API
+        shell: bash
+        run: |
+          chmod +x /tmp/verify-bin/opendata-linux-pyapp
+          /tmp/verify-bin/opendata-linux-pyapp --headless --port 8081 --api &
+          BIN_PID=$!
+          sleep 15
+          if curl -s http://127.0.0.1:8081/api/projects | grep -q "projects"; then
+            echo "✅ pyApp API is working on ${{ matrix.distro.name }}"
+            kill $BIN_PID
+            exit 0
+          else
+            echo "❌ pyApp API failed on ${{ matrix.distro.name }}"
+            kill $BIN_PID
+            exit 1
+          fi
+
   build-pypi:
     name: PyPI Package
     needs: gui-tests
@@ -177,7 +215,7 @@ jobs:
 
   release:
     name: Create Release
-    needs: [verify-binaries-native, verify-pyapp-binaries, verify-linux-distros, build-pypi]
+    needs: [verify-binaries-native, verify-pyapp-binaries, verify-linux-distros, verify-pyapp-linux-distros, build-pypi]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
