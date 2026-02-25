@@ -137,7 +137,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: opendata-linux
-          path: ${{ runner.temp }}/verify-bin
+          path: /tmp/verify-bin
       - name: Install Test Dependencies
         run: |
           apt-get update
@@ -145,7 +145,7 @@ jobs:
       - name: Run Binary and Verify API
         shell: bash
         run: |
-          BIN_DIR="${{ runner.temp }}/verify-bin"
+          BIN_DIR="/tmp/verify-bin"
           echo "Checking directory: $BIN_DIR"
           ls -R "$BIN_DIR"
           BIN_PATH=$(find "$BIN_DIR" -maxdepth 2 -type f -not -name "*.whl" -not -name "*.json" | head -n 1)
@@ -158,7 +158,7 @@ jobs:
           
           # STEP 1: Smoke Test (--version)
           echo "🚀 STEP 1: Smoke Test (--version)..."
-          VERSION_LOG="${{ runner.temp }}/version.log"
+          VERSION_LOG="/tmp/version.log"
           "$BIN_PATH" --version > "$VERSION_LOG" 2>&1 &
           SMOKE_PID=$!
           
@@ -186,7 +186,7 @@ jobs:
           
           # STEP 2: Functional Test (API)
           echo "🚀 STEP 2: Functional Test (API)..."
-          BINARY_LOG="${{ runner.temp }}/binary.log"
+          BINARY_LOG="/tmp/binary.log"
           nohup "$BIN_PATH" --headless --no-browser --port 8080 --api > "$BINARY_LOG" 2>&1 &
           BIN_PID=$!
           
@@ -257,7 +257,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: opendata-linux-pyapp
-          path: ${{ runner.temp }}/verify-bin
+          path: /tmp/verify-bin
       - name: Install Test Dependencies
         run: |
           apt-get update
@@ -265,7 +265,7 @@ jobs:
       - name: Run Binary and Verify API
         shell: bash
         run: |
-          BIN_DIR="${{ runner.temp }}/verify-bin"
+          BIN_DIR="/tmp/verify-bin"
           echo "Checking directory: $BIN_DIR"
           ls -R "$BIN_DIR"
           BIN_PATH=$(find "$BIN_DIR" -maxdepth 2 -type f -not -name "*.whl" -not -name "*.json" | head -n 1)
@@ -278,7 +278,7 @@ jobs:
           
           # STEP 1: Smoke Test (--version)
           echo "🚀 STEP 1: Smoke Test (--version)..."
-          VERSION_LOG="${{ runner.temp }}/version.log"
+          VERSION_LOG="/tmp/version.log"
           "$BIN_PATH" --version > "$VERSION_LOG" 2>&1 &
           SMOKE_PID=$!
           
@@ -306,7 +306,7 @@ jobs:
           
           # STEP 2: Functional Test (API)
           echo "🚀 STEP 2: Functional Test (API)..."
-          BINARY_LOG="${{ runner.temp }}/binary.log"
+          BINARY_LOG="/tmp/binary.log"
           nohup "$BIN_PATH" --headless --no-browser --port 8081 --api > "$BINARY_LOG" 2>&1 &
           BIN_PID=$!
           
@@ -400,7 +400,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: wheel-package
-          path: ${{ runner.temp }}/wheel
+          path: /tmp/wheel
       
       - name: Install Dependencies
         run: |
@@ -409,24 +409,24 @@ jobs:
       
       - name: Install Wheel
         run: |
-          python3 -m venv ${{ runner.temp }}/test_venv
-          . ${{ runner.temp }}/test_venv/bin/activate
+          python3 -m venv /tmp/test_venv
+          . /tmp/test_venv/bin/activate
           pip install --upgrade pip
-          pip install ${{ runner.temp }}/wheel/*.whl
+          pip install /tmp/wheel/*.whl
       
       - name: Test Version
         run: |
-          . ${{ runner.temp }}/test_venv/bin/activate
+          . /tmp/test_venv/bin/activate
           python3 -c "from opendata.utils import get_app_version; v = get_app_version(); print(f'Version: {v}'); assert v != '0.0.0'; assert '+' not in v; print('✅ Version test passed')"
       
       - name: Test client_secrets.json
         run: |
-          . ${{ runner.temp }}/test_venv/bin/activate
+          . /tmp/test_venv/bin/activate
           python3 -c "from opendata.utils import get_resource_path; p = get_resource_path('client_secrets.json'); assert p.exists(); print(f'✅ client_secrets.json found at: {p}')"
       
       - name: Test field protocols
         run: |
-          . ${{ runner.temp }}/test_venv/bin/activate
+          . /tmp/test_venv/bin/activate
           python3 -c "
           from opendata.protocols.manager import ProtocolManager
           from opendata.workspace import WorkspaceManager
@@ -444,7 +444,7 @@ jobs:
       
       - name: Test API (Headless)
         run: |
-          . ${{ runner.temp }}/test_venv/bin/activate
+          . /tmp/test_venv/bin/activate
           
           # Start API server
           # --no-browser prevents NiceGUI from trying to open a browser window
@@ -477,12 +477,12 @@ jobs:
       
       - name: Test UI Import
         run: |
-          . ${{ runner.temp }}/test_venv/bin/activate
+          . /tmp/test_venv/bin/activate
           python3 -c "import nicegui; from opendata.ui.app import start_ui; print(f'NiceGUI version: {nicegui.__version__}'); print('✅ UI modules imported successfully')"
       
       - name: Test Dependencies
         run: |
-          . ${{ runner.temp }}/test_venv/bin/activate
+          . /tmp/test_venv/bin/activate
           python3 -c "import google.generativeai; import google.genai; import pydantic; import yaml; import docx; import pydicom; import bibtexparser; import h5py; print('✅ All critical dependencies imported')"
 
   build-pypi:
