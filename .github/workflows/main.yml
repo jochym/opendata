@@ -215,6 +215,63 @@ jobs:
           fi
           echo "Found binary at: $BIN_PATH"
           chmod +x "$BIN_PATH"
+          
+          # STEP 1: Smoke Test (--version)
+          echo "🚀 STEP 1: Smoke Test (--version)..."
+          "$BIN_PATH" --version > /tmp/version.log 2>&1 &
+          SMOKE_PID=$!
+          
+          COUNT=0
+          while kill -0 $SMOKE_PID 2>/dev/null; do
+            if [ $COUNT -ge 90 ]; then
+              echo "❌ Smoke test timed out after 90s"
+              kill -9 $SMOKE_PID 2>/dev/null || true
+              exit 1
+            fi
+            sleep 1
+            COUNT=$((COUNT+1))
+          done
+          wait $SMOKE_PID
+          SMOKE_EXIT=$?
+          
+          echo "=== Version output ==="
+          cat /tmp/version.log
+          
+          if [ $SMOKE_EXIT -ne 0 ]; then
+            echo "❌ Smoke test failed (Exit code: $SMOKE_EXIT)"
+            exit 1
+          fi
+          echo "✅ Smoke test passed"
+          
+          # STEP 2: Functional Test (API)
+          echo "🚀 STEP 2: Functional Test (API)..."
+          nohup "$BIN_PATH" --headless --no-browser --port 8081 --api > /tmp/binary.log 2>&1 &
+          BIN_PID=$!
+          disown $BIN_PID
+          
+          echo "Waiting for API to respond (up to 60 seconds)..."
+          HTTP_GET="curl -s --retry 3 --retry-delay 2"
+          for i in {1..15}; do
+            echo "  Attempt $i/15..."
+            if $HTTP_GET http://127.0.0.1:8081/api/projects | grep -q "projects"; then
+              echo "✅ pyApp API is working on ${{ matrix.distro.name }}"
+              kill $BIN_PID 2>/dev/null || true
+              exit 0
+            fi
+            
+            if ! kill -0 $BIN_PID 2>/dev/null; then
+              echo "❌ Binary died during API test"
+              cat /tmp/binary.log
+              exit 1
+            fi
+            sleep 4
+          done
+          
+          echo "❌ pyApp API failed after timeout"
+          kill $BIN_PID 2>/dev/null || true
+          exit 1
+          echo "Found binary at: $BIN_PATH"
+          chmod +x "$BIN_PATH"
           # --no-browser prevents NiceGUI from trying to open a browser window
           "$BIN_PATH" --headless --no-browser --port 8081 --api &
           BIN_PID=$!

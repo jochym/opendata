@@ -59,7 +59,22 @@ jobs:
           # For pyApp, this also triggers the initial dependency installation.
           echo "🚀 STEP 1: Smoke Test (--version)..."
           # Give it 90 seconds because pyApp installs dependencies on first run
-          timeout 90 "$BIN_PATH" --version > /tmp/version.log 2>&1
+          # Use a cross-platform way to handle timeout
+          "$BIN_PATH" --version > /tmp/version.log 2>&1 &
+          SMOKE_PID=$!
+          
+          # Wait for smoke test with manual timeout
+          COUNT=0
+          while kill -0 $SMOKE_PID 2>/dev/null; do
+            if [ $COUNT -ge 90 ]; then
+              echo "❌ Smoke test timed out after 90s"
+              kill -9 $SMOKE_PID 2>/dev/null || true
+              exit 1
+            fi
+            sleep 1
+            COUNT=$((COUNT+1))
+          done
+          wait $SMOKE_PID
           SMOKE_EXIT=$?
           
           echo "=== Version output ==="
