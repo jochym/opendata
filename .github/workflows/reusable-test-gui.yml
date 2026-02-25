@@ -34,7 +34,8 @@ jobs:
           export DISPLAY=:99
           Xvfb :99 -screen 0 1280x1024x24 &
           sleep 2
-          python src/opendata/main.py --headless --port 8080 &
+          # --no-browser prevents NiceGUI from trying to open a browser window
+          python src/opendata/main.py --headless --no-browser --port 8080 &
           APP_PID=$!
           sleep 10
           if curl -s http://127.0.0.1:8080 > /dev/null; then
@@ -48,7 +49,8 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Start-Process python -ArgumentList "src/opendata/main.py","--headless","--port","8080" -WindowStyle Hidden
+          # --no-browser prevents NiceGUI from trying to open a browser window
+          Start-Process python -ArgumentList "src/opendata/main.py","--headless","--no-browser","--port","8080" -WindowStyle Hidden
           Start-Sleep -Seconds 15
           try {
             Invoke-WebRequest -Uri "http://127.0.0.1:8080" -TimeoutSec 5 -UseBasicParsing
@@ -62,7 +64,8 @@ jobs:
       - name: Test GUI Launch (macOS)
         if: runner.os == 'macOS'
         run: |
-          python src/opendata/main.py --headless --port 8080 &
+          # --no-browser prevents NiceGUI from trying to open a browser window
+          python src/opendata/main.py --headless --no-browser --port 8080 &
           sleep 15
           if curl -s http://127.0.0.1:8080 > /dev/null; then
             echo "✅ Server responding on macOS"
