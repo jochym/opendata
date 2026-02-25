@@ -91,9 +91,12 @@ jobs:
           # CRITICAL: Embed Python distribution to avoid runtime downloads
           export PYAPP_DISTRIBUTION_EMBED="true"
           
-          # CRITICAL: Use v1 CPU variant for maximum compatibility (no AVX2 required)
+          # CRITICAL: Use v1 CPU variant for Linux (no AVX2 required)
           # Default v3 requires AVX2 which causes "illegal instruction" on older CPUs
-          export PYAPP_DISTRIBUTION_VARIANT_CPU="v1"
+          # Note: VARIANT_CPU only works on Linux, not macOS/Windows
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
+            export PYAPP_DISTRIBUTION_VARIANT_CPU="v1"
+          fi
           
           # Speed up installation by using only binary wheels
           export PYAPP_PIP_EXTRA_ARGS="--only-binary :all:"
