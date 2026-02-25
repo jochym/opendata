@@ -150,14 +150,22 @@ Strictly adhere to **Semantic Versioning** (major.minor.patch) and the following
    - Run the full test suite (`pytest`).
    - For **Minor (x.y.0)** or **Major (x.0.0)** releases: Perform a comprehensive review of all documentation (docs, tutorials, references) and the website to ensure a consistent and updated project state.
 2. **State Synchronization**:
-   - Update `CHANGELOG.md` with all changes since the last release.
    - Update `src/opendata/VERSION` (Single Source of Truth).
-   - Ensure the documentation website reflects the new version's features and changes.
-3. **Git Commit**: Commit all changes (VERSION, CHANGELOG, docs) *before* tagging the release.
+   - Update `CHANGELOG.md` with all changes since the last release.
+   - Update `website/index.html`:
+     - Update version number in the header and download sections.
+     - Update release date.
+     - Ensure all binary download links point to the new version.
+   - Update `docs/DOCUMENTATION_INDEX.md` with the new version and date.
+   - Sync latest documentation to the website (`cp docs/*.md website/docs/`).
+3. **Git Commit**: Commit all changes (VERSION, CHANGELOG, docs, website) *before* tagging the release.
 4. **GitHub Release**:
-   - Create a tag (e.g., `v1.2.3`).
+   - Create a tag (e.g., `v1.2.3`) on the `main` branch.
    - Use `gh release create` with the current version's changelog section.
    - **Formatting Mandate**: ALWAYS use a `heredoc` (e.g., `cat << 'EOF' | gh release create ... --notes-file -`) to pass release notes. This prevents Markdown escaping issues and ensures proper rendering on GitHub.
+5. **Post-Release**:
+   - Verify that the website reflects the new version.
+   - Verify that the PyPI package description has the correct version.
 
 ---
 *This file is intended for AI agents. Please update it as the project evolves.*
