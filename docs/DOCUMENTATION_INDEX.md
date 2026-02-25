@@ -1,7 +1,7 @@
 # OpenData Tool - Documentation Index
 
-**Last Updated:** February 23, 2026
-**Current Version:** v0.22.22
+**Last Updated:** February 25, 2026
+**Current Version:** v0.22.29
 
 ---
 
@@ -15,6 +15,9 @@ How to configure AI providers (Google GenAI, OpenAI, etc.).
 
 ### [Tester Manual](TESTER_MANUAL.md)
 Complete guide for quality assurance and manual testing workflows.
+
+### [Binary System](BINARY_SYSTEM.md)
+Detailed description of the CI/CD build and verification system for binaries.
 
 ---
 
