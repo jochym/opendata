@@ -70,7 +70,7 @@ jobs:
             target: macos-arm64
           - os: macos-latest
             artifact_name: opendata-macos-intel-pyapp
-            target: macos-x86_64
+            target: macos-x86_64 # Note: Tested via Rosetta 2 on ARM runners
     uses: ./.github/workflows/pyapp-build-binary.yml
     with:
       os: ${{ matrix.os }}
@@ -198,7 +198,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: opendata-linux-pyapp
-          path: /tmp/verify-bin
+          path: ${{ runner.temp }}/verify-bin
       - name: Install Test Dependencies
         run: |
           apt-get update
@@ -206,9 +206,10 @@ jobs:
       - name: Run Binary and Verify API
         shell: bash
         run: |
-          echo "Checking directory: /tmp/verify-bin"
-          ls -R /tmp/verify-bin
-          BIN_PATH=$(find /tmp/verify-bin -maxdepth 2 -type f -not -name "*.whl" -not -name "*.json" | head -n 1)
+          BIN_DIR="${{ runner.temp }}/verify-bin"
+          echo "Checking directory: $BIN_DIR"
+          ls -R "$BIN_DIR"
+          BIN_PATH=$(find "$BIN_DIR" -maxdepth 2 -type f -not -name "*.whl" -not -name "*.json" | head -n 1)
           if [ -z "$BIN_PATH" ]; then
             echo "❌ No binary found"
             exit 1
@@ -218,7 +219,8 @@ jobs:
           
           # STEP 1: Smoke Test (--version)
           echo "🚀 STEP 1: Smoke Test (--version)..."
-          "$BIN_PATH" --version > /tmp/version.log 2>&1 &
+          VERSION_LOG="${{ runner.temp }}/version.log"
+          "$BIN_PATH" --version > "$VERSION_LOG" 2>&1 &
           SMOKE_PID=$!
           
           COUNT=0
@@ -235,7 +237,7 @@ jobs:
           SMOKE_EXIT=$?
           
           echo "=== Version output ==="
-          cat /tmp/version.log
+          [ -f "$VERSION_LOG" ] && cat "$VERSION_LOG"
           
           if [ $SMOKE_EXIT -ne 0 ]; then
             echo "❌ Smoke test failed (Exit code: $SMOKE_EXIT)"
@@ -245,9 +247,9 @@ jobs:
           
           # STEP 2: Functional Test (API)
           echo "🚀 STEP 2: Functional Test (API)..."
-          nohup "$BIN_PATH" --headless --no-browser --port 8081 --api > /tmp/binary.log 2>&1 &
+          BINARY_LOG="${{ runner.temp }}/binary.log"
+          nohup "$BIN_PATH" --headless --no-browser --port 8081 --api > "$BINARY_LOG" 2>&1 &
           BIN_PID=$!
-          disown $BIN_PID
           
           echo "Waiting for API to respond (up to 60 seconds)..."
           HTTP_GET="curl -s --retry 3 --retry-delay 2"
@@ -261,7 +263,7 @@ jobs:
             
             if ! kill -0 $BIN_PID 2>/dev/null; then
               echo "❌ Binary died during API test"
-              cat /tmp/binary.log
+              [ -f "$BINARY_LOG" ] && cat "$BINARY_LOG"
               exit 1
             fi
             sleep 4
@@ -270,33 +272,6 @@ jobs:
           echo "❌ pyApp API failed after timeout"
           kill $BIN_PID 2>/dev/null || true
           exit 1
-          echo "Found binary at: $BIN_PATH"
-          chmod +x "$BIN_PATH"
-          # --no-browser prevents NiceGUI from trying to open a browser window
-          "$BIN_PATH" --headless --no-browser --port 8081 --api &
-          BIN_PID=$!
-          sleep 15
-          
-          # Determine HTTP tool
-          if command -v curl &> /dev/null; then
-            HTTP_GET="curl -s"
-          elif command -v wget &> /dev/null; then
-            HTTP_GET="wget -qO-"
-          else
-            echo "❌ No HTTP tool found (curl or wget)"
-            kill $BIN_PID
-            exit 1
-          fi
-          
-          if $HTTP_GET http://127.0.0.1:8081/api/projects | grep -q "projects"; then
-            echo "✅ pyApp API is working on ${{ matrix.distro.name }}"
-            kill $BIN_PID
-            exit 0
-          else
-            echo "❌ pyApp API failed on ${{ matrix.distro.name }}"
-            kill $BIN_PID
-            exit 1
-          fi
 
   build-wheel:
     name: Build Wheel
