@@ -94,6 +94,16 @@ jobs:
           export PYAPP_EXEC_MODULE="opendata.main"
           export PYAPP_PYTHON_VERSION="3.11"
           
+          # CRITICAL: Embed Python distribution to avoid runtime downloads
+          export PYAPP_DISTRIBUTION_EMBED="true"
+          
+          # CRITICAL: Use v1 CPU variant for Linux (no AVX2 required)
+          # Default v3 requires AVX2 which causes "illegal instruction" on older CPUs
+          # Note: VARIANT_CPU only works on Linux, not macOS/Windows
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
+            export PYAPP_DISTRIBUTION_VARIANT_CPU="v1"
+          fi
+          
           echo "✅ Building from wheel: $PYAPP_PROJECT_PATH"
           ls -la "$PYAPP_PROJECT_PATH"
           
