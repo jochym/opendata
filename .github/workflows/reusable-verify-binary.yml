@@ -32,88 +32,94 @@ jobs:
           command -v curl || (echo "❌ curl not found!" && exit 1)
           echo "✅ curl is available"
 
-      - name: Run Binary and Verify API
+      - name: Run Binary and Verify
         shell: bash
         run: |
           BIN_DIR="verify-bin"
           echo "Checking directory: $BIN_DIR"
           ls -R "$BIN_DIR"
           
-          # Find the binary in the directory (it might have version in name)
+          # Find the binary in the directory
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             BIN_PATH=$(find "$BIN_DIR" -maxdepth 2 -name "*.exe" | head -n 1)
           else
-            # On Unix, look for executable files or files matching artifact name
-            # Exclude .whl files and look into subdirectories (actions/download-artifact behavior)
             BIN_PATH=$(find "$BIN_DIR" -maxdepth 2 -type f -not -name "*.whl" -not -name "*.json" | head -n 1)
           fi
           
           if [ -z "$BIN_PATH" ]; then
             echo "❌ No binary found in $BIN_DIR"
-            ls -R "$BIN_DIR"
             exit 1
           fi
           
           echo "Found binary at: $BIN_PATH"
           chmod +x "$BIN_PATH" || true
           
-          # Test binary startup (first run may install dependencies)
-          echo "Testing binary startup..."
-          timeout 30 "$BIN_PATH" --version || echo "Version check failed or timed out"
+          # STEP 1: Smoke Test (--version)
+          # Verifies architecture and initial installation (for pyApp)
+          echo "🚀 STEP 1: Smoke Test (--version)..."
+          VERSION_LOG="$RUNNER_TEMP/version.log"
+          "$BIN_PATH" --version > "$VERSION_LOG" 2>&1 &
+          SMOKE_PID=$!
           
-          # Start binary in headless mode with API enabled
-          echo "Starting binary in headless mode..."
-          # --no-browser prevents NiceGUI from trying to open a browser window
-          "$BIN_PATH" --headless --no-browser --port 8080 --api > /tmp/binary.log 2>&1 &
-          BIN_PID=$!
-          echo "Binary PID: $BIN_PID"
+          # Manual timeout loop (portable for macOS/Windows/Linux)
+          COUNT=0
+          while kill -0 $SMOKE_PID 2>/dev/null; do
+            if [ $COUNT -ge 90 ]; then
+              echo "❌ Smoke test timed out after 90s"
+              kill -9 $SMOKE_PID 2>/dev/null || true
+              exit 1
+            fi
+            sleep 1
+            COUNT=$((COUNT+1))
+          done
+          wait $SMOKE_PID
+          SMOKE_EXIT=$?
           
-          # Wait for startup AND installation (first run installs from PyPI)
-          echo "Waiting for binary to start and install dependencies (up to 90 seconds)..."
-          sleep 60
-          
-          # Check if process is alive
-          if ! kill -0 $BIN_PID 2>/dev/null; then
-            echo "❌ Binary died during startup"
-            echo "=== Binary output ==="
-            cat /tmp/binary.log
+          if [ $SMOKE_EXIT -ne 0 ]; then
+            echo "❌ Smoke test failed (Exit code: $SMOKE_EXIT)"
+            [ -f "$VERSION_LOG" ] && cat "$VERSION_LOG"
+            if grep -q "Illegal instruction" "$VERSION_LOG" 2>/dev/null; then
+              echo "  Detected Architecture Mismatch (Illegal Instruction)"
+            elif grep -q "ModuleNotFoundError" "$VERSION_LOG" 2>/dev/null; then
+              echo "  Detected Missing Module (Build Configuration Issue)"
+            fi
             exit 1
           fi
+          echo "✅ Smoke test passed"
           
-          # Show binary output for debugging
-          echo "=== Binary output (last 20 lines) ==="
-          tail -20 /tmp/binary.log || echo "No log file"
+          # STEP 2: Functional Test (API)
+          echo "🚀 STEP 2: Functional Test (API)..."
+          echo "Starting binary in headless mode..."
+          BINARY_LOG="$RUNNER_TEMP/binary.log"
+          # Use port 8080 for native, 8081 for containers (already handled in main.yml)
+          nohup "$BIN_PATH" --headless --no-browser --port 8080 --api > "$BINARY_LOG" 2>&1 &
+          BIN_PID=$!
           
           # Determine HTTP tool
-          if command -v curl &> /dev/null; then
-            HTTP_GET="curl -s --retry 3 --retry-delay 2"
-          elif command -v wget &> /dev/null; then
-            HTTP_GET="wget -qO- --tries=3"
-          else
-            echo "❌ No HTTP tool found (curl or wget)"
-            kill $BIN_PID 2>/dev/null || true
-            exit 1
-          fi
-          
-          # Test API endpoint with retry
-          echo "Testing API endpoint..."
+          HTTP_GET="curl -s --retry 3 --retry-delay 2"
           API_URL="http://127.0.0.1:8080/api/projects"
           
-          for i in {1..5}; do
-            echo "  Attempt $i/5..."
-            API_RESPONSE=$($HTTP_GET "$API_URL" 2>&1 || echo "FAILED")
-            
-            if echo "$API_RESPONSE" | grep -q "projects"; then
+          echo "Waiting for API to respond (up to 60 seconds)..."
+          for i in {1..15}; do
+            echo "  Attempt $i/15..."
+            if $HTTP_GET "$API_URL" | grep -q "projects"; then
               echo "✅ API is working on ${{ inputs.os }}"
               kill $BIN_PID 2>/dev/null || true
               exit 0
             fi
             
-            echo "  Response: ${API_RESPONSE:0:100}..."
-            sleep 2
+            # Check if process died
+            if ! kill -0 $BIN_PID 2>/dev/null; then
+              echo "❌ Binary died during API test"
+              [ -f "$BINARY_LOG" ] && cat "$BINARY_LOG"
+              exit 1
+            fi
+            
+            sleep 4
           done
           
-          echo "❌ API failed after 5 attempts"
-          echo "Final response: $API_RESPONSE"
+          echo "❌ API failed after timeout"
+          echo "=== Binary log ==="
+          [ -f "$BINARY_LOG" ] && tail -50 "$BINARY_LOG"
           kill $BIN_PID 2>/dev/null || true
           exit 1

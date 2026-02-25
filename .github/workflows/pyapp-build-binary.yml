@@ -82,12 +82,30 @@ jobs:
           cp ../dist/${{ inputs.wheel_file }} .
           WHEEL_ABS_PATH="$(pwd)/${{ inputs.wheel_file }}"
           
+          # CRITICAL WINDOWS FIX: Convert Unix-style path to Windows-style for Rust/Windows
+          # Git Bash on Windows returns /d/a/... but Rust PathBuf needs D:\a\...
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            WHEEL_ABS_PATH="$(cygpath -w "$WHEEL_ABS_PATH")"
+          fi
+          
           # Set PyApp configuration
           export PYAPP_PROJECT_NAME="opendata-tool"
           export PYAPP_PROJECT_PATH="$WHEEL_ABS_PATH"
           export PYAPP_EXEC_MODULE="opendata.main"
-          export PYAPP_EXEC_FUNCTION="main"
           export PYAPP_PYTHON_VERSION="3.11"
+          
+          # CRITICAL: Embed Python distribution to avoid runtime downloads
+          export PYAPP_DISTRIBUTION_EMBED="true"
+          
+          # CRITICAL: Use v1 CPU variant for Linux (no AVX2 required)
+          # Default v3 requires AVX2 which causes "illegal instruction" on older CPUs
+          # Note: VARIANT_CPU only works on Linux, not macOS/Windows
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
+            export PYAPP_DISTRIBUTION_VARIANT_CPU="v1"
+          fi
+          
+          # Speed up installation by using only binary wheels
+          export PYAPP_PIP_EXTRA_ARGS="--only-binary :all:"
           
           echo "✅ Building from wheel: $PYAPP_PROJECT_PATH"
           ls -la "$PYAPP_PROJECT_PATH"
