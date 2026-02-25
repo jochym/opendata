@@ -57,9 +57,9 @@ jobs:
           echo "Found binary at: $BIN_PATH"
           chmod +x "$BIN_PATH" || true
           
-          # Test binary startup
-          echo "Testing binary startup..."
-          timeout 5 "$BIN_PATH" --version || echo "Version check failed or timed out"
+          # Test binary startup (first run includes installation - give it time)
+          echo "Testing binary startup (first run may install dependencies)..."
+          timeout 30 "$BIN_PATH" --version || echo "Version check failed or timed out"
           
           # Start binary in headless mode with API enabled
           echo "Starting binary in headless mode..."
@@ -68,9 +68,9 @@ jobs:
           disown $BIN_PID
           echo "Binary PID: $BIN_PID"
           
-          # Wait for startup (CI can be slow)
-          echo "Waiting for binary to start (up to 30 seconds)..."
-          sleep 20
+          # Wait for startup AND installation (first run installs from PyPI)
+          echo "Waiting for binary to start and install dependencies (up to 90 seconds)..."
+          sleep 60
           
           # Check if process is alive
           if ! kill -0 $BIN_PID 2>/dev/null; then
