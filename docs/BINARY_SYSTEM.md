@@ -29,27 +29,27 @@ Weryfikacja została zaprojektowana tak, aby odróżnić błędy samej binarki o
 #### Krok 1: Smoke Test (`--version`)
 Binarka jest uruchamiana z flagą `--version`. 
 *   **Cel**: Sprawdzenie czy interpreter Pythona startuje, czy architektura CPU jest poprawna i czy wszystkie moduły są zainstalowane.
-*   **Logika**: Pierwsze uruchomienie pyApp wyzwala wewnętrzny `pip install`. Test ma ustawiony długi timeout (90s), aby pozwolić na tę operację.
+*   **Logika**: Pierwsze uruchomienie pyApp wyzwala wewnętrzny `pip install`. Test ma ustawiony długi timeout (90s), aby pozwolić na tę operację. Wykorzystuje pętlę bash zamiast komendy `timeout` dla pełnej kompatybilności z macOS.
 *   **Diagnoza**: Jeśli ten krok zawiedzie z błędem `Illegal instruction`, oznacza to problem z architekturą CPU. Jeśli `ModuleNotFoundError` - błąd konfiguracji buildu.
 
 #### Krok 2: Functional Test (API)
 Aplikacja jest uruchamiana w trybie headless (`--headless --no-browser --api`).
 *   **Cel**: Sprawdzenie czy serwer HTTP wstaje i poprawnie odpowiada na zapytania API.
-*   **Logika**: Skrypt wykonuje do 15 prób połączenia z endpointem `/api/projects` przy użyciu `curl`.
+*   **Logika**: Skrypt wykonuje do 15 prób połączenia z endpointem `/api/projects` przy użyciu `curl`. Logi są zapisywane w `$RUNNER_TEMP` dla pełnej kompatybilności z Windows.
 
 ## 4. Rozwiązane Problemy (Knowledge Base)
 
 ### Windows `ModuleNotFoundError`
 *   **Przyczyna**: Git Bash na Windows zwraca ścieżki w stylu Unix (`/d/a/...`), których Rustowy `PathBuf` nie rozpoznaje jako plików. W efekcie wheel nie był osadzany.
-*   **Rozwiązanie**: Użycie `cygpath -w` przed przekazaniem ścieżki do PyApp.
+*   **Rozwiązanie**: Użycie `cygpath -w` przed przekazaniem ścieżki do PyApp. Dodatkowo upewniono się, że wszystkie pliki tymczasowe trafiają do `$RUNNER_TEMP`.
 
 ### Debian 13 / Starsze Linuxy ("Illegal Instruction")
 *   **Przyczyna**: PyApp domyślnie używa wariantu `v3` (AVX2). Starsze procesory lub niektóre wirtualizacje nie wspierają tych instrukcji.
 *   **Rozwiązanie**: Wymuszenie `PYAPP_DISTRIBUTION_VARIANT_CPU="v1"`.
 
-### macOS Flakiness
-*   **Przyczyna**: Brak komendy `timeout` na macOS powodował błędy skryptów testowych (Exit 127).
-*   **Rozwiązanie**: Zastąpienie `timeout` pętlą `while kill -0` w bashu.
+### macOS Compatibility
+*   **Przyczyna**: Brak komendy `timeout` na macOS powodował błędy skryptów testowych.
+*   **Rozwiązanie**: Zastąpienie `timeout` pętlą `while kill -0` w bashu. Intelowskie binaria są testowane na runnerach ARM za pomocą Rosetta 2.
 
 ## 5. Utrzymanie i Debugowanie
 
