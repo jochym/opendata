@@ -82,6 +82,17 @@ jobs:
           cp ../dist/${{ inputs.wheel_file }} .
           WHEEL_ABS_PATH="$(pwd)/${{ inputs.wheel_file }}"
           
+          # DEBUG: Verify wheel file exists BEFORE path conversion
+          echo "🔍 Verifying wheel file before path conversion..."
+          ls -la "${{ inputs.wheel_file }}"
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            WHEEL_SIZE=$(powershell -Command "(Get-Item '${{ inputs.wheel_file }}').Length")
+            echo "  Wheel size (Unix path): $WHEEL_SIZE bytes"
+          else
+            WHEEL_SIZE=$(stat -c%s "${{ inputs.wheel_file }}" 2>/dev/null || stat -f%z "${{ inputs.wheel_file }}" 2>/dev/null || echo "unknown")
+            echo "  Wheel size: $WHEEL_SIZE bytes"
+          fi
+          
           # CRITICAL WINDOWS FIX: Convert Unix-style path to Windows-style for Rust/Windows
           # Git Bash on Windows returns /d/a/... but Rust PathBuf needs D:\a\...
           if [[ "${{ runner.os }}" == "Windows" ]]; then
@@ -95,20 +106,21 @@ jobs:
               WHEEL_ABS_PATH="$(echo "$WHEEL_ABS_PATH" | sed 's|^/d/|D:\\|; s|/|\\|g')"
               echo "  After (fallback): $WHEEL_ABS_PATH"
             fi
+            
+            # CRITICAL: Verify file exists at converted Windows path
+            echo "🔍 Verifying file exists at Windows path..."
+            if powershell -Command "Test-Path '$WHEEL_ABS_PATH'"; then
+              WIN_SIZE=$(powershell -Command "(Get-Item '$WHEEL_ABS_PATH').Length")
+              echo "  ✅ File exists at Windows path, size: $WIN_SIZE bytes"
+            else
+              echo "  ❌ ERROR: File does NOT exist at converted Windows path!"
+              echo "  Looking for: $WHEEL_ABS_PATH"
+              POWERSHELL_DIR=$(powershell -Command "Split-Path -Parent '$WHEEL_ABS_PATH'")
+              echo "  Directory contents:"
+              powershell -Command "Get-ChildItem '$POWERSHELL_DIR'"
+              exit 1
+            fi
           fi
-          
-          # DEBUG: Verify wheel file exists and has correct size
-          echo "🔍 Verifying wheel file before build..."
-          ls -la "${{ inputs.wheel_file }}"
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            WHEEL_SIZE=$(powershell -Command "(Get-Item '${{ inputs.wheel_file }}').Length")
-          else
-            WHEEL_SIZE=$(stat -c%s "${{ inputs.wheel_file }}" 2>/dev/null || stat -f%z "${{ inputs.wheel_file }}" 2>/dev/null || echo "unknown")
-          fi
-          echo "  Wheel size: $WHEEL_SIZE bytes"
-          
-          # DEBUG: Show cargo manifest dir
-          echo "🔍 CARGO_MANIFEST_DIR will be: $(cd pyapp-latest && pwd)"
           
           # Set PyApp configuration
           export PYAPP_PROJECT_NAME="opendata-tool"
