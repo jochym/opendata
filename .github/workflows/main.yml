@@ -137,7 +137,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: opendata-linux
-          path: /tmp/verify-bin
+          path: ${{ runner.temp }}/verify-bin
       - name: Install Test Dependencies
         run: |
           apt-get update
@@ -145,13 +145,72 @@ jobs:
       - name: Run Binary and Verify API
         shell: bash
         run: |
-          echo "Checking directory: /tmp/verify-bin"
-          ls -R /tmp/verify-bin
-          BIN_PATH=$(find /tmp/verify-bin -maxdepth 2 -type f -not -name "*.whl" -not -name "*.json" | head -n 1)
+          BIN_DIR="${{ runner.temp }}/verify-bin"
+          echo "Checking directory: $BIN_DIR"
+          ls -R "$BIN_DIR"
+          BIN_PATH=$(find "$BIN_DIR" -maxdepth 2 -type f -not -name "*.whl" -not -name "*.json" | head -n 1)
           if [ -z "$BIN_PATH" ]; then
             echo "❌ No binary found"
             exit 1
           fi
+          echo "Found binary at: $BIN_PATH"
+          chmod +x "$BIN_PATH"
+          
+          # STEP 1: Smoke Test (--version)
+          echo "🚀 STEP 1: Smoke Test (--version)..."
+          VERSION_LOG="${{ runner.temp }}/version.log"
+          "$BIN_PATH" --version > "$VERSION_LOG" 2>&1 &
+          SMOKE_PID=$!
+          
+          COUNT=0
+          while kill -0 $SMOKE_PID 2>/dev/null; do
+            if [ $COUNT -ge 90 ]; then
+              echo "❌ Smoke test timed out after 90s"
+              kill -9 $SMOKE_PID 2>/dev/null || true
+              exit 1
+            fi
+            sleep 1
+            COUNT=$((COUNT+1))
+          done
+          wait $SMOKE_PID
+          SMOKE_EXIT=$?
+          
+          echo "=== Version output ==="
+          [ -f "$VERSION_LOG" ] && cat "$VERSION_LOG"
+          
+          if [ $SMOKE_EXIT -ne 0 ]; then
+            echo "❌ Smoke test failed (Exit code: $SMOKE_EXIT)"
+            exit 1
+          fi
+          echo "✅ Smoke test passed"
+          
+          # STEP 2: Functional Test (API)
+          echo "🚀 STEP 2: Functional Test (API)..."
+          BINARY_LOG="${{ runner.temp }}/binary.log"
+          nohup "$BIN_PATH" --headless --no-browser --port 8080 --api > "$BINARY_LOG" 2>&1 &
+          BIN_PID=$!
+          
+          echo "Waiting for API to respond (up to 60 seconds)..."
+          HTTP_GET="curl -s --retry 3 --retry-delay 2"
+          for i in {1..15}; do
+            echo "  Attempt $i/15..."
+            if $HTTP_GET http://127.0.0.1:8080/api/projects | grep -q "projects"; then
+              echo "✅ API is working on ${{ matrix.distro.name }}"
+              kill $BIN_PID 2>/dev/null || true
+              exit 0
+            fi
+            
+            if ! kill -0 $BIN_PID 2>/dev/null; then
+              echo "❌ Binary died during API test"
+              [ -f "$BINARY_LOG" ] && cat "$BINARY_LOG"
+              exit 1
+            fi
+            sleep 4
+          done
+          
+          echo "❌ API failed after timeout"
+          kill $BIN_PID 2>/dev/null || true
+          exit 1
           echo "Found binary at: $BIN_PATH"
           chmod +x "$BIN_PATH"
           # --no-browser prevents NiceGUI from trying to open a browser window
@@ -341,7 +400,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: wheel-package
-          path: /tmp/wheel
+          path: ${{ runner.temp }}/wheel
       
       - name: Install Dependencies
         run: |
@@ -350,24 +409,24 @@ jobs:
       
       - name: Install Wheel
         run: |
-          python3 -m venv /tmp/test_venv
-          . /tmp/test_venv/bin/activate
+          python3 -m venv ${{ runner.temp }}/test_venv
+          . ${{ runner.temp }}/test_venv/bin/activate
           pip install --upgrade pip
-          pip install /tmp/wheel/*.whl
+          pip install ${{ runner.temp }}/wheel/*.whl
       
       - name: Test Version
         run: |
-          . /tmp/test_venv/bin/activate
+          . ${{ runner.temp }}/test_venv/bin/activate
           python3 -c "from opendata.utils import get_app_version; v = get_app_version(); print(f'Version: {v}'); assert v != '0.0.0'; assert '+' not in v; print('✅ Version test passed')"
       
       - name: Test client_secrets.json
         run: |
-          . /tmp/test_venv/bin/activate
+          . ${{ runner.temp }}/test_venv/bin/activate
           python3 -c "from opendata.utils import get_resource_path; p = get_resource_path('client_secrets.json'); assert p.exists(); print(f'✅ client_secrets.json found at: {p}')"
       
       - name: Test field protocols
         run: |
-          . /tmp/test_venv/bin/activate
+          . ${{ runner.temp }}/test_venv/bin/activate
           python3 -c "
           from opendata.protocols.manager import ProtocolManager
           from opendata.workspace import WorkspaceManager
@@ -385,7 +444,7 @@ jobs:
       
       - name: Test API (Headless)
         run: |
-          . /tmp/test_venv/bin/activate
+          . ${{ runner.temp }}/test_venv/bin/activate
           
           # Start API server
           # --no-browser prevents NiceGUI from trying to open a browser window
@@ -418,12 +477,12 @@ jobs:
       
       - name: Test UI Import
         run: |
-          . /tmp/test_venv/bin/activate
+          . ${{ runner.temp }}/test_venv/bin/activate
           python3 -c "import nicegui; from opendata.ui.app import start_ui; print(f'NiceGUI version: {nicegui.__version__}'); print('✅ UI modules imported successfully')"
       
       - name: Test Dependencies
         run: |
-          . /tmp/test_venv/bin/activate
+          . ${{ runner.temp }}/test_venv/bin/activate
           python3 -c "import google.generativeai; import google.genai; import pydantic; import yaml; import docx; import pydicom; import bibtexparser; import h5py; print('✅ All critical dependencies imported')"
 
   build-pypi:
