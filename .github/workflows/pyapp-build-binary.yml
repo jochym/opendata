@@ -87,7 +87,15 @@ jobs:
           export PYAPP_PROJECT_PATH="$WHEEL_ABS_PATH"
           export PYAPP_EXEC_MODULE="opendata.main"
           export PYAPP_PYTHON_VERSION="3.11"
-          # Speed up first-run installation by using only binary wheels
+          
+          # CRITICAL: Embed Python distribution to avoid runtime downloads
+          export PYAPP_DISTRIBUTION_EMBED="true"
+          
+          # CRITICAL: Use v1 CPU variant for maximum compatibility (no AVX2 required)
+          # Default v3 requires AVX2 which causes "illegal instruction" on older CPUs
+          export PYAPP_DISTRIBUTION_VARIANT_CPU="v1"
+          
+          # Speed up installation by using only binary wheels
           export PYAPP_PIP_EXTRA_ARGS="--only-binary :all:"
           
           echo "✅ Building from wheel: $PYAPP_PROJECT_PATH"
