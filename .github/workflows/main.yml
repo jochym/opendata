@@ -26,6 +26,7 @@ jobs:
   gui-tests:
     name: GUI
     needs: logic-tests
+    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
     strategy:
       fail-fast: false
       matrix:
@@ -36,7 +37,8 @@ jobs:
 
   build-wheel:
     name: Build Wheel
-    needs: gui-tests
+    needs: [logic-tests, gui-tests]
+    if: always() && (needs.logic-tests.result == 'success') && (needs.gui-tests.result == 'success' || needs.gui-tests.result == 'skipped')
     runs-on: ubuntu-latest
     outputs:
       wheel_file: ${{ steps.build_wheel.outputs.WHEEL_FILE }}
