@@ -33,309 +33,9 @@ jobs:
     with:
       os: ${{ matrix.os }}
 
-  build-binaries:
-    name: Build (PyInstaller)
-    needs: gui-tests
-    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-22.04
-            artifact_name: opendata-linux
-          - os: windows-latest
-            artifact_name: opendata-win
-          - os: macos-latest
-            artifact_name: opendata-macos-arm
-    uses: ./.github/workflows/reusable-build-binary.yml
-    with:
-      os: ${{ matrix.os }}
-      artifact_name: ${{ matrix.artifact_name }}
-    secrets: inherit
-
-  build-pyapp-binaries:
-    name: Build (pyApp)
-    needs: [gui-tests, build-wheel, test-wheel]
-    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-22.04
-            artifact_name: opendata-linux-pyapp
-            target: linux-x86_64
-          - os: windows-latest
-            artifact_name: opendata-win-pyapp
-            target: windows-x86_64
-          - os: macos-latest
-            artifact_name: opendata-macos-arm-pyapp
-            target: macos-arm64
-          - os: macos-latest
-            artifact_name: opendata-macos-intel-pyapp
-            target: macos-x86_64 # Note: Tested via Rosetta 2 on ARM runners
-    uses: ./.github/workflows/pyapp-build-binary.yml
-    with:
-      os: ${{ matrix.os }}
-      artifact_name: ${{ matrix.artifact_name }}
-      target: ${{ matrix.target }}
-      wheel_file: ${{ needs.build-wheel.outputs.wheel_file }}
-    secrets: inherit
-
-  verify-binaries-native:
-    name: Verify Native (PyInstaller)
-    needs: build-binaries
-    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-22.04
-            artifact_name: opendata-linux
-          - os: windows-latest
-            artifact_name: opendata-win
-          - os: macos-latest
-            artifact_name: opendata-macos-arm
-    uses: ./.github/workflows/reusable-verify-binary.yml
-    with:
-      os: ${{ matrix.os }}
-      artifact_name: ${{ matrix.artifact_name }}
-
-  verify-pyapp-binaries:
-    name: Verify pyApp
-    needs: build-pyapp-binaries
-    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-22.04
-            artifact_name: opendata-linux-pyapp
-          - os: windows-latest
-            artifact_name: opendata-win-pyapp
-          - os: macos-latest
-            artifact_name: opendata-macos-arm-pyapp
-          - os: macos-latest
-            artifact_name: opendata-macos-intel-pyapp
-    uses: ./.github/workflows/reusable-verify-binary.yml
-    with:
-      os: ${{ matrix.os }}
-      artifact_name: ${{ matrix.artifact_name }}
-
-  verify-linux-distros:
-    name: Verify Linux (PyInstaller)
-    needs: build-binaries
-    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
-    strategy:
-      fail-fast: false
-      matrix:
-        distro:
-          - { name: "Ubuntu 24.04", image: "ubuntu:24.04" }
-          - { name: "Debian 12", image: "debian:12" }
-          - { name: "Debian 13", image: "debian:13" }
-    runs-on: ubuntu-latest
-    container: ${{ matrix.distro.image }}
-    steps:
-      - name: Download Binary
-        uses: actions/download-artifact@v4
-        with:
-          name: opendata-linux
-          path: /tmp/verify-bin
-      - name: Install Test Dependencies
-        run: |
-          apt-get update
-          apt-get install -y curl wget || true
-      - name: Run Binary and Verify API
-        shell: bash
-        run: |
-          BIN_DIR="/tmp/verify-bin"
-          echo "Checking directory: $BIN_DIR"
-          ls -R "$BIN_DIR"
-          BIN_PATH=$(find "$BIN_DIR" -maxdepth 2 -type f -not -name "*.whl" -not -name "*.json" | head -n 1)
-          if [ -z "$BIN_PATH" ]; then
-            echo "❌ No binary found"
-            exit 1
-          fi
-          echo "Found binary at: $BIN_PATH"
-          chmod +x "$BIN_PATH"
-          
-          # STEP 1: Smoke Test (--version)
-          echo "🚀 STEP 1: Smoke Test (--version)..."
-          VERSION_LOG="/tmp/version.log"
-          "$BIN_PATH" --version > "$VERSION_LOG" 2>&1 &
-          SMOKE_PID=$!
-          
-          COUNT=0
-          while kill -0 $SMOKE_PID 2>/dev/null; do
-            if [ $COUNT -ge 90 ]; then
-              echo "❌ Smoke test timed out after 90s"
-              kill -9 $SMOKE_PID 2>/dev/null || true
-              exit 1
-            fi
-            sleep 1
-            COUNT=$((COUNT+1))
-          done
-          wait $SMOKE_PID
-          SMOKE_EXIT=$?
-          
-          echo "=== Version output ==="
-          [ -f "$VERSION_LOG" ] && cat "$VERSION_LOG"
-          
-          if [ $SMOKE_EXIT -ne 0 ]; then
-            echo "❌ Smoke test failed (Exit code: $SMOKE_EXIT)"
-            exit 1
-          fi
-          echo "✅ Smoke test passed"
-          
-          # STEP 2: Functional Test (API)
-          echo "🚀 STEP 2: Functional Test (API)..."
-          BINARY_LOG="/tmp/binary.log"
-          nohup "$BIN_PATH" --headless --no-browser --port 8080 --api > "$BINARY_LOG" 2>&1 &
-          BIN_PID=$!
-          
-          echo "Waiting for API to respond (up to 60 seconds)..."
-          HTTP_GET="curl -s --retry 3 --retry-delay 2"
-          for i in {1..15}; do
-            echo "  Attempt $i/15..."
-            if $HTTP_GET http://127.0.0.1:8080/api/projects | grep -q "projects"; then
-              echo "✅ API is working on ${{ matrix.distro.name }}"
-              kill $BIN_PID 2>/dev/null || true
-              exit 0
-            fi
-            
-            if ! kill -0 $BIN_PID 2>/dev/null; then
-              echo "❌ Binary died during API test"
-              [ -f "$BINARY_LOG" ] && cat "$BINARY_LOG"
-              exit 1
-            fi
-            sleep 4
-          done
-          
-          echo "❌ API failed after timeout"
-          kill $BIN_PID 2>/dev/null || true
-          exit 1
-          echo "Found binary at: $BIN_PATH"
-          chmod +x "$BIN_PATH"
-          # --no-browser prevents NiceGUI from trying to open a browser window
-          "$BIN_PATH" --headless --no-browser --port 8080 --api &
-          BIN_PID=$!
-          sleep 15
-          
-          # Determine HTTP tool
-          if command -v curl &> /dev/null; then
-            HTTP_GET="curl -s"
-          elif command -v wget &> /dev/null; then
-            HTTP_GET="wget -qO-"
-          else
-            echo "❌ No HTTP tool found (curl or wget)"
-            kill $BIN_PID
-            exit 1
-          fi
-          
-          if $HTTP_GET http://127.0.0.1:8080/api/projects | grep -q "projects"; then
-            echo "✅ API is working on ${{ matrix.distro.name }}"
-            kill $BIN_PID
-            exit 0
-          else
-            echo "❌ API failed on ${{ matrix.distro.name }}"
-            kill $BIN_PID
-            exit 1
-          fi
-
-  verify-pyapp-linux-distros:
-    name: Verify Linux (pyApp)
-    needs: build-pyapp-binaries
-    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
-    strategy:
-      fail-fast: false
-      matrix:
-        distro:
-          - { name: "Ubuntu 24.04", image: "ubuntu:24.04" }
-          - { name: "Debian 12", image: "debian:12" }
-          - { name: "Debian 13", image: "debian:13" }
-    runs-on: ubuntu-latest
-    container: ${{ matrix.distro.image }}
-    steps:
-      - name: Download Binary
-        uses: actions/download-artifact@v4
-        with:
-          name: opendata-linux-pyapp
-          path: /tmp/verify-bin
-      - name: Install Test Dependencies
-        run: |
-          apt-get update
-          apt-get install -y curl wget || true
-      - name: Run Binary and Verify API
-        shell: bash
-        run: |
-          BIN_DIR="/tmp/verify-bin"
-          echo "Checking directory: $BIN_DIR"
-          ls -R "$BIN_DIR"
-          BIN_PATH=$(find "$BIN_DIR" -maxdepth 2 -type f -not -name "*.whl" -not -name "*.json" | head -n 1)
-          if [ -z "$BIN_PATH" ]; then
-            echo "❌ No binary found"
-            exit 1
-          fi
-          echo "Found binary at: $BIN_PATH"
-          chmod +x "$BIN_PATH"
-          
-          # STEP 1: Smoke Test (--version)
-          echo "🚀 STEP 1: Smoke Test (--version)..."
-          VERSION_LOG="/tmp/version.log"
-          "$BIN_PATH" --version > "$VERSION_LOG" 2>&1 &
-          SMOKE_PID=$!
-          
-          COUNT=0
-          while kill -0 $SMOKE_PID 2>/dev/null; do
-            if [ $COUNT -ge 90 ]; then
-              echo "❌ Smoke test timed out after 90s"
-              kill -9 $SMOKE_PID 2>/dev/null || true
-              exit 1
-            fi
-            sleep 1
-            COUNT=$((COUNT+1))
-          done
-          wait $SMOKE_PID
-          SMOKE_EXIT=$?
-          
-          echo "=== Version output ==="
-          [ -f "$VERSION_LOG" ] && cat "$VERSION_LOG"
-          
-          if [ $SMOKE_EXIT -ne 0 ]; then
-            echo "❌ Smoke test failed (Exit code: $SMOKE_EXIT)"
-            exit 1
-          fi
-          echo "✅ Smoke test passed"
-          
-          # STEP 2: Functional Test (API)
-          echo "🚀 STEP 2: Functional Test (API)..."
-          BINARY_LOG="/tmp/binary.log"
-          nohup "$BIN_PATH" --headless --no-browser --port 8081 --api > "$BINARY_LOG" 2>&1 &
-          BIN_PID=$!
-          
-          echo "Waiting for API to respond (up to 60 seconds)..."
-          HTTP_GET="curl -s --retry 3 --retry-delay 2"
-          for i in {1..15}; do
-            echo "  Attempt $i/15..."
-            if $HTTP_GET http://127.0.0.1:8081/api/projects | grep -q "projects"; then
-              echo "✅ pyApp API is working on ${{ matrix.distro.name }}"
-              kill $BIN_PID 2>/dev/null || true
-              exit 0
-            fi
-            
-            if ! kill -0 $BIN_PID 2>/dev/null; then
-              echo "❌ Binary died during API test"
-              [ -f "$BINARY_LOG" ] && cat "$BINARY_LOG"
-              exit 1
-            fi
-            sleep 4
-          done
-          
-          echo "❌ pyApp API failed after timeout"
-          kill $BIN_PID 2>/dev/null || true
-          exit 1
-
   build-wheel:
     name: Build Wheel
     needs: gui-tests
-    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     outputs:
       wheel_file: ${{ steps.build_wheel.outputs.WHEEL_FILE }}
@@ -386,7 +86,6 @@ jobs:
   test-wheel:
     name: Test Wheel
     needs: build-wheel
-    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
     strategy:
       fail-fast: false
       matrix:
@@ -418,72 +117,252 @@ jobs:
         run: |
           . /tmp/test_venv/bin/activate
           python3 -c "from opendata.utils import get_app_version; v = get_app_version(); print(f'Version: {v}'); assert v != '0.0.0'; assert '+' not in v; print('✅ Version test passed')"
-      
-      - name: Test client_secrets.json
+
+  build-binaries:
+    name: Build (PyInstaller)
+    needs: test-wheel
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/develop-binaries'
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            artifact_name: opendata-linux
+          - os: windows-latest
+            artifact_name: opendata-win
+          - os: macos-latest
+            artifact_name: opendata-macos-arm
+    uses: ./.github/workflows/reusable-build-binary.yml
+    with:
+      os: ${{ matrix.os }}
+      artifact_name: ${{ matrix.artifact_name }}
+    secrets: inherit
+
+  build-pyapp-binaries:
+    name: Build (pyApp)
+    needs: test-wheel
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/develop-binaries'
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            artifact_name: opendata-linux-pyapp
+            target: linux-x86_64
+          - os: windows-latest
+            artifact_name: opendata-win-pyapp
+            target: windows-x86_64
+          - os: macos-latest
+            artifact_name: opendata-macos-arm-pyapp
+            target: macos-arm64
+          - os: macos-latest
+            artifact_name: opendata-macos-intel-pyapp
+            target: macos-x86_64 # Note: Tested via Rosetta 2 on ARM runners
+    uses: ./.github/workflows/pyapp-build-binary.yml
+    with:
+      os: ${{ matrix.os }}
+      artifact_name: ${{ matrix.artifact_name }}
+      target: ${{ matrix.target }}
+      wheel_file: ${{ needs.build-wheel.outputs.wheel_file }}
+    secrets: inherit
+
+  verify-binaries-native:
+    name: Verify Native (PyInstaller)
+    needs: build-binaries
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/develop-binaries'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            artifact_name: opendata-linux
+          - os: windows-latest
+            artifact_name: opendata-win
+          - os: macos-latest
+            artifact_name: opendata-macos-arm
+    uses: ./.github/workflows/reusable-verify-binary.yml
+    with:
+      os: ${{ matrix.os }}
+      artifact_name: ${{ matrix.artifact_name }}
+
+  verify-pyapp-binaries:
+    name: Verify pyApp
+    needs: build-pyapp-binaries
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/develop-binaries'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            artifact_name: opendata-linux-pyapp
+          - os: windows-latest
+            artifact_name: opendata-win-pyapp
+          - os: macos-latest
+            artifact_name: opendata-macos-arm-pyapp
+          - os: macos-latest
+            artifact_name: opendata-macos-intel-pyapp
+    uses: ./.github/workflows/reusable-verify-binary.yml
+    with:
+      os: ${{ matrix.os }}
+      artifact_name: ${{ matrix.artifact_name }}
+
+  verify-linux-distros:
+    name: Verify Linux (PyInstaller)
+    needs: build-binaries
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/develop-binaries'
+    strategy:
+      fail-fast: false
+      matrix:
+        distro:
+          - { name: "Ubuntu 24.04", image: "ubuntu:24.04" }
+          - { name: "Debian 12", image: "debian:12" }
+          - { name: "Debian 13", image: "debian:13" }
+    runs-on: ubuntu-latest
+    container: ${{ matrix.distro.image }}
+    steps:
+      - name: Download Binary
+        uses: actions/download-artifact@v4
+        with:
+          name: opendata-linux
+          path: /tmp/verify-bin
+      - name: Install Test Dependencies
         run: |
-          . /tmp/test_venv/bin/activate
-          python3 -c "from opendata.utils import get_resource_path; p = get_resource_path('client_secrets.json'); assert p.exists(); print(f'✅ client_secrets.json found at: {p}')"
-      
-      - name: Test field protocols
+          apt-get update
+          apt-get install -y curl wget || true
+      - name: Run Binary and Verify API
+        shell: bash
         run: |
-          . /tmp/test_venv/bin/activate
-          python3 -c "
-          from opendata.protocols.manager import ProtocolManager
-          from opendata.workspace import WorkspaceManager
-          import tempfile
-          from pathlib import Path
-          
-          with tempfile.TemporaryDirectory() as tmpdir:
-              workspace = WorkspaceManager(Path(tmpdir))
-              pm = ProtocolManager(workspace)
-              # Test physics field protocol
-              physics = pm.get_field_protocol('physics')
-              assert physics.name == 'Physics'
-              print('✅ Field protocols working')
-          "
-      
-      - name: Test API (Headless)
-        run: |
-          . /tmp/test_venv/bin/activate
-          
-          # Start API server
-          # --no-browser prevents NiceGUI from trying to open a browser window
-          opendata --headless --no-browser --port 8080 --api &
-          API_PID=$!
-          
-          # Wait for startup
-          sleep 10
-          
-          # Test API endpoint
-          if command -v curl &> /dev/null; then
-            HTTP_GET="curl -s"
-          else
-            apt-get install -y curl
-            HTTP_GET="curl -s"
-          fi
-          
-          API_RESPONSE=$($HTTP_GET http://127.0.0.1:8080/api/projects || echo "FAILED")
-          echo "API Response: $API_RESPONSE"
-          
-          if echo "$API_RESPONSE" | grep -q "projects"; then
-            echo "✅ API test passed on ${{ matrix.name }}"
-          else
-            echo "❌ API test failed on ${{ matrix.name }}"
-            kill $API_PID 2>/dev/null || true
+          BIN_DIR="/tmp/verify-bin"
+          BIN_PATH=$(find "$BIN_DIR" -maxdepth 2 -type f -not -name "*.whl" -not -name "*.json" | head -n 1)
+          if [ -z "$BIN_PATH" ]; then
+            echo "❌ No binary found"
             exit 1
           fi
+          chmod +x "$BIN_PATH"
           
-          kill $API_PID 2>/dev/null || true
-      
-      - name: Test UI Import
+          # STEP 1: Smoke Test (--version)
+          echo "🚀 STEP 1: Smoke Test (--version)..."
+          VERSION_LOG="/tmp/version.log"
+          "$BIN_PATH" --version > "$VERSION_LOG" 2>&1 &
+          SMOKE_PID=$!
+          
+          COUNT=0
+          while kill -0 $SMOKE_PID 2>/dev/null; do
+            if [ $COUNT -ge 90 ]; then
+              echo "❌ Smoke test timed out after 90s"
+              kill -9 $SMOKE_PID 2>/dev/null || true
+              exit 1
+            fi
+            sleep 1
+            COUNT=$((COUNT+1))
+          done
+          wait $SMOKE_PID
+          SMOKE_EXIT=$?
+          
+          if [ $SMOKE_EXIT -ne 0 ]; then
+            echo "❌ Smoke test failed"
+            [ -f "$VERSION_LOG" ] && cat "$VERSION_LOG"
+            exit 1
+          fi
+          echo "✅ Smoke test passed"
+          
+          # STEP 2: Functional Test (API)
+          echo "🚀 STEP 2: Functional Test (API)..."
+          nohup "$BIN_PATH" --headless --no-browser --port 8080 --api > /tmp/binary.log 2>&1 &
+          BIN_PID=$!
+          
+          HTTP_GET="curl -s --retry 3 --retry-delay 2"
+          for i in {1..15}; do
+            if $HTTP_GET http://127.0.0.1:8080/api/projects | grep -q "projects"; then
+              echo "✅ API is working on ${{ matrix.distro.name }}"
+              kill $BIN_PID 2>/dev/null || true
+              exit 0
+            fi
+            if ! kill -0 $BIN_PID 2>/dev/null; then
+              echo "❌ Binary died"
+              exit 1
+            fi
+            sleep 4
+          done
+          exit 1
+
+  verify-pyapp-linux-distros:
+    name: Verify Linux (pyApp)
+    needs: build-pyapp-binaries
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/develop-binaries'
+    strategy:
+      fail-fast: false
+      matrix:
+        distro:
+          - { name: "Ubuntu 24.04", image: "ubuntu:24.04" }
+          - { name: "Debian 12", image: "debian:12" }
+          - { name: "Debian 13", image: "debian:13" }
+    runs-on: ubuntu-latest
+    container: ${{ matrix.distro.image }}
+    steps:
+      - name: Download Binary
+        uses: actions/download-artifact@v4
+        with:
+          name: opendata-linux-pyapp
+          path: /tmp/verify-bin
+      - name: Install Test Dependencies
         run: |
-          . /tmp/test_venv/bin/activate
-          python3 -c "import nicegui; from opendata.ui.app import start_ui; print(f'NiceGUI version: {nicegui.__version__}'); print('✅ UI modules imported successfully')"
-      
-      - name: Test Dependencies
+          apt-get update
+          apt-get install -y curl wget || true
+      - name: Run Binary and Verify API
+        shell: bash
         run: |
-          . /tmp/test_venv/bin/activate
-          python3 -c "import google.generativeai; import google.genai; import pydantic; import yaml; import docx; import pydicom; import bibtexparser; import h5py; print('✅ All critical dependencies imported')"
+          BIN_DIR="/tmp/verify-bin"
+          BIN_PATH=$(find "$BIN_DIR" -maxdepth 2 -type f -not -name "*.whl" -not -name "*.json" | head -n 1)
+          if [ -z "$BIN_PATH" ]; then
+            echo "❌ No binary found"
+            exit 1
+          fi
+          chmod +x "$BIN_PATH"
+          
+          # STEP 1: Smoke Test (--version)
+          echo "🚀 STEP 1: Smoke Test (--version)..."
+          VERSION_LOG="/tmp/version.log"
+          "$BIN_PATH" --version > "$VERSION_LOG" 2>&1 &
+          SMOKE_PID=$!
+          
+          COUNT=0
+          while kill -0 $SMOKE_PID 2>/dev/null; do
+            if [ $COUNT -ge 90 ]; then
+              echo "❌ Smoke test timed out after 90s"
+              kill -9 $SMOKE_PID 2>/dev/null || true
+              exit 1
+            fi
+            sleep 1
+            COUNT=$((COUNT+1))
+          done
+          wait $SMOKE_PID
+          SMOKE_EXIT=$?
+          
+          if [ $SMOKE_EXIT -ne 0 ]; then
+            echo "❌ Smoke test failed"
+            [ -f "$VERSION_LOG" ] && cat "$VERSION_LOG"
+            exit 1
+          fi
+          echo "✅ Smoke test passed"
+          
+          # STEP 2: Functional Test (API)
+          echo "🚀 STEP 2: Functional Test (API)..."
+          nohup "$BIN_PATH" --headless --no-browser --port 8081 --api > /tmp/binary.log 2>&1 &
+          BIN_PID=$!
+          
+          HTTP_GET="curl -s --retry 3 --retry-delay 2"
+          for i in {1..15}; do
+            if $HTTP_GET http://127.0.0.1:8081/api/projects | grep -q "projects"; then
+              echo "✅ pyApp API is working on ${{ matrix.distro.name }}"
+              kill $BIN_PID 2>/dev/null || true
+              exit 0
+            fi
+            if ! kill -0 $BIN_PID 2>/dev/null; then
+              echo "❌ Binary died"
+              exit 1
+            fi
+            sleep 4
+          done
+          exit 1
 
   build-pypi:
     name: PyPI Package
@@ -497,10 +376,6 @@ jobs:
         with:
           name: wheel-package
           path: dist/
-      - name: Verify Wheel
-        run: |
-          ls -la dist/
-          echo "✅ Using pre-built wheel: ${{ needs.build-wheel.outputs.wheel_file }}"
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -509,9 +384,7 @@ jobs:
 
   release:
     name: Create Release
-    # PyPI release depends only on wheel tests passing
-    # GitHub Release binaries depend on native PyInstaller verification (pyApp is optional/experimental)
-    needs: [verify-binaries-native, verify-linux-distros, build-pypi]
+    needs: [verify-binaries-native, verify-linux-distros, verify-pyapp-binaries, verify-pyapp-linux-distros, build-pypi]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
@@ -542,4 +415,3 @@ jobs:
         with:
           packages-dir: artifacts/pypi-package/
           skip-existing: true
-# CI debug
