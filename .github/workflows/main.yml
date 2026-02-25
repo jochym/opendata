@@ -154,7 +154,8 @@ jobs:
           fi
           echo "Found binary at: $BIN_PATH"
           chmod +x "$BIN_PATH"
-          "$BIN_PATH" --headless --port 8080 --api &
+          # --no-browser prevents NiceGUI from trying to open a browser window
+          "$BIN_PATH" --headless --no-browser --port 8080 --api &
           BIN_PID=$!
           sleep 15
           
@@ -214,7 +215,8 @@ jobs:
           fi
           echo "Found binary at: $BIN_PATH"
           chmod +x "$BIN_PATH"
-          "$BIN_PATH" --headless --port 8081 --api &
+          # --no-browser prevents NiceGUI from trying to open a browser window
+          "$BIN_PATH" --headless --no-browser --port 8081 --api &
           BIN_PID=$!
           sleep 15
           
@@ -354,7 +356,8 @@ jobs:
           . /tmp/test_venv/bin/activate
           
           # Start API server
-          opendata --headless --port 8080 --api &
+          # --no-browser prevents NiceGUI from trying to open a browser window
+          opendata --headless --no-browser --port 8080 --api &
           API_PID=$!
           
           # Wait for startup
