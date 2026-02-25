@@ -142,7 +142,7 @@ jobs:
 
   build-pyapp-binaries:
     name: Build (pyApp)
-    needs: test-wheel
+    needs: [build-wheel, test-wheel]
     if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/develop-binaries'
     strategy:
       matrix:
