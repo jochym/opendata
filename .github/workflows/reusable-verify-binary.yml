@@ -63,7 +63,8 @@ jobs:
           
           # Start binary in headless mode with API enabled
           echo "Starting binary in headless mode..."
-          nohup "$BIN_PATH" --headless --port 8080 --api > /tmp/binary.log 2>&1 &
+          # --no-browser prevents NiceGUI from trying to open a browser window
+          nohup "$BIN_PATH" --headless --no-browser --port 8080 --api > /tmp/binary.log 2>&1 &
           BIN_PID=$!
           disown $BIN_PID
           echo "Binary PID: $BIN_PID"
