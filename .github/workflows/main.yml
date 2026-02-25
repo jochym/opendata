@@ -2,7 +2,7 @@ name: OpenData Tool CI/CD
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop-binaries ]
     tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
