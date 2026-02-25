@@ -77,11 +77,9 @@ jobs:
           wait $SMOKE_PID
           SMOKE_EXIT=$?
           
-          echo "=== Version output ==="
-          cat /tmp/version.log
-          
           if [ $SMOKE_EXIT -ne 0 ]; then
             echo "❌ Smoke test failed (Exit code: $SMOKE_EXIT)"
+            cat /tmp/version.log
             if grep -q "Illegal instruction" /tmp/version.log; then
               echo "  Detected Architecture Mismatch (Illegal Instruction)"
             elif grep -q "ModuleNotFoundError" /tmp/version.log; then

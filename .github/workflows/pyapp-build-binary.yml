@@ -105,15 +105,10 @@ jobs:
           fi
           
           # Speed up installation by using only binary wheels
-          # This was present in working build #430
           export PYAPP_PIP_EXTRA_ARGS="--only-binary :all:"
           
-          # DEBUG: Enable verbose pip logging for Windows to diagnose ModuleNotFoundError
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            export PYAPP_PIP_VERBOSE="1"
-          fi
-          
           echo "✅ Building from wheel: $PYAPP_PROJECT_PATH"
+          ls -la "$PYAPP_PROJECT_PATH"
           ls -la "$PYAPP_PROJECT_PATH"
           
           VERSION=$(cat ../src/opendata/VERSION | sed 's/+.*//')
