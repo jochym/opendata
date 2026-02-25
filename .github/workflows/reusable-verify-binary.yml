@@ -57,13 +57,14 @@ jobs:
           echo "Found binary at: $BIN_PATH"
           chmod +x "$BIN_PATH" || true
           
-          # Test binary startup
+          # Test binary startup (first run may install dependencies)
           echo "Testing binary startup..."
-          timeout 5 "$BIN_PATH" --version || echo "Version check failed or timed out"
+          timeout 30 "$BIN_PATH" --version || echo "Version check failed or timed out"
           
           # Start binary in headless mode with API enabled
           echo "Starting binary in headless mode..."
-          "$BIN_PATH" --headless --port 8080 --api > /tmp/binary.log 2>&1 &
+          # --no-browser prevents NiceGUI from trying to open a browser window
+          "$BIN_PATH" --headless --no-browser --port 8080 --api > /tmp/binary.log 2>&1 &
           BIN_PID=$!
           echo "Binary PID: $BIN_PID"
           
