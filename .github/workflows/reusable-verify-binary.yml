@@ -67,9 +67,9 @@ jobs:
           BIN_PID=$!
           echo "Binary PID: $BIN_PID"
           
-          # Wait for startup (CI can be slow)
-          echo "Waiting for binary to start (up to 30 seconds)..."
-          sleep 20
+          # Wait for startup AND installation (first run installs from PyPI)
+          echo "Waiting for binary to start and install dependencies (up to 90 seconds)..."
+          sleep 60
           
           # Check if process is alive
           if ! kill -0 $BIN_PID 2>/dev/null; then
