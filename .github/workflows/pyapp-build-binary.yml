@@ -97,6 +97,19 @@ jobs:
             fi
           fi
           
+          # DEBUG: Verify wheel file exists and has correct size
+          echo "🔍 Verifying wheel file before build..."
+          ls -la "${{ inputs.wheel_file }}"
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            WHEEL_SIZE=$(powershell -Command "(Get-Item '${{ inputs.wheel_file }}').Length")
+          else
+            WHEEL_SIZE=$(stat -c%s "${{ inputs.wheel_file }}" 2>/dev/null || stat -f%z "${{ inputs.wheel_file }}" 2>/dev/null || echo "unknown")
+          fi
+          echo "  Wheel size: $WHEEL_SIZE bytes"
+          
+          # DEBUG: Show cargo manifest dir
+          echo "🔍 CARGO_MANIFEST_DIR will be: $(cd pyapp-latest && pwd)"
+          
           # Set PyApp configuration
           export PYAPP_PROJECT_NAME="opendata-tool"
           export PYAPP_PROJECT_PATH="$WHEEL_ABS_PATH"
