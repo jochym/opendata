@@ -22,36 +22,17 @@ The **OpenData Tool** is an AI-powered assistant designed to "read" your researc
 
 ### Prerequisites
 - **OS:** Windows 10/11, macOS (Arm64/Intel), or Linux (x64).
-- **Python:** Version 3.11 or higher (for PyPI installation).
 - **Google Account:** Required for AI features (to access Gemini).
+- **Access:** You must be whitelisted for the internal testing team. Contact `Pawel T. Jochym` if you cannot sign in.
 
-### Installation Options
-
-#### Option 1: Pre-built Binary (Recommended for most users)
-1. **Download:** Get the latest binary for your OS from the [website](https://jochym.github.io/opendata/).
+### Step-by-Step Launch
+1. **Download:** Get the latest binary for your OS from the [Testing Portal](website/index.html) or your distribution source.
 2. **Run:** Double-click the executable (`opendata-win.exe`, `opendata-linux`, or `.dmg`).
    - *Note:* On Windows/Mac, you may need to "Run Anyway" if the app is unsigned.
 3. **System Tray Icon:** A small icon will appear in your system tray (bottom-right on Windows, top-right on Mac/Linux). 
    - **Open Dashboard:** Opens the main interface in your default browser.
    - **Exit:** Stops the server and exits.
 4. **Browser Dashboard:** The main interface will open automatically in your default web browser (usually `http://localhost:8000`).
-
-#### Option 2: PyPI Installation (Developers)
-```bash
-# Using uv (fastest)
-uvx opendata-tool
-
-# Using pipx
-pipx install opendata-tool
-opendata-tool
-
-# Using pip in virtual environment
-python -m venv venv
-source venv/bin/activate  # Linux/macOS
-venv\Scripts\activate     # Windows
-pip install opendata-tool
-opendata-tool
-```
 
 ---
 

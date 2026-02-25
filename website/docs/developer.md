@@ -2,7 +2,6 @@
 
 **Version:** v0.22.22
 **Maintained By:** Pawel T. Jochym & AI Agents
-**License:** MIT
 
 ---
 
@@ -83,87 +82,36 @@ The "Field Protocols" system allows the AI to learn.
 
 ---
 
-## 5. Installation & Development
+## 5. Build & Release
 
-### Quick Start (PyPI)
-```bash
-# Install with uv (recommended)
-uv tool install opendata-tool
-
-# Or with pipx
-pipx install opendata-tool
-
-# Run
-opendata-tool
-```
-
-### Development Installation
-```bash
-# Clone repository
-git clone https://github.com/jochym/opendata.git
-cd opendata
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # Linux/macOS
-venv\Scripts\activate     # Windows
-
-# Install with dev dependencies
-pip install -e ".[dev]"
-
-# Run
-python src/opendata/main.py
-```
-
-### Build & Release
-
-#### Requirements
+### Requirements
 - `pyinstaller`
-- `python -m build` (for PyPI packages)
+- `poetry` (recommended) or `pip`
 
-#### Build Commands
+### Build Command
 ```bash
-# Build PyPI package
-python -m build --sdist --wheel
+# Windows
+pyinstaller --noconsole --onefile --name opendata-win src/opendata/main.py
 
-# Build standalone binary
-pyinstaller --noconsole --onefile --name opendata src/opendata/main.py
+# Linux
+pyinstaller --noconsole --onefile --name opendata-linux src/opendata/main.py
 ```
 
-#### CI/CD
-GitHub Actions automatically build binaries for Win/Mac/Linux and publish to PyPI on every tagged release.
+### 5.1 System Tray Icon
+The application uses `pystray` to provide a system tray icon with a menu to "Open Dashboard" and "Exit". This ensures the application runs without a terminal window while remaining accessible.
 
 ---
 
 ## 6. Testing Strategy
+We use `pytest`.
+- **Unit Tests:** `tests/test_extractors.py` (verify regex/parsing).
+- **Integration Tests:** `tests/test_workspace.py` (verify project persistence).
+- **Vibe Checks:** Tests that mock the AI to ensure the "flow" of the conversation works.
 
-### Test Categories
-- **Unit Tests** (`tests/unit/`): Fast, isolated component tests (~2s)
-- **Integration Tests** (`tests/integration/`): Component interaction tests (~2s)
-- **E2E Tests** (`tests/e2e/`): Complete workflow tests with Playwright (~90s)
-- **AI Tests** (`tests/end_to_end/`): AI interaction tests (local only, requires API keys)
-
-### Running Tests
+**Run Tests:**
 ```bash
-# Run all CI/CD safe tests (default)
 pytest
-
-# Run all tests including AI (requires app running)
-pytest -m ""
-
-# Run specific category
-pytest -m unit
-pytest -m e2e
-pytest -m ai_interaction  # Local only
-
-# Run with coverage
-pytest --cov=opendata
 ```
-
-### Test Coverage
-- **Total Tests:** 110+ tests
-- **CI/CD Time:** ~5 seconds
-- **Coverage:** See `docs/dev/TEST_RESULTS.md`
 
 ---
 
