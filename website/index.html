@@ -77,7 +77,7 @@
                     <i class="fas fa-code mr-3 text-blue-400"></i> DEVELOPER GUIDE
                 </button>
                 <button onclick="loadDoc('binary_system')" class="bg-slate-900 border border-slate-700 px-8 py-4 rounded-xl font-bold hover:bg-slate-800 transition-all shadow-lg flex items-center">
-                    <i class="fas fa-microchip mr-3 text-emerald-400"></i> BINARY SYSTEM
+                    <i class="fas fa-microchip mr-3 text-emerald-400"></i> BINARY BUILD SYSTEM
                 </button>
             </div>
         </div>
@@ -385,7 +385,7 @@
             
             if (type === 'tester') docTitle.innerText = 'Beta Tester Manual';
             else if (type === 'developer') docTitle.innerText = 'Developer Guide';
-            else docTitle.innerText = 'Binary System';
+            else docTitle.innerText = 'Binary Build System';
             
             try {
                 const response = await fetch(`docs/${type}.md`);
