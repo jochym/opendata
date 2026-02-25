@@ -55,16 +55,13 @@ jobs:
           chmod +x "$BIN_PATH" || true
           
           # STEP 1: Smoke Test (--version)
-          # This verifies the binary is not corrupted and architecture is correct.
-          # For pyApp, this also triggers the initial dependency installation.
+          # Verifies architecture and initial installation (for pyApp)
           echo "🚀 STEP 1: Smoke Test (--version)..."
-          # Give it 90 seconds because pyApp installs dependencies on first run
-          # Use a cross-platform way to handle timeout
           VERSION_LOG="$RUNNER_TEMP/version.log"
           "$BIN_PATH" --version > "$VERSION_LOG" 2>&1 &
           SMOKE_PID=$!
           
-          # Wait for smoke test with manual timeout
+          # Manual timeout loop (portable for macOS/Windows/Linux)
           COUNT=0
           while kill -0 $SMOKE_PID 2>/dev/null; do
             if [ $COUNT -ge 90 ]; then
@@ -94,6 +91,7 @@ jobs:
           echo "🚀 STEP 2: Functional Test (API)..."
           echo "Starting binary in headless mode..."
           BINARY_LOG="$RUNNER_TEMP/binary.log"
+          # Use port 8080 for native, 8081 for containers (already handled in main.yml)
           nohup "$BIN_PATH" --headless --no-browser --port 8080 --api > "$BINARY_LOG" 2>&1 &
           BIN_PID=$!
           
@@ -123,100 +121,5 @@ jobs:
           echo "❌ API failed after timeout"
           echo "=== Binary log ==="
           [ -f "$BINARY_LOG" ] && tail -50 "$BINARY_LOG"
-          kill $BIN_PID 2>/dev/null || true
-          exit 1
-          fi
-          echo "✅ Smoke test passed"
-          
-          # STEP 2: Functional Test (API)
-          echo "🚀 STEP 2: Functional Test (API)..."
-          echo "Starting binary in headless mode..."
-          BINARY_LOG="$RUNNER_TEMP/binary.log"
-          nohup "$BIN_PATH" --headless --no-browser --port 8080 --api > "$BINARY_LOG" 2>&1 &
-          BIN_PID=$!
-          
-          # Determine HTTP tool
-          HTTP_GET="curl -s --retry 3 --retry-delay 2"
-          API_URL="http://127.0.0.1:8080/api/projects"
-          
-          echo "Waiting for API to respond (up to 60 seconds)..."
-          for i in {1..15}; do
-            echo "  Attempt $i/15..."
-            if $HTTP_GET "$API_URL" | grep -q "projects"; then
-              echo "✅ API is working on ${{ inputs.os }}"
-              kill $BIN_PID 2>/dev/null || true
-              exit 0
-            fi
-            
-            # Check if process died
-            if ! kill -0 $BIN_PID 2>/dev/null; then
-              echo "❌ Binary died during API test"
-              [ -f "$BINARY_LOG" ] && cat "$BINARY_LOG"
-              exit 1
-            fi
-            
-            sleep 4
-          done
-          
-          echo "❌ API failed after timeout"
-          echo "=== Binary log ==="
-          [ -f "$BINARY_LOG" ] && tail -50 "$BINARY_LOG"
-          kill $BIN_PID 2>/dev/null || true
-          exit 1
-            fi
-            sleep 1
-            COUNT=$((COUNT+1))
-          done
-          wait $SMOKE_PID
-          SMOKE_EXIT=$?
-          
-          if [ $SMOKE_EXIT -ne 0 ]; then
-            echo "❌ Smoke test failed (Exit code: $SMOKE_EXIT)"
-            cat /tmp/version.log
-            if grep -q "Illegal instruction" /tmp/version.log; then
-              echo "  Detected Architecture Mismatch (Illegal Instruction)"
-            elif grep -q "ModuleNotFoundError" /tmp/version.log; then
-              echo "  Detected Missing Module (Build Configuration Issue)"
-            fi
-            exit 1
-          fi
-          echo "✅ Smoke test passed"
-          
-          # STEP 2: Functional Test (API)
-          echo "🚀 STEP 2: Functional Test (API)..."
-          echo "Starting binary in headless mode..."
-          nohup "$BIN_PATH" --headless --no-browser --port 8080 --api > /tmp/binary.log 2>&1 &
-          BIN_PID=$!
-          disown $BIN_PID
-          
-          # Determine HTTP tool
-          HTTP_GET="curl -s --retry 3 --retry-delay 2"
-          API_URL="http://127.0.0.1:8080/api/projects"
-          
-          echo "Waiting for API to respond (up to 60 seconds)..."
-          for i in {1..15}; do
-            echo "  Attempt $i/15..."
-            API_RESPONSE=$($HTTP_GET "$API_URL" 2>&1 || echo "FAILED")
-            
-            if echo "$API_RESPONSE" | grep -q "projects"; then
-              echo "✅ API is working on ${{ inputs.os }}"
-              kill $BIN_PID 2>/dev/null || true
-              exit 0
-            fi
-            
-            # Check if process died
-            if ! kill -0 $BIN_PID 2>/dev/null; then
-              echo "❌ Binary died during API test"
-              cat /tmp/binary.log
-              exit 1
-            fi
-            
-            sleep 4
-          done
-          
-          echo "❌ API failed after timeout"
-          echo "Final response: $API_RESPONSE"
-          echo "=== Binary log ==="
-          tail -50 /tmp/binary.log
           kill $BIN_PID 2>/dev/null || true
           exit 1

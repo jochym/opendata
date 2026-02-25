@@ -109,7 +109,6 @@ jobs:
           
           echo "✅ Building from wheel: $PYAPP_PROJECT_PATH"
           ls -la "$PYAPP_PROJECT_PATH"
-          ls -la "$PYAPP_PROJECT_PATH"
           
           VERSION=$(cat ../src/opendata/VERSION | sed 's/+.*//')
           
