@@ -37,8 +37,7 @@ jobs:
 
   build-wheel:
     name: Build Wheel
-    needs: [logic-tests, gui-tests]
-    if: always() && (needs.logic-tests.result == 'success') && (needs.gui-tests.result == 'success' || needs.gui-tests.result == 'skipped')
+    needs: logic-tests
     runs-on: ubuntu-latest
     outputs:
       wheel_file: ${{ steps.build_wheel.outputs.WHEEL_FILE }}
