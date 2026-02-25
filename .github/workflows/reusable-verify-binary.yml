@@ -69,6 +69,7 @@ jobs:
           echo "Binary PID: $BIN_PID"
           
           # Wait for startup AND installation (first run installs from PyPI)
+          # Updated: 2026-02-25 - increased from 20s to 60s for pyApp first-run install
           echo "Waiting for binary to start and install dependencies (up to 90 seconds)..."
           sleep 60
           
