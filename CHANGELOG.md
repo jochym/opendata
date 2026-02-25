@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.32] - 2026-02-25
+### Fixed
+- **Binary Build Pipeline**: Restored missing dependencies in CI/CD workflow that caused empty wheel filenames in pyApp builds.
+- **CI Logic**: Decoupled wheel building from GUI tests to ensure binaries can be built even when GUI tests are skipped.
+- **Release Assets**: Ensured all binary artifacts (Windows, Linux, macOS) are correctly attached to the GitHub release.
+
 ## [0.22.31] - 2026-02-25
 ### Added
 - **macOS Intel Support**: Added support for macOS Intel (x86_64) pyApp binary builds.
@@ -29,5 +35,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **PyApp Configuration**: Removed invalid `PYAPP_EXEC_FUNCTION` and ensured proper Python distribution embedding.
 - **CI Testing**: Increased verification timeouts to accommodate first-run installation.
-
-## [0.22.25] - 2026-02-24
