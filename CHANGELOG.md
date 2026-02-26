@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.33] - 2026-02-26
+### Fixed
+- **AI Model Validation**: Prevented application crash when an invalid model name is configured.
+- **Model Selection Dialog**: Added a UI dialog that appears when the configured AI model is unavailable, allowing users to select a valid one from the list.
+- **NiceGUI Safety**: Fixed a `ValueError` in the settings tab caused by missing model options in the selection dropdown.
+- **Startup Logic**: Improved startup sequence to ensure UI notifications and dialogs are called within the correct page context.
+
 ## [0.22.32] - 2026-02-25
 ### Fixed
 - **Binary Build Pipeline**: Restored missing dependencies in CI/CD workflow that caused empty wheel filenames in pyApp builds.
