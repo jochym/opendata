@@ -35,6 +35,13 @@ def render_settings_tab(ctx: AppContext):
                 ui.label(_("AI Model")).classes("text-sm font-bold text-slate-600")
                 if ctx.ai.is_authenticated():
                     models = ctx.ai.list_available_models()
+                    current_model = ctx.ai.model_name
+
+                    # Ensure current model is in the options to avoid NiceGUI crash.
+                    # The validation dialog (check_and_show_model_dialog) will handle
+                    # prompting the user to fix it if it's truly invalid.
+                    if current_model and current_model not in models:
+                        models = [current_model] + models
 
                     async def handle_model_change(e):
                         ctx.ai.switch_model(e.value)

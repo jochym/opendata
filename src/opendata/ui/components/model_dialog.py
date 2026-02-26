@@ -30,38 +30,30 @@ def show_model_selection_dialog(ctx: AppContext, suggestion: dict):
         ui.markdown(
             _(
                 f"The configured model **`{current_model}`** is not available. "
-                f"Please select a valid model:"
+                "Please select a valid model from the list:"
             )
         )
 
-        selected_model = {"value": suggested_model}
-
-        ui.select(
-            options=available_models,
-            value=suggested_model,
-            label=_("Available Models"),
-        ).props("outlined dense").classes("w-full mb-4")
+        model_select = (
+            ui.select(
+                options=available_models,
+                value=suggested_model,
+                label=_("Available Models"),
+            )
+            .props("outlined dense")
+            .classes("w-full mb-4")
+        )
 
         with ui.row().classes("w-full justify-end gap-2 mt-4"):
 
-            async def use_suggested():
-                """Use the suggested model."""
-                await _apply_model_selection(ctx, selected_model["value"])
+            async def apply_selection():
+                """Apply the selected model."""
+                await _apply_model_selection(ctx, model_select.value)
                 dialog.close()
 
             ui.button(
-                _("Use Suggested") + f": {suggested_model}",
-                on_click=use_suggested,
-                color="green",
-            ).props("outline")
-
-            async def manual_select():
-                """Manual selection - already handled by select widget."""
-                pass
-
-            ui.button(
-                _("Select Manually"),
-                on_click=lambda: None,  # Select widget handles this
+                _("Use Selected Model"),
+                on_click=apply_selection,
                 color="primary",
             ).props("outline")
 

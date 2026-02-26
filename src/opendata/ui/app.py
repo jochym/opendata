@@ -73,22 +73,9 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080, enable_api: bool = False
 
     ai.authenticate(silent=True)
 
-    # Validate model after authentication
-    # If configured model is invalid, auto-switch to first available
-    old_model = ai.ensure_valid_model()
-    model_changed = False
-    if old_model:
-        logger.warning(
-            f"Configured model '{old_model}' was invalid. "
-            f"Switched to '{ai.model_name}'."
-        )
-        # Update settings to persist the fix
-        if settings.ai_provider in ["google", "genai"]:
-            settings.google_model = ai.model_name
-        elif settings.ai_provider == "openai":
-            settings.openai_model = ai.model_name
-        wm.save_yaml(settings, "settings.yaml")
-        model_changed = True
+    # Note: We used to do auto-fix here, but now we rely on
+    # check_and_show_model_dialog(ctx) inside index() to show a proper
+    # selection dialog to the user.
 
     # --- REFRESH LOGIC ---
     ctx.session._is_refreshing_global = False
@@ -136,15 +123,6 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080, enable_api: bool = False
     @ui.page("/")
     def index():
         setup_i18n(settings.language)
-
-        # Show notification if model was auto-corrected
-        if model_changed:
-            ui.notify(
-                _("Invalid model detected and auto-corrected to")
-                + f": {ai.model_name}",
-                type="warning",
-                timeout=5000,
-            )
 
         ui.add_head_html("""
             <style>
