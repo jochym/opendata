@@ -12,7 +12,7 @@ class AIService:
     Delegates calls to the active provider (Google or OpenAI).
     """
 
-    def __init__(self, workspace_path: Path, settings: UserSettings = None):
+    def __init__(self, workspace_path: Path, settings: UserSettings | None = None):
         self.workspace_path = workspace_path
         # If no settings provided, try to load defaults (though usually passed from UI)
         # For backward compatibility with existing tests that might just pass path
@@ -85,3 +85,66 @@ class AIService:
 
     def search_orcid_by_name(self, name: str) -> list:
         return self.provider.search_orcid_by_name(name)
+
+    def validate_model(self, model_name: str) -> bool:
+        """
+        Check if the given model name is available from the provider.
+
+        Args:
+            model_name: The model name to validate
+
+        Returns:
+            True if model is available, False otherwise
+        """
+        try:
+            available = self.provider.list_available_models()
+            return model_name in available
+        except Exception:
+            # If we can't fetch models, assume current model is OK
+            return True
+
+    def ensure_valid_model(self) -> str | None:
+        """
+        Ensure the current model is valid. If not, switch to first available.
+
+        Returns:
+            The old model name if it was invalid and was switched, None otherwise
+        """
+        current = self.provider.model_name
+        if not current:
+            return None
+
+        try:
+            available = self.provider.list_available_models()
+            if current not in available and available:
+                # Auto-switch to first available model
+                self.provider.switch_model(available[0])
+                return current
+            return None
+        except Exception:
+            # Can't validate, keep current model
+            return None
+
+    def get_invalid_model_suggestion(self) -> dict | None:
+        """
+        Get information about invalid model and suggestions.
+
+        Returns:
+            Dict with 'current', 'available', and 'suggested' keys,
+            or None if model is valid
+        """
+        current = self.provider.model_name
+        if not current:
+            return None
+
+        try:
+            available = self.provider.list_available_models()
+            if current not in available and available:
+                return {
+                    "current": current,
+                    "available": available,
+                    "suggested": available[0],
+                }
+            return None
+        except Exception:
+            return None
