@@ -76,6 +76,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080, enable_api: bool = False
     # Validate model after authentication
     # If configured model is invalid, auto-switch to first available
     old_model = ai.ensure_valid_model()
+    model_changed = False
     if old_model:
         logger.warning(
             f"Configured model '{old_model}' was invalid. "
@@ -87,13 +88,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080, enable_api: bool = False
         elif settings.ai_provider == "openai":
             settings.openai_model = ai.model_name
         wm.save_yaml(settings, "settings.yaml")
-
-        # Show notification to user
-        ui.notify(
-            _("Invalid model detected and auto-corrected to") + f": {ai.model_name}",
-            type="warning",
-            timeout=5000,
-        )
+        model_changed = True
 
     # --- REFRESH LOGIC ---
     ctx.session._is_refreshing_global = False
@@ -141,6 +136,16 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080, enable_api: bool = False
     @ui.page("/")
     def index():
         setup_i18n(settings.language)
+
+        # Show notification if model was auto-corrected
+        if model_changed:
+            ui.notify(
+                _("Invalid model detected and auto-corrected to")
+                + f": {ai.model_name}",
+                type="warning",
+                timeout=5000,
+            )
+
         ui.add_head_html("""
             <style>
                 .nicegui-content { padding: 4px !important; }
