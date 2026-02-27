@@ -478,7 +478,9 @@ class ProjectAnalysisAgent:
         )
 
         if stop_event and stop_event.is_set():
-            return _("AI analysis cancelled by user.")
+            import asyncio
+
+            raise asyncio.CancelledError(_("AI analysis cancelled by user"))
 
         if analysis:
             # Preserve manually selected file suggestions

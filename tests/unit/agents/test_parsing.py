@@ -79,3 +79,21 @@ METADATA:
 """
     msg, analysis, metadata = extract_metadata_from_ai_response(ai_input, current)
     assert metadata.title == "Single Quotes Title"
+
+
+def test_extract_metadata_prose_only_skips_parsing():
+    """Prose-only guard: when METADATA section contains only text, skip parsing."""
+    current = Metadata(title="Old Title")
+    ai_input = """
+I've analyzed your project. The files look good for packaging.
+You have a nice mix of data files and scripts.
+
+METADATA:
+This is just explanatory text without any structured data.
+The project appears to be a physics simulation with VASP.
+I recommend including the OUTCAR files and the analysis scripts.
+"""
+    msg, analysis, metadata = extract_metadata_from_ai_response(ai_input, current)
+    assert metadata.title == "Old Title"
+    assert analysis is None
+    assert "explanatory text" in msg

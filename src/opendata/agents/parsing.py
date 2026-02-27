@@ -82,7 +82,7 @@ def extract_metadata_from_ai_response(
         # content (e.g. AI just returned prose), skip parsing and return the
         # full response so the user still sees the assistant text.
         # Accept colons (:), braces ({), or YAML list markers (-)
-        if not re.search(r"[:{\-?]", json_section[:200]):
+        if not re.search(r"[:{-]", json_section[:500]):
             return clean_text if clean_text else response_text, None, updated_metadata
 
         # Determine if we are dealing with JSON or YAML

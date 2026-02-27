@@ -16,9 +16,9 @@ INSTRUCTIONS:
 2. Identify core data files, scripts, and documentation required to reproduce the research results.
 3. Provide a summary of your findings to the user.
 4. Identify any RODBUK metadata fields (especially data-specific ones) that still appear missing or incomplete, but only ask the user about them if you cannot resolve them from the project files or the CURRENT METADATA DRAFT.
-4. To inspect the content of specific files, use the syntax `READ_FILE: path/to/file1, path/to/file2` on a separate line.
-5. List specific file suggestions in the ANALYSIS block.
-5. Ensure you do NOT ask for information already present in the CURRENT METADATA DRAFT when generating questions or summaries.
+5. To inspect the content of specific files, use the syntax `READ_FILE: path/to/file1, path/to/file2` on a separate line.
+6. List specific file suggestions in the ANALYSIS block.
+7. Ensure you do NOT ask for information already present in the CURRENT METADATA DRAFT when generating questions or summaries.
 
 Response format (STRICT):
 You MUST return a YAML structure (JSON also acceptable) containing two root keys: `ANALYSIS` and `METADATA`.
