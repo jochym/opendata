@@ -35,10 +35,14 @@ logger = logging.getLogger("tests.e2e")
 
 @pytest.fixture
 def real_project_path():
-    """Points to the real project path provided by the user."""
-    path = Path("/home/jochym/calc/3C-SiC/Project")
+    """Points to the realistic project fixture."""
+    # Use the realistic project fixture
+    path = Path(__file__).parent.parent / "fixtures" / "realistic_projects" / "3C-SiC"
     if not path.exists():
-        pytest.skip(f"Real project path {path} not found. Skipping E2E test.")
+        # Fallback for backward compatibility
+        path = Path("/home/jochym/calc/3C-SiC/Project")
+        if not path.exists():
+            pytest.skip(f"Project path {path} not found. Skipping E2E test.")
     return path
 
 
@@ -57,8 +61,19 @@ def workspace(tmp_path):
         logger.info(f"Copied real protocol configs to {test_protocols}")
 
     # Copy project-specific protocol for the test project
+    # Calculate project ID from fixture path (same as workspace does)
+    import hashlib
+
+    fixture_path = (
+        Path(__file__).parent.parent / "fixtures" / "realistic_projects" / "3C-SiC"
+    )
+    test_project_id = (
+        hashlib.md5(str(fixture_path).encode()).hexdigest()
+        if fixture_path.exists()
+        else "ec7e33c23da584709f6322cb52b01d52"
+    )
+
     real_projects = Path.home() / ".opendata_tool" / "projects"
-    test_project_id = "ec7e33c23da584709f6322cb52b01d52"
     real_project_protocol = real_projects / test_project_id / "protocol.yaml"
     if real_project_protocol.exists():
         test_project_dir = ws_path / "projects" / test_project_id

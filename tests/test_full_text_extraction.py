@@ -82,6 +82,8 @@ def test_project_agent_detects_full_text_candidate(latex_full_file, tmp_path):
         total_size_bytes=1000,
         extensions=[".tex"],
         structure_sample=[str(latex_full_file.relative_to(latex_full_file.parent))],
+        primary_file=None,  # Will be auto-detected by scanner on real projects
+        significant_files=[],
     )
 
     # Verify LaTeX file is in structure sample (AI should detect it)
@@ -89,7 +91,5 @@ def test_project_agent_detects_full_text_candidate(latex_full_file, tmp_path):
         "LaTeX file should be in structure sample for AI detection"
     )
 
-    # TODO: When scanner.heuristics is implemented, verify:
-    # 1. AI identifies LaTeX as primary publication candidate
-    # 2. User can override the selection
-    # For now, test verifies the file is available for detection
+    # Note: primary_file auto-detection happens in scanner.py when scanning real projects
+    # This test verifies the file is available for the scanner to detect
