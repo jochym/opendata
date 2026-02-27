@@ -12,7 +12,6 @@ import time
 
 # Configuration
 BASE_URL = "http://127.0.0.1:8080"
-PROJECT_PATH = Path("/home/jochym/calc/3C-SiC/Project")
 API_TIMEOUT = 10
 
 
@@ -24,8 +23,16 @@ def api_base_url():
 
 @pytest.fixture(scope="session")
 def test_project_path():
-    """Returns the path to the test project."""
-    return PROJECT_PATH
+    """Returns the path to the test project (uses realistic fixture)."""
+    # Use the realistic project fixture instead of hardcoded path
+    fixture_path = (
+        Path(__file__).parent.parent / "fixtures" / "realistic_projects" / "3C-SiC"
+    )
+    if fixture_path.exists():
+        return fixture_path
+
+    # Fallback to old path for backward compatibility
+    return Path("/home/jochym/calc/3C-SiC/Project")
 
 
 @pytest.fixture(scope="function")
@@ -54,9 +61,19 @@ def preloaded_project(page):
 
     # Auto-load project via API
     try:
+        # Get project path from fixture
+        fixture_path = (
+            Path(__file__).parent.parent / "fixtures" / "realistic_projects" / "3C-SiC"
+        )
+        project_path = (
+            str(fixture_path)
+            if fixture_path.exists()
+            else "/home/jochym/calc/3C-SiC/Project"
+        )
+
         response = requests.post(
             f"{BASE_URL}/api/projects/load",
-            json={"project_path": str(PROJECT_PATH)},
+            json={"project_path": project_path},
             timeout=API_TIMEOUT,
         )
 
