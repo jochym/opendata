@@ -44,22 +44,25 @@ def test_version_argument(capsys) -> None:
         sys.argv = original_argv
 
 
-def test_help_argument() -> None:
-    """Test that --help argument displays help and exits."""
-    from opendata.main import main
+def test_help_argument(capsys) -> None:
+    """Test that --help argument displays help text and exits with code 0."""
     import sys
+    from opendata.main import main
 
     original_argv = sys.argv
 
     try:
-        # Ensure that requesting help works and exits cleanly
         sys.argv = ["opendata", "--help"]
 
-        try:
+        with pytest.raises(SystemExit) as exc_info:
             main()
-        except SystemExit:
-            # --help exits after showing help
-            pass
+
+        assert exc_info.value.code == 0 or exc_info.value.code is None
+
+        captured = capsys.readouterr()
+        assert "usage" in captured.out.lower() or "help" in captured.out.lower(), (
+            f"Expected help text in stdout, got: {captured.out!r}"
+        )
     finally:
         sys.argv = original_argv
 

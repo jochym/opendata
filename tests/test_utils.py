@@ -4,8 +4,6 @@ from opendata.utils import scan_project_lazy, read_file_header
 import tempfile
 import shutil
 
-pytestmark = [pytest.mark.local_only]
-
 
 def test_lazy_scanner_no_reads():
     """Verify scanner handles large-ish files without performance hit and avoids reading data."""
