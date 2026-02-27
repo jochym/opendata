@@ -78,6 +78,13 @@ def extract_metadata_from_ai_response(
 
         json_section = json_section.strip()
 
+        # Guardrail: if the METADATA section does not look like key/value
+        # content (e.g. AI just returned prose), skip parsing and return the
+        # full response so the user still sees the assistant text.
+        # Accept colons (:), braces ({), or YAML list markers (-)
+        if not re.search(r"[:{\-?]", json_section[:200]):
+            return clean_text if clean_text else response_text, None, updated_metadata
+
         # Determine if we are dealing with JSON or YAML
         # Try to extract JSON object even if AI prepends explanatory text
         # First check for explicit markers, then try to find JSON object in content
