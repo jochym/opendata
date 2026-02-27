@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.34] - 2026-02-28
+### Fixed
+- **AI Spinner State**: Fixed bug where "AI is thinking" spinner would not disappear after AI completion or cancellation. Added explicit `ctx.refresh("chat")` calls to ensure UI reflects current state.
+- **Cancellation Handling**: Added explicit `asyncio.CancelledError` handling in chat to log cancellation messages, matching the scan cancellation pattern.
+- **Parsing Robustness**: Updated parser guardrail to accept YAML list markers and increased check window from 200 to 500 characters, preventing crashes on prose-only AI responses.
+- **Prompt-Parser Format Mismatch**: Updated all prompt templates to use YAML-first format (with JSON fallback), resolving inconsistencies between prompts and parser expectations.
+
+### Changed
+- **Prompts**: All system prompts now prefer YAML format for better readability while maintaining JSON compatibility.
+- **E2E Tests**: Replaced hardcoded project paths with realistic fixtures from `tests/fixtures/realistic_projects/`, making tests portable across environments.
+
+### Added
+- **Test Coverage**: Added comprehensive test suite for AI cancellation state management (8 tests).
+- **Test Coverage**: Added test for prose-only parsing guard to verify parser skips parsing when METADATA section contains only text.
+- **Wheel Packaging**: Auto-build wheel for packaging tests, eliminating manual build step requirement.
+
+### Removed
+- **Redundant Tests**: Removed `tests/test_workspace.py` (duplicated integration tests in `tests/integration/test_workspace_io.py`).
+- **Unnecessary Markers**: Removed `local_only` marker from `tests/test_utils.py` - tests now run in CI/CD.
+
+### Testing
+- Fixed `test_help_argument` to verify actual help text output and exit code.
+- All 152 tests pass (10 wheel packaging tests now auto-build and run).
+- E2E tests now use realistic project fixtures instead of hardcoded paths.
+
 ## [0.22.33] - 2026-02-26
 ### Fixed
 - **AI Model Validation**: Prevented application crash when an invalid model name is configured.
