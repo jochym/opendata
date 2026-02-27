@@ -68,7 +68,7 @@ For every author and the document itself, you MUST attempt to find missing ident
 ### 7. Software & License
 - **Software:** Identify specific software versions used for data generation or analysis (e.g., "VASP 6.4.1", "Python 3.10", "Phonopy 2.15").
 - **License:** Extract or propose a license. Default to "CC-BY-4.0" unless specified otherwise (e.g., "MIT", "GPL").
-Return **ONLY** valid JSON matching the structure below. Do not include markdown fences like ```json.
+Return **ONLY** valid YAML or JSON matching the structure below. Do not include markdown fences like ```yaml or ```json.
 
 The response must contain two root keys: `ANALYSIS` and `METADATA`.
 
@@ -88,54 +88,70 @@ This section helps the user understand what was achieved and what is missing.
 ### METADATA
 The current best-effort metadata matching the RODBUK schema.
 
-```json
-{{
-  "ANALYSIS": {{
-    "summary": "Extracted title and 3 authors from LaTeX.",
-    "missing_fields": ["abstract", "email", "science_branches_oecd", "science_branches_mnisw"],
-    "non_compliant": ["license"],
-    "conflicting_data": [],
-    "questions": [
-      {{
-        "field": "abstract",
-        "label": "Abstract",
-        "question": "The LaTeX file has two possible abstracts. Which one is correct?",
-        "type": "choice",
-        "options": ["Abstract A...", "Abstract B..."]
-      }},
-      {{
-        "field": "science_branches_oecd",
-        "label": "Science Branch (OECD)",
-        "question": "I inferred the science branch as '1.3 Physical sciences'. Is this correct or should I use another?",
-        "type": "choice",
-        "options": ["1.3 Physical sciences", "1.4 Chemical sciences", "2.2 Electrical engineering"]
-      }}
-    ]
-  }},
-  "METADATA": {{
-    "title": "string",
-    "abstract": "string",
-    "authors": [
-      {{ "name": "string", "affiliation": "string", "identifier": "string", "identifier_scheme": "ORCID" }}
-    ],
-    "contacts": [
-      {{ "person_to_contact": "string", "email": "string", "affiliation": "string" }}
-    ],
-    "description": ["Abstract summary...", "Methodology summary..."],
-    "keywords": ["string"],
-    "science_branches_oecd": ["string"],
-    "science_branches_mnisw": ["string"],
-    "kind_of_data": "string",
-    "related_publications": [
-      {{ "title": "string", "relation_type": "string", "id_type": "string", "id_number": "string" }}
-    ],
-    "funding": [
-      {{ "funder_name": "string", "award_title": "string", "grant_id": "string" }}
-    ],
-    "license": "CC-BY-4.0",
-    "software": ["string"]
-  }}
-}}
+Example (YAML format preferred, JSON also acceptable):
+
+```yaml
+ANALYSIS:
+  summary: "Extracted title and 3 authors from LaTeX."
+  missing_fields:
+    - abstract
+    - email
+    - science_branches_oecd
+    - science_branches_mnisw
+  non_compliant:
+    - license
+  conflicting_data: []
+  questions:
+    - field: abstract
+      label: Abstract
+      question: "The LaTeX file has two possible abstracts. Which one is correct?"
+      type: choice
+      options:
+        - "Abstract A..."
+        - "Abstract B..."
+    - field: science_branches_oecd
+      label: "Science Branch (OECD)"
+      question: "I inferred the science branch as '1.3 Physical sciences'. Is this correct or should I use another?"
+      type: choice
+      options:
+        - "1.3 Physical sciences"
+        - "1.4 Chemical sciences"
+        - "2.2 Electrical engineering"
+
+METADATA:
+  title: "string"
+  abstract: "string"
+  authors:
+    - name: "string"
+      affiliation: "string"
+      identifier: "string"
+      identifier_scheme: "ORCID"
+  contacts:
+    - person_to_contact: "string"
+      email: "string"
+      affiliation: "string"
+  description:
+    - "Abstract summary..."
+    - "Methodology summary..."
+  keywords:
+    - "string"
+  science_branches_oecd:
+    - "string"
+  science_branches_mnisw:
+    - "string"
+  kind_of_data: "string"
+  related_publications:
+    - title: "string"
+      relation_type: "string"
+      id_type: "string"
+      id_number: "string"
+  funding:
+    - funder_name: "string"
+      award_title: "string"
+      grant_id: "string"
+  license: "CC-BY-4.0"
+  software:
+    - "string"
 ```
 
 ---

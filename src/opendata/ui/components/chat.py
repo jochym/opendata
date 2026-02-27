@@ -344,6 +344,7 @@ async def handle_ai_analysis(ctx: AppContext, path: str):
     finally:
         ScanState.is_processing_ai = False
         ctx.session.ai_stop_event = None
+        ctx.refresh("chat")
         ctx.refresh_all()
 
 
@@ -722,11 +723,19 @@ async def handle_user_msg_from_code(ctx: AppContext, text: str, mode: str = "met
             mode=mode,
             stop_event=ctx.session.ai_stop_event,
         )
+    except asyncio.CancelledError:
+        logger.info("AI interaction cancelled by user.")
+        ctx.agent.chat_history.append(
+            ("agent", f"🛑 **{_('AI interaction cancelled.')}**")
+        )
+        ctx.agent.save_state()
     except Exception as e:
+        logger.error(f"AI processing failed: {e}", exc_info=True)
         ui.notify(f"Error processing AI request: {e}", type="negative")
     finally:
         ScanState.is_processing_ai = False
         ctx.session.ai_stop_event = None
+        ctx.refresh("chat")
         ctx.refresh_all()
 
         try:

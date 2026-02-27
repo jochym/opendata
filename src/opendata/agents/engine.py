@@ -91,7 +91,9 @@ class AnalysisEngine:
         max_tool_iterations = 5
         for iteration in range(max_tool_iterations):
             if stop_event and stop_event.is_set():
-                return "🛑 **Analysis cancelled by user.**", None, current_metadata
+                import asyncio
+
+                raise asyncio.CancelledError("Analysis cancelled by user")
 
             context = self.generate_ai_prompt(
                 mode, current_metadata, fingerprint, effective_protocol

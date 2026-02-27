@@ -64,7 +64,6 @@ class TestWheelContents:
         wheel_path = get_wheel_path()
         required_prompts = [
             "opendata/prompts/chat_wrapper.md",
-            "opendata/prompts/system_prompt.md",
             "opendata/prompts/system_prompt_curator.md",
             "opendata/prompts/system_prompt_metadata.md",
             "opendata/prompts/full_text_extraction.md",
