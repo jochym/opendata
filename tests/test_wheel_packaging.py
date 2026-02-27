@@ -9,23 +9,52 @@ from pathlib import Path
 import tempfile
 import shutil
 import sys
+import subprocess
 import pytest
 
 
-@pytest.mark.local_only
-def get_wheel_path():
-    """Find the built wheel file."""
-    dist_dir = Path("dist")
-    if not dist_dir.exists():
-        pytest.skip("No dist directory found. Run 'python -m build --wheel' first.")
+@pytest.fixture(scope="session")
+def built_wheel():
+    """Build wheel before testing.
 
+    This fixture ensures a fresh wheel is built before running packaging tests.
+    It cleans old builds, builds the wheel, and yields the wheel path.
+    """
+    dist_dir = Path("dist")
+    build_dir = Path("build")
+
+    # Clean old builds
+    if dist_dir.exists():
+        shutil.rmtree(dist_dir)
+    if build_dir.exists():
+        shutil.rmtree(build_dir)
+
+    # Build wheel
+    print("\n🔨 Building wheel for packaging tests...")
+    try:
+        subprocess.check_call(
+            [sys.executable, "-m", "build", "--wheel"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    except subprocess.CalledProcessError as e:
+        pytest.fail(f"Failed to build wheel: {e}")
+    except FileNotFoundError:
+        pytest.fail("Build tool not found. Install with: pip install build")
+
+    # Find wheel
     wheels = list(dist_dir.glob("*.whl"))
     if not wheels:
-        pytest.skip(
-            "No wheel file found in dist/. Run 'python -m build --wheel' first."
-        )
+        pytest.fail("No wheel file found in dist/ after build")
 
-    return wheels[0]
+    print(f"✅ Wheel built: {wheels[0].name}")
+    yield wheels[0]
+
+    # Cleanup (optional - comment out to inspect wheel)
+    # if dist_dir.exists():
+    #     shutil.rmtree(dist_dir)
+    # if build_dir.exists():
+    #     shutil.rmtree(build_dir)
 
 
 def extract_wheel(wheel_path):
@@ -43,40 +72,36 @@ def extract_wheel(wheel_path):
 class TestWheelContents:
     """Test that wheel contains all required data files."""
 
-    def test_version_file_included(self):
+    def test_version_file_included(self, built_wheel):
         """VERSION file must be included in wheel."""
-        wheel_path = get_wheel_path()
-        with zipfile.ZipFile(wheel_path, "r") as z:
+        with zipfile.ZipFile(built_wheel, "r") as z:
             names = z.namelist()
             assert "opendata/VERSION" in names, "VERSION file missing from wheel"
 
-    def test_client_secrets_included(self):
+    def test_client_secrets_included(self, built_wheel):
         """client_secrets.json must be included in wheel."""
-        wheel_path = get_wheel_path()
-        with zipfile.ZipFile(wheel_path, "r") as z:
+        with zipfile.ZipFile(built_wheel, "r") as z:
             names = z.namelist()
             assert "opendata/client_secrets.json" in names, (
                 "client_secrets.json missing from wheel"
             )
 
-    def test_prompt_templates_included(self):
+    def test_prompt_templates_included(self, built_wheel):
         """All prompt templates must be included in wheel."""
-        wheel_path = get_wheel_path()
         required_prompts = [
             "opendata/prompts/chat_wrapper.md",
             "opendata/prompts/system_prompt_curator.md",
             "opendata/prompts/system_prompt_metadata.md",
             "opendata/prompts/full_text_extraction.md",
         ]
-        with zipfile.ZipFile(wheel_path, "r") as z:
+        with zipfile.ZipFile(built_wheel, "r") as z:
             names = z.namelist()
             for prompt in required_prompts:
                 assert prompt in names, f"Prompt template {prompt} missing from wheel"
 
-    def test_field_protocols_included(self):
+    def test_field_protocols_included(self, built_wheel):
         """Field protocol YAML files must be included in wheel."""
-        wheel_path = get_wheel_path()
-        with zipfile.ZipFile(wheel_path, "r") as z:
+        with zipfile.ZipFile(built_wheel, "r") as z:
             names = z.namelist()
             # Check for at least one field protocol
             field_protocols = [
@@ -92,12 +117,11 @@ class TestWheelContents:
 class TestWheelResourceAccess:
     """Test that resources are accessible after wheel installation."""
 
-    def test_get_resource_path_client_secrets(self):
+    def test_get_resource_path_client_secrets(self, built_wheel):
         """get_resource_path should find client_secrets.json in installed wheel."""
-        wheel_path = get_wheel_path()
         test_dir = Path(tempfile.mkdtemp())
         try:
-            with zipfile.ZipFile(wheel_path, "r") as z:
+            with zipfile.ZipFile(built_wheel, "r") as z:
                 z.extractall(test_dir)
 
             sys.path.insert(0, str(test_dir))
@@ -116,12 +140,11 @@ class TestWheelResourceAccess:
             if str(test_dir) in sys.path:
                 sys.path.remove(str(test_dir))
 
-    def test_get_resource_path_prompts(self):
+    def test_get_resource_path_prompts(self, built_wheel):
         """get_resource_path should find prompts directory in installed wheel."""
-        wheel_path = get_wheel_path()
         test_dir = Path(tempfile.mkdtemp())
         try:
-            with zipfile.ZipFile(wheel_path, "r") as z:
+            with zipfile.ZipFile(built_wheel, "r") as z:
                 z.extractall(test_dir)
 
             sys.path.insert(0, str(test_dir))
@@ -141,12 +164,11 @@ class TestWheelResourceAccess:
             if str(test_dir) in sys.path:
                 sys.path.remove(str(test_dir))
 
-    def test_get_resource_path_version(self):
+    def test_get_resource_path_version(self, built_wheel):
         """get_resource_path should find VERSION file in installed wheel."""
-        wheel_path = get_wheel_path()
         test_dir = Path(tempfile.mkdtemp())
         try:
-            with zipfile.ZipFile(wheel_path, "r") as z:
+            with zipfile.ZipFile(built_wheel, "r") as z:
                 z.extractall(test_dir)
 
             sys.path.insert(0, str(test_dir))
@@ -165,12 +187,11 @@ class TestWheelResourceAccess:
             if str(test_dir) in sys.path:
                 sys.path.remove(str(test_dir))
 
-    def test_get_resource_path_field_protocols(self):
+    def test_get_resource_path_field_protocols(self, built_wheel):
         """get_resource_path should find field protocol files in installed wheel."""
-        wheel_path = get_wheel_path()
         test_dir = Path(tempfile.mkdtemp())
         try:
-            with zipfile.ZipFile(wheel_path, "r") as z:
+            with zipfile.ZipFile(built_wheel, "r") as z:
                 z.extractall(test_dir)
 
             sys.path.insert(0, str(test_dir))
@@ -194,12 +215,11 @@ class TestWheelResourceAccess:
 class TestPromptManager:
     """Test PromptManager can load templates from wheel."""
 
-    def test_prompt_manager_initialization(self):
+    def test_prompt_manager_initialization(self, built_wheel):
         """PromptManager should initialize with prompts from wheel."""
-        wheel_path = get_wheel_path()
         test_dir = Path(tempfile.mkdtemp())
         try:
-            with zipfile.ZipFile(wheel_path, "r") as z:
+            with zipfile.ZipFile(built_wheel, "r") as z:
                 z.extractall(test_dir)
 
             sys.path.insert(0, str(test_dir))
@@ -220,12 +240,11 @@ class TestPromptManager:
             if str(test_dir) in sys.path:
                 sys.path.remove(str(test_dir))
 
-    def test_prompt_manager_render_chat_wrapper(self):
+    def test_prompt_manager_render_chat_wrapper(self, built_wheel):
         """PromptManager should render chat_wrapper template."""
-        wheel_path = get_wheel_path()
         test_dir = Path(tempfile.mkdtemp())
         try:
-            with zipfile.ZipFile(wheel_path, "r") as z:
+            with zipfile.ZipFile(built_wheel, "r") as z:
                 z.extractall(test_dir)
 
             sys.path.insert(0, str(test_dir))
