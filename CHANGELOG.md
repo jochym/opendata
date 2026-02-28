@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.35] - 2026-02-28
+### Fixed
+- **Cross-Platform Path Handling**: Fixed `test_lazy_scanner_no_reads` failure on macOS and Windows caused by `Path.relative_to()` errors with symlinks and short paths (e.g., `/var` vs `/private/var`, `runneradmin` vs `RUNNER~1`). Both file path and root are now resolved before computing relative paths in `scan_project_lazy` and `format_file_list`.
+
+### Testing
+- All 152 tests pass on all platforms (Ubuntu, macOS, Windows).
+- CI/CD pipeline now passes on all platforms after symlink path resolution fix.
+
 ## [0.22.34] - 2026-02-28
 ### Fixed
 - **AI Spinner State**: Fixed bug where "AI is thinking" spinner would not disappear after AI completion or cancellation. Added explicit `ctx.refresh("chat")` calls to ensure UI reflects current state.
