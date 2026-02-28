@@ -314,7 +314,9 @@ def scan_project_lazy(
             suffix = p.suffix.lower()
             extensions.add(suffix)
 
-            rel_path = str(p.relative_to(root))
+            # Resolve both paths to handle symlinks (macOS /var → /private/var)
+            # and Windows short paths (RUNNER~1 → runneradmin)
+            rel_path = str(p.resolve().relative_to(root.resolve()))
             full_inventory.append(
                 {"path": rel_path, "size": size, "mtime": stat.st_mtime}
             )
@@ -327,7 +329,7 @@ def scan_project_lazy(
             total_size_str = format_size(total_size)
             progress_callback(
                 f"{total_size_str} - {file_count} files",
-                str(p.relative_to(root)),
+                str(p.resolve().relative_to(root.resolve())),
                 f"Scanning {p.name}...",
             )
             last_ui_update = now
@@ -363,9 +365,10 @@ def setup_logging(level: int = logging.INFO):
 def format_file_list(files: List[Path], root: Path) -> str:
     """Formats a list of files for AI context."""
     lines = []
+    root_resolved = root.resolve()
     for f in sorted(files):
         try:
-            rel = f.relative_to(root)
+            rel = f.resolve().relative_to(root_resolved)
             size = format_size(f.stat().st_size)
             lines.append(f"- `{rel}` ({size})")
         except Exception:
