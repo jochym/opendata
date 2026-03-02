@@ -73,6 +73,9 @@
                 <button onclick="loadDoc('tester')" class="bg-white/10 backdrop-blur-md border border-white/30 px-8 py-4 rounded-xl font-bold hover:bg-white/20 transition-all shadow-lg flex items-center">
                     <i class="fas fa-vial mr-3 text-yellow-400"></i> TESTER MANUAL
                 </button>
+                <button onclick="loadDoc('installation')" class="bg-white/10 backdrop-blur-md border border-white/30 px-8 py-4 rounded-xl font-bold hover:bg-white/20 transition-all shadow-lg flex items-center">
+                    <i class="fas fa-book-open mr-3 text-emerald-400"></i> INSTALLATION GUIDE
+                </button>
                 <button onclick="loadDoc('developer')" class="bg-white/10 backdrop-blur-md border border-white/30 px-8 py-4 rounded-xl font-bold hover:bg-white/20 transition-all shadow-lg flex items-center">
                     <i class="fas fa-code mr-3 text-blue-400"></i> DEVELOPER GUIDE
                 </button>
@@ -315,6 +318,65 @@
                     <span class="text-sm text-slate-400 mt-2 font-mono">x86_64</span>
                 </a>
             </div>
+
+            <!-- Detailed Installation Guide Section -->
+            <div class="mt-20">
+                <div class="flex items-center justify-center mb-10 gap-4">
+                    <div class="h-1 w-12 bg-emerald-500 rounded-full"></div>
+                    <h3 class="text-2xl font-black text-slate-900 uppercase tracking-tight">Step-by-Step Installation</h3>
+                    <div class="h-1 w-12 bg-emerald-500 rounded-full"></div>
+                </div>
+                
+                <div class="grid md:grid-cols-3 gap-8">
+                    <div class="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-xl">
+                        <div class="flex items-center mb-6">
+                            <i class="fab fa-windows text-blue-600 text-3xl mr-4"></i>
+                            <h4 class="font-bold text-xl">Windows Guide</h4>
+                        </div>
+                        <ul class="space-y-4 text-sm text-slate-600">
+                            <li class="flex items-start"><span class="bg-blue-100 text-blue-700 w-6 h-6 rounded-full flex items-center justify-center mr-3 flex-shrink-0 font-bold">1</span> Run the <code>opendata-win-pyapp-&lt;version&gt;.exe</code> file.</li>
+                            <li class="flex items-start"><span class="bg-blue-100 text-blue-700 w-6 h-6 rounded-full flex items-center justify-center mr-3 flex-shrink-0 font-bold">2</span> Click <strong>"More info"</strong> and <strong>"Run anyway"</strong> on the SmartScreen warning.</li>
+                            <li class="flex items-start"><span class="bg-blue-100 text-blue-700 w-6 h-6 rounded-full flex items-center justify-center mr-3 flex-shrink-0 font-bold">3</span> Wait ~60s for the first-time setup.</li>
+                            <li class="flex items-start"><span class="bg-blue-100 text-blue-700 w-6 h-6 rounded-full flex items-center justify-center mr-3 flex-shrink-0 font-bold">4</span> Look for the icon in your system tray to open the Dashboard.</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-xl">
+                        <div class="flex items-center mb-6">
+                            <i class="fab fa-apple text-slate-900 text-3xl mr-4"></i>
+                            <h4 class="font-bold text-xl">macOS Guide</h4>
+                        </div>
+                        <ul class="space-y-4 text-sm text-slate-600">
+                            <li class="flex items-start"><span class="bg-slate-200 text-slate-800 w-6 h-6 rounded-full flex items-center justify-center mr-3 flex-shrink-0 font-bold">1</span> Download the correct architecture (ARM for M1/M2, Intel for old Macs).</li>
+                            <li class="flex items-start"><span class="bg-slate-200 text-slate-800 w-6 h-6 rounded-full flex items-center justify-center mr-3 flex-shrink-0 font-bold">2</span> <strong>Right-click</strong> the file and select <strong>"Open"</strong> to bypass security warnings.</li>
+                            <li class="flex items-start"><span class="bg-slate-200 text-slate-800 w-6 h-6 rounded-full flex items-center justify-center mr-3 flex-shrink-0 font-bold">3</span> Wait ~60s for the first-time setup (unpacking).</li>
+                            <li class="flex items-start"><span class="bg-slate-200 text-slate-800 w-6 h-6 rounded-full flex items-center justify-center mr-3 flex-shrink-0 font-bold">4</span> Alternatively, allow it in <em>System Settings > Privacy & Security</em>.</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-xl">
+                        <div class="flex items-center mb-6">
+                            <i class="fab fa-linux text-orange-600 text-3xl mr-4"></i>
+                            <h4 class="font-bold text-xl">Linux Guide</h4>
+                        </div>
+                        <ul class="space-y-4 text-sm text-slate-600">
+                            <li class="flex items-start"><span class="bg-orange-100 text-orange-700 w-6 h-6 rounded-full flex items-center justify-center mr-3 flex-shrink-0 font-bold">1</span> Download the universal binary <code>opendata-linux-pyapp-&lt;version&gt;</code>.</li>
+                            <li class="flex items-start"><span class="bg-orange-100 text-orange-700 w-6 h-6 rounded-full flex items-center justify-center mr-3 flex-shrink-0 font-bold">2</span> Run <code>chmod +x opendata-linux-pyapp-*</code> in your terminal.</li>
+                            <li class="flex items-start"><span class="bg-orange-100 text-orange-700 w-6 h-6 rounded-full flex items-center justify-center mr-3 flex-shrink-0 font-bold">3</span> Wait ~60s for the first-time setup. Ensure <code>libfuse2</code> is installed.</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="mt-8 text-center">
+                    <button onclick="loadDoc('installation')" class="inline-flex items-center text-emerald-600 font-bold hover:underline">
+                        <i class="fas fa-plus-circle mr-2"></i> Read the full Installation FAQ & Troubleshooting
+                    </button>
+                    <span class="mx-4 text-slate-300">|</span>
+                    <button onclick="loadDoc('installation_pl')" class="inline-flex items-center text-blue-600 font-bold hover:underline">
+                        <i class="fas fa-flag mr-2"></i> Przeczytaj instrukcję po polsku
+                    </button>
+                </div>
+            </div>
             
             <!-- Development Installation -->
             <div class="mt-16 bg-slate-50 p-10 rounded-[2.5rem] border border-slate-200">
@@ -384,6 +446,8 @@
             loading.classList.remove('hidden');
             
             if (type === 'tester') docTitle.innerText = 'Beta Tester Manual';
+            else if (type === 'installation') docTitle.innerText = 'Installation Guide';
+            else if (type === 'installation_pl') docTitle.innerText = 'Instrukcja Instalacji (PL)';
             else if (type === 'developer') docTitle.innerText = 'Developer Guide';
             else docTitle.innerText = 'Binary Build System';
             
