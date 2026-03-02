@@ -5,8 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.22.35] - 2026-02-28
+## [0.22.35] - 2026-03-02
+### Added
+- **Documentation**: Added comprehensive, step-by-step installation guides for beta testers in English and Polish (`website/docs/installation.md`, `website/docs/installation_pl.md`).
+- **Website UI**: Enhanced the testing portal (`website/index.html`) with a new "Step-by-Step Installation" section and direct links to the new guides.
+
+### Changed
+- **Tester Manual**: Updated `docs/TESTER_MANUAL.md` (and the website version) to reflect the new PyApp-based installation workflow, including security bypass instructions for Windows and macOS.
+- **Documentation**: Unified binary naming patterns across all guides to use version placeholders (e.g., `opendata-<system>-pyapp-<version>`).
+
 ### Fixed
+- **Documentation**: Corrected the default application port from `8000` to `8080` in all manuals.
+- **Documentation**: Fixed a typo in the Polish installation guide ("adreres" -> "adresem").
 - **Cross-Platform Path Handling**: Fixed `test_lazy_scanner_no_reads` failure on macOS and Windows caused by `Path.relative_to()` errors with symlinks and short paths (e.g., `/var` vs `/private/var`, `runneradmin` vs `RUNNER~1`). Both file path and root are now resolved before computing relative paths in `scan_project_lazy` and `format_file_list`.
 
 ### Testing
