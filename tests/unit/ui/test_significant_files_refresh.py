@@ -50,9 +50,9 @@ class TestSignificantFilesEditorRefresh:
     """Tests for auto-refresh behavior in Significant Files Editor."""
 
     def test_add_file_triggers_refresh(self, app_context, tmp_path):
-        """Adding a file should trigger refresh of both editor and selector."""
+        """Adding a file should trigger refresh of the file selection summary."""
         # Arrange
-        from opendata.ui.components.chat import render_significant_files_editor
+        from opendata.ui.components.files_dialog import render_file_selection_summary
 
         # Act: Add a new file
         app_context.agent.add_significant_file("script.py", "visualization_scripts")
