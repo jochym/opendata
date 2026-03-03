@@ -278,8 +278,8 @@ def render_file_selection_summary(ctx: AppContext):
 
     size_str = format_size(selected_size) if selected_size > 0 else "0 B"
 
-    with ui.card().classes("w-full p-3 shadow-sm border border-slate-200"):
-        with ui.row().classes("w-full items-center gap-3"):
+    with ui.card().classes("w-full p-2 shadow-sm border border-slate-200"):
+        with ui.row().classes("w-full items-center gap-2"):
             ui.icon("fact_check", color="primary", size="md")
 
             with ui.column().classes("flex-grow gap-0"):

@@ -349,9 +349,15 @@ async def handle_ai_analysis(ctx: AppContext, path: str):
 
 
 def render_metadata_panel(ctx: AppContext):
-    with ui.column().classes("w-full h-full pl-2"):
-        with ui.card().classes(
-            "w-full h-full p-3 shadow-md border-l-4 border-green-500 flex flex-col"
+    with ui.column().classes("w-full h-full pl-2 m-0 overflow-hidden"):
+        with (
+            ui.card()
+            .classes(
+                "w-full h-full p-2 shadow-md border-l-4 border-green-500 m-0 flex flex-col items-stretch"
+            )
+            .style(
+                "display: flex !important; justify-content: flex-start !important; gap: 0 !important"
+            )
         ):
             with ui.row().classes("w-full justify-between items-center mb-1 shrink-0"):
                 ui.label(_("RODBUK Metadata")).classes(
@@ -361,7 +367,7 @@ def render_metadata_panel(ctx: AppContext):
                     icon="refresh", on_click=lambda: handle_clear_metadata(ctx)
                 ).props("flat dense color=orange")
                 ui.tooltip(_("Reset Metadata"))
-            with ui.row().classes("w-full items-center gap-1 mb-2 shrink-0"):
+            with ui.row().classes("w-full items-center gap-1 mb-1 shrink-0"):
 
                 async def pick_dir():
                     picker = LocalFilePicker(
@@ -395,7 +401,7 @@ def render_metadata_panel(ctx: AppContext):
                     on_click=lambda: handle_load_project(ctx, path_input.value),
                 ).props("dense outline").classes("shrink-0")
 
-            with ui.row().classes("gap-1 mb-2 w-full shrink-0"):
+            with ui.row().classes("gap-1 mb-1 w-full shrink-0"):
                 ui.button(
                     _("Scan"),
                     icon="refresh",
@@ -435,7 +441,7 @@ def render_metadata_panel(ctx: AppContext):
             ).classes("w-full").props("dense").bind_visibility_from(
                 ScanState, "is_scanning"
             )
-            ui.separator().classes("mt-1")
+            ui.separator().classes("my-1")
 
             with ui.scroll_area().classes("flex-grow w-full"):
                 metadata_preview_ui(ctx)

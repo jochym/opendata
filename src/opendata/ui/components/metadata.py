@@ -29,7 +29,7 @@ def metadata_preview_ui(ctx: AppContext):
 
     def create_expandable_text(text, key=None):
         with ui.column().classes(
-            "w-full gap-0 bg-slate-50 border border-slate-100 rounded relative group pb-6"
+            "w-full gap-0 bg-slate-50 border border-slate-100 rounded relative group pb-4 pt-1 px-2"
         ):
             # Lock indicator
             if key:
@@ -115,7 +115,7 @@ def metadata_preview_ui(ctx: AppContext):
             else:
                 content.style("max-height: none")
 
-    with ui.column().classes("w-full gap-2"):
+    with ui.column().classes("w-full gap-1 p-0"):
         for key, value in fields.items():
             if key == "locked_fields":
                 continue
@@ -123,7 +123,7 @@ def metadata_preview_ui(ctx: AppContext):
                 ui.label(key.replace("_", " ").title()).classes(
                     "text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-wider"
                 )
-                with ui.row().classes("w-full gap-1 flex-wrap items-center mt--1"):
+                with ui.row().classes("w-full gap-0.5 flex-wrap items-center -mt-0.5"):
                     for item in value:
                         if isinstance(item, dict):
                             name = item.get(
@@ -225,14 +225,14 @@ def metadata_preview_ui(ctx: AppContext):
                 ui.label(key.replace("_", " ").title()).classes(
                     "text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-wider"
                 )
-                with ui.column().classes("w-full gap-0 mt--1"):
+                with ui.column().classes("w-full gap-0 -mt-0.5"):
                     create_expandable_text(value, key=key)
             elif key == "keywords":
                 ui.label(key.replace("_", " ").title()).classes(
                     "text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-wider"
                 )
                 with ui.row().classes(
-                    "w-full gap-1 flex-wrap items-center relative group mt--1"
+                    "w-full gap-0.5 flex-wrap items-center -mt-0.5 relative group"
                 ) as kw_container:
                     is_locked = key in ctx.agent.current_metadata.locked_fields
                     kw_container.on("click", lambda _e, k=key: open_edit_dialog(ctx, k))
@@ -264,7 +264,7 @@ def metadata_preview_ui(ctx: AppContext):
                 ui.label(key.replace("_", " ").title()).classes(
                     "text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-wider"
                 )
-                with ui.column().classes("w-full gap-1 items-start mt--1"):
+                with ui.column().classes("w-full gap-0.5 items-start -mt-0.5"):
                     for pub in value:
                         if isinstance(pub, dict):
                             title = pub.get("title", "Untitled")
@@ -326,7 +326,7 @@ def metadata_preview_ui(ctx: AppContext):
                     "text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-wider"
                 )
                 with ui.row().classes(
-                    "w-full gap-1 flex-wrap items-center relative group mt--1"
+                    "w-full gap-0.5 flex-wrap items-center relative group -mt-0.5"
                 ) as soft_container:
                     is_locked = key in ctx.agent.current_metadata.locked_fields
                     soft_container.on(
@@ -374,7 +374,7 @@ def metadata_preview_ui(ctx: AppContext):
                     "text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-wider"
                 )
                 with ui.row().classes(
-                    "w-full gap-1 flex-wrap items-center mt--1"
+                    "w-full gap-0.5 flex-wrap items-center -mt-0.5"
                 ) as fund_container:
                     is_locked = key in ctx.agent.current_metadata.locked_fields
                     fund_container.on(
@@ -421,7 +421,7 @@ def metadata_preview_ui(ctx: AppContext):
                 ui.label(key.replace("_", " ").title()).classes(
                     "text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-wider"
                 )
-                with ui.row().classes("w-full gap-1 flex-wrap items-center mt--1"):
+                with ui.row().classes("w-full gap-0.5 flex-wrap items-center -mt-0.5"):
                     for item in value:
                         ui.label(str(item)).classes(
                             "text-sm bg-slate-100 py-0.5 px-2 rounded border border-slate-200 inline-block mr-1 mb-1"
@@ -436,9 +436,9 @@ def metadata_preview_ui(ctx: AppContext):
                 # Special styling for Title
                 if key == "title":
                     ui.label(_("Dataset Title")).classes(label_class)
-                    with ui.column().classes("w-full mt--1 mb-2"):
+                    with ui.column().classes("w-full -mt-0.5 mb-1"):
                         with ui.column().classes(
-                            "w-full gap-0 bg-white border border-slate-200 rounded-lg relative group shadow-sm p-3"
+                            "w-full gap-0 bg-white border border-slate-200 rounded-lg relative group shadow-sm p-2"
                         ):
                             # Lock indicator for title
                             is_locked = key in ctx.agent.current_metadata.locked_fields
@@ -472,11 +472,11 @@ def metadata_preview_ui(ctx: AppContext):
                 ui.label(label_text).classes(label_class)
 
                 if isinstance(value, list):
-                    with ui.column().classes("w-full gap-1 mt--1"):
+                    with ui.column().classes("w-full gap-0.5 -mt-0.5"):
                         for v_item in value:
                             create_expandable_text(str(v_item), key=key)
                 else:
-                    with ui.column().classes("w-full mt--1"):
+                    with ui.column().classes("w-full -mt-0.5"):
                         create_expandable_text(str(value), key=key)
 
 

@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.36] - 2026-03-03
+### Added
+- **File Management Dialog**: Replaced the large file selection and explorer blocks in the Analysis tab with a dedicated modal dialog for a cleaner, focused interface.
+- **Compact Summary**: Added a compact "Important Files" summary card to the metadata panel with an "Edit Selection" button to launch the new dialog.
+
+### Changed
+- **UI Layout**: Optimized vertical spacing in the metadata preview panel, reducing gaps and padding to maximize information density.
+- **Layout Robustness**: Refactored the metadata panel to use a proper flexbox layout, eliminating the "double scroller" issue while ensuring elements stay tightly packed at the top.
+
+### Fixed
+- **UI Spacing**: Resolved issues where elements in the metadata panel were stretched or separated by excessive empty space on different screen sizes.
+
+### Testing
+- Added comprehensive unit and integration tests for the new File Management Dialog component.
+- Verified UI responsiveness and layout behavior across various viewports.
+- All 168 tests pass.
+
 ## [0.22.35] - 2026-03-02
 ### Added
 - **Documentation**: Added comprehensive, step-by-step installation guides for beta testers in English and Polish (`website/docs/installation.md`, `website/docs/installation_pl.md`).

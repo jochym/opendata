@@ -1,8 +1,8 @@
 # OpenData Tool - Beta Tester Manual
 
-**Version:** v0.22.22
+**Version:** v0.22.35
 **Status:** Alpha (Active Development)
-**Target Audience:** Domain Scientists (Physics, Medical Physics) & Research Data Stewards
+**Target Audience:** Domain Scientists (Physics, Materials Science, Medical Physics) & Research Data Stewards
 
 ---
 
@@ -26,13 +26,21 @@ The **OpenData Tool** is an AI-powered assistant designed to "read" your researc
 - **Access:** You must be whitelisted for the internal testing team. Contact `Pawel T. Jochym` if you cannot sign in.
 
 ### Step-by-Step Launch
-1. **Download:** Get the latest binary for your OS from the [Testing Portal](website/index.html) or your distribution source.
-2. **Run:** Double-click the executable (`opendata-win.exe`, `opendata-linux`, or `.dmg`).
-   - *Note:* On Windows/Mac, you may need to "Run Anyway" if the app is unsigned.
-3. **System Tray Icon:** A small icon will appear in your system tray (bottom-right on Windows, top-right on Mac/Linux). 
-   - **Open Dashboard:** Opens the main interface in your default browser.
-   - **Exit:** Stops the server and exits.
-4. **Browser Dashboard:** The main interface will open automatically in your default web browser (usually `http://localhost:8000`).
+1. **Download:** Get the latest binary for your OS from the [Testing Portal](https://jochym.github.io/opendata/).
+   Files follow the pattern: `opendata-<system>-pyapp-<version>`.
+   - **Windows:** `opendata-win-pyapp-<version>.exe`
+   - **macOS:** `opendata-macos-arm-pyapp-<version>` (M1/M2/M3) or `opendata-macos-intel-pyapp-<version>` (Intel)
+   - **Linux:** `opendata-linux-pyapp-<version>`
+2. **Run & Security Bypass:**
+   - **Windows:** Double-click the file. If a "Windows protected your PC" (SmartScreen) warning appears, click **"More info"** then **"Run anyway"**.
+   - **macOS:** **Right-click** the file and select **Open** to bypass the "Unidentified Developer" warning. Alternatively, go to *System Settings -> Privacy & Security* and click **"Open Anyway"**.
+   - **Linux:** Run `chmod +x <filename>` then execute it. Ensure `libfuse2` is installed on your system (common on Ubuntu/Debian).
+3. **The "First Launch" Delay:** 
+   - ⏳ **Important:** On the very first run, the tool may take **up to 60 seconds** to start. It is silently unpacking its environment. Please be patient; subsequent launches will be near-instant.
+4. **System Tray Interaction:**
+   - Once started, a small OpenData Tool icon will appear in your **System Tray** (near the clock).
+   - **Right-click** the icon and select **"Open Dashboard"** to open the interface in your browser.
+   - The interface usually opens at `http://localhost:8080`.
 
 ---
 
