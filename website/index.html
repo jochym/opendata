@@ -67,78 +67,8 @@
                 </span>
             </div>
             <div class="flex flex-wrap justify-center gap-5">
-                <a href="#download" class="bg-yellow-400 text-blue-900 px-10 py-4 rounded-xl font-black hover:bg-yellow-300 transition-all shadow-xl hover:shadow-yellow-400/20 transform hover:-translate-y-1">
+                <a href="#prebuilt-binaries" class="bg-yellow-400 text-blue-900 px-10 py-4 rounded-xl font-black hover:bg-yellow-300 transition-all shadow-xl hover:shadow-yellow-400/20 transform hover:-translate-y-1">
                     <i class="fas fa-download mr-2"></i> GET STARTED
-                </a>
-                <button onclick="loadDoc('tester')" class="bg-white/10 backdrop-blur-md border border-white/30 px-8 py-4 rounded-xl font-bold hover:bg-white/20 transition-all shadow-lg flex items-center">
-                    <i class="fas fa-vial mr-3 text-yellow-400"></i> TESTER MANUAL
-                </button>
-                <button onclick="loadDoc('installation')" class="bg-white/10 backdrop-blur-md border border-white/30 px-8 py-4 rounded-xl font-bold hover:bg-white/20 transition-all shadow-lg flex items-center">
-                    <i class="fas fa-book-open mr-3 text-emerald-400"></i> INSTALLATION GUIDE
-                </button>
-                <button onclick="loadDoc('developer')" class="bg-white/10 backdrop-blur-md border border-white/30 px-8 py-4 rounded-xl font-bold hover:bg-white/20 transition-all shadow-lg flex items-center">
-                    <i class="fas fa-code mr-3 text-blue-400"></i> DEVELOPER GUIDE
-                </button>
-                <button onclick="loadDoc('binary_system')" class="bg-slate-900 border border-slate-700 px-8 py-4 rounded-xl font-bold hover:bg-slate-800 transition-all shadow-lg flex items-center">
-                    <i class="fas fa-microchip mr-3 text-emerald-400"></i> BINARY BUILD SYSTEM
-                </button>
-            </div>
-        </div>
-    </header>
-
-    <!-- Status Banner -->
-    <div class="bg-blue-50 border-b border-blue-200 text-blue-900 px-6 py-5">
-        <div class="max-w-5xl mx-auto flex items-center">
-            <div class="bg-blue-500 text-white p-2 rounded-lg mr-5 hidden md:block">
-                <i class="fas fa-info-circle text-xl"></i>
-            </div>
-            <p class="text-sm leading-relaxed">
-                <strong>Active Development:</strong> This tool is production-ready for metadata extraction from Physics, Materials Science, and Medical Physics datasets. Features are continuously being added based on user feedback.
-            </p>
-        </div>
-    </div>
-
-    <!-- Download Section -->
-    <section id="download" class="py-24 px-6 bg-white overflow-hidden relative">
-        <div class="max-w-6xl mx-auto text-center relative z-10">
-            <h2 class="text-4xl font-extrabold mb-4 text-slate-900">Download Latest Release</h2>
-            <p class="text-slate-500 mb-16 text-lg">Version 0.22.37 | Released: March 3, 2026</p>
-            
-            <div class="flex flex-wrap justify-center gap-8">
-                <!-- Windows -->
-                <a href="https://github.com/jochym/opendata/releases/latest/download/opendata-win-pyapp-0.22.37.exe" class="flex flex-col items-center p-10 bg-white border border-slate-100 rounded-[2.5rem] hover:border-blue-500 hover:shadow-2xl transition-all group w-72 shadow-lg">
-                    <div class="w-20 h-20 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                        <i class="fab fa-windows text-4xl"></i>
-                    </div>
-                    <span class="font-bold text-xl mb-2">Windows</span>
-                    <span class="text-slate-400 text-sm">Standalone Executable (.exe)</span>
-                </a>
-
-                <!-- Linux -->
-                <a href="https://github.com/jochym/opendata/releases/latest/download/opendata-linux-pyapp-0.22.37" class="flex flex-col items-center p-10 bg-white border border-slate-100 rounded-[2.5rem] hover:border-orange-500 hover:shadow-2xl transition-all group w-72 shadow-lg">
-                    <div class="w-20 h-20 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-orange-600 group-hover:text-white transition-colors">
-                        <i class="fab fa-linux text-4xl"></i>
-                    </div>
-                    <span class="font-bold text-xl mb-2">Linux</span>
-                    <span class="text-slate-400 text-sm">PyApp Binary (x86_64)</span>
-                </a>
-
-                <!-- macOS ARM -->
-                <a href="https://github.com/jochym/opendata/releases/latest/download/opendata-macos-arm-pyapp-0.22.37" class="flex flex-col items-center p-10 bg-white border border-slate-100 rounded-[2.5rem] hover:border-slate-900 hover:shadow-2xl transition-all group w-72 shadow-lg">
-                    <div class="w-20 h-20 bg-slate-50 text-slate-900 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-slate-900 group-hover:text-white transition-colors">
-                        <i class="fab fa-apple text-4xl"></i>
-                    </div>
-                    <span class="font-bold text-xl mb-2">macOS ARM</span>
-                    <span class="text-slate-400 text-sm">M1/M2/M3 Silicon</span>
-                </a>
-
-                <!-- macOS Intel -->
-                <a href="https://github.com/jochym/opendata/releases/latest/download/opendata-macos-intel-pyapp-0.22.37" class="flex flex-col items-center p-10 bg-white border border-slate-100 rounded-[2.5rem] hover:border-slate-700 hover:shadow-2xl transition-all group w-72 shadow-lg">
-                    <div class="w-20 h-20 bg-slate-100 text-slate-700 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-slate-700 group-hover:text-white transition-colors">
-                        <i class="fab fa-apple text-4xl opacity-60"></i>
-                    </div>
-                    <span class="font-bold text-xl mb-2">macOS Intel</span>
-                    <span class="text-slate-400 text-sm">Legacy x86_64 Mac</span>
                 </a>
                 <button onclick="loadDoc('tester')" class="bg-white/10 backdrop-blur-md border border-white/30 px-8 py-4 rounded-xl font-bold hover:bg-white/20 transition-all shadow-lg flex items-center">
                     <i class="fas fa-vial mr-3 text-yellow-400"></i> TESTER MANUAL
@@ -284,10 +214,80 @@
         <section id="download" class="py-16">
             <div class="text-center mb-12">
                 <h2 class="text-4xl font-black text-slate-900 mb-4 tracking-tight uppercase">Installation Options</h2>
-                <p class="text-slate-500">Version 0.22.35 | Released: February 28, 2026</p>
+                <p class="text-slate-500">Version 0.22.37 | Released: March 3, 2026</p>
             </div>
             
-            <!-- PyPI Installation - Primary Option -->
+            <!-- Binary Downloads -->
+            <div id="prebuilt-binaries" class="text-center mb-10 scroll-mt-20">
+                <h3 class="text-2xl font-black text-slate-900 mb-3">Pre-built Binaries</h3>
+                <p class="text-slate-500">No installation required - just download and run</p>
+            </div>
+            
+            <div class="flex flex-wrap justify-center gap-8 mb-16">
+                <!-- Windows -->
+                <a href="https://github.com/jochym/opendata/releases/latest/download/opendata-win-pyapp-0.22.37.exe" class="flex flex-col items-center p-10 bg-white border border-slate-100 rounded-[2.5rem] hover:border-blue-500 hover:shadow-2xl transition-all group w-72 shadow-lg">
+                    <div class="w-20 h-20 bg-blue-50 rounded-3xl flex items-center justify-center mb-6 group-hover:bg-blue-600 transition-colors">
+                        <i class="fab fa-windows text-4xl text-blue-600 group-hover:text-white transition-colors"></i>
+                    </div>
+                    <span class="font-black text-xl text-slate-900 uppercase tracking-tighter">Windows</span>
+                    <span class="text-sm text-slate-400 mt-2 font-mono">.exe installer</span>
+                </a>
+                <!-- Linux -->
+                <a href="https://github.com/jochym/opendata/releases/latest/download/opendata-linux-pyapp-0.22.37" class="flex flex-col items-center p-10 bg-white border border-slate-100 rounded-[2.5rem] hover:border-orange-500 hover:shadow-2xl transition-all group w-72 shadow-lg">
+                    <div class="w-20 h-20 bg-orange-50 rounded-3xl flex items-center justify-center mb-6 group-hover:bg-orange-600 transition-colors">
+                        <i class="fab fa-linux text-4xl text-orange-600 group-hover:text-white transition-colors"></i>
+                    </div>
+                    <span class="font-black text-xl text-slate-900 uppercase tracking-tighter">Linux</span>
+                    <span class="text-sm text-slate-400 mt-2 font-mono">Universal Binary</span>
+                </a>
+                <!-- macOS ARM -->
+                <a href="https://github.com/jochym/opendata/releases/latest/download/opendata-macos-arm-pyapp-0.22.37" class="flex flex-col items-center p-10 bg-white border border-slate-100 rounded-[2.5rem] hover:border-slate-900 hover:shadow-2xl transition-all group w-72 shadow-lg">
+                    <div class="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mb-6 group-hover:bg-slate-900 transition-colors">
+                        <i class="fab fa-apple text-4xl text-slate-900 group-hover:text-white transition-colors"></i>
+                    </div>
+                    <span class="font-black text-xl text-slate-900 uppercase tracking-tighter">macOS ARM</span>
+                    <span class="text-sm text-slate-400 mt-2 font-mono">Apple Silicon</span>
+                </a>
+                <!-- macOS Intel -->
+                <a href="https://github.com/jochym/opendata/releases/latest/download/opendata-macos-intel-pyapp-0.22.37" class="flex flex-col items-center p-10 bg-white border border-slate-100 rounded-[2.5rem] hover:border-slate-700 hover:shadow-2xl transition-all group w-72 shadow-lg">
+                    <div class="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center mb-6 group-hover:bg-slate-700 transition-colors">
+                        <i class="fab fa-apple text-4xl text-slate-700 group-hover:text-white transition-colors"></i>
+                    </div>
+                    <span class="font-black text-xl text-slate-900 uppercase tracking-tighter">macOS Intel</span>
+                    <span class="text-sm text-slate-400 mt-2 font-mono">x86_64</span>
+                </a>
+            </div>
+
+            <!-- Development Installation -->
+            <div class="bg-slate-50 p-10 rounded-[2.5rem] border border-slate-200 mb-16">
+                <h3 class="text-2xl font-black text-slate-900 mb-6 text-center">Development Installation</h3>
+                <div class="max-w-3xl mx-auto bg-slate-900 rounded-2xl p-6 font-mono text-sm">
+                    <div class="flex items-center mb-4">
+                        <i class="fab fa-github text-2xl text-white mr-3"></i>
+                        <span class="text-slate-300">Clone and install from source</span>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="flex">
+                            <span class="text-green-400 mr-3">$</span>
+                            <span class="text-white">git clone https://github.com/jochym/opendata.git</span>
+                        </div>
+                        <div class="flex">
+                            <span class="text-green-400 mr-3">$</span>
+                            <span class="text-white">cd opendata</span>
+                        </div>
+                        <div class="flex">
+                            <span class="text-green-400 mr-3">$</span>
+                            <span class="text-white">pip install -e ".[dev]"</span>
+                        </div>
+                        <div class="flex">
+                            <span class="text-green-400 mr-3">$</span>
+                            <span class="text-white">python src/opendata/main.py</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- PyPI Installation -->
             <div class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-10 md:p-14 rounded-[3rem] shadow-2xl mb-16 relative overflow-hidden">
                 <div class="absolute top-0 right-0 -mt-10 -mr-10 opacity-10">
                     <i class="fab fa-python text-[15rem]"></i>
@@ -347,47 +347,6 @@
                     </div>
                 </div>
             </div>
-            
-            <!-- Binary Downloads -->
-            <div class="text-center mb-10">
-                <h3 class="text-2xl font-black text-slate-900 mb-3">Pre-built Binaries</h3>
-                <p class="text-slate-500">No installation required - just download and run</p>
-            </div>
-            
-            <div class="flex flex-wrap justify-center gap-8">
-                <!-- Windows -->
-                <a href="https://github.com/jochym/opendata/releases/latest/download/opendata-win-pyapp-0.22.35.exe" class="flex flex-col items-center p-10 bg-white border border-slate-100 rounded-[2.5rem] hover:border-blue-500 hover:shadow-2xl transition-all group w-72 shadow-lg">
-                    <div class="w-20 h-20 bg-blue-50 rounded-3xl flex items-center justify-center mb-6 group-hover:bg-blue-600 transition-colors">
-                        <i class="fab fa-windows text-4xl text-blue-600 group-hover:text-white transition-colors"></i>
-                    </div>
-                    <span class="font-black text-xl text-slate-900 uppercase tracking-tighter">Windows</span>
-                    <span class="text-sm text-slate-400 mt-2 font-mono">.exe installer</span>
-                </a>
-                <!-- Linux -->
-                <a href="https://github.com/jochym/opendata/releases/latest/download/opendata-linux-pyapp-0.22.35" class="flex flex-col items-center p-10 bg-white border border-slate-100 rounded-[2.5rem] hover:border-orange-500 hover:shadow-2xl transition-all group w-72 shadow-lg">
-                    <div class="w-20 h-20 bg-orange-50 rounded-3xl flex items-center justify-center mb-6 group-hover:bg-orange-600 transition-colors">
-                        <i class="fab fa-linux text-4xl text-orange-600 group-hover:text-white transition-colors"></i>
-                    </div>
-                    <span class="font-black text-xl text-slate-900 uppercase tracking-tighter">Linux</span>
-                    <span class="text-sm text-slate-400 mt-2 font-mono">Universal Binary</span>
-                </a>
-                <!-- macOS ARM -->
-                <a href="https://github.com/jochym/opendata/releases/latest/download/opendata-macos-arm-pyapp-0.22.35" class="flex flex-col items-center p-10 bg-white border border-slate-100 rounded-[2.5rem] hover:border-slate-900 hover:shadow-2xl transition-all group w-72 shadow-lg">
-                    <div class="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mb-6 group-hover:bg-slate-900 transition-colors">
-                        <i class="fab fa-apple text-4xl text-slate-900 group-hover:text-white transition-colors"></i>
-                    </div>
-                    <span class="font-black text-xl text-slate-900 uppercase tracking-tighter">macOS ARM</span>
-                    <span class="text-sm text-slate-400 mt-2 font-mono">Apple Silicon</span>
-                </a>
-                <!-- macOS Intel -->
-                <a href="https://github.com/jochym/opendata/releases/latest/download/opendata-macos-intel-pyapp-0.22.35" class="flex flex-col items-center p-10 bg-white border border-slate-100 rounded-[2.5rem] hover:border-slate-700 hover:shadow-2xl transition-all group w-72 shadow-lg">
-                    <div class="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center mb-6 group-hover:bg-slate-700 transition-colors">
-                        <i class="fab fa-apple text-4xl text-slate-700 group-hover:text-white transition-colors"></i>
-                    </div>
-                    <span class="font-black text-xl text-slate-900 uppercase tracking-tighter">macOS Intel</span>
-                    <span class="text-sm text-slate-400 mt-2 font-mono">x86_64</span>
-                </a>
-            </div>
 
             <!-- Detailed Installation Guide Section -->
             <div class="mt-20">
@@ -445,35 +404,6 @@
                     <button onclick="loadDoc('installation_pl')" class="inline-flex items-center text-blue-600 font-bold hover:underline">
                         <i class="fas fa-flag mr-2"></i> Przeczytaj instrukcję po polsku
                     </button>
-                </div>
-            </div>
-            
-            <!-- Development Installation -->
-            <div class="mt-16 bg-slate-50 p-10 rounded-[2.5rem] border border-slate-200">
-                <h3 class="text-2xl font-black text-slate-900 mb-6 text-center">Development Installation</h3>
-                <div class="max-w-3xl mx-auto bg-slate-900 rounded-2xl p-6 font-mono text-sm">
-                    <div class="flex items-center mb-4">
-                        <i class="fab fa-github text-2xl text-white mr-3"></i>
-                        <span class="text-slate-300">Clone and install from source</span>
-                    </div>
-                    <div class="space-y-2">
-                        <div class="flex">
-                            <span class="text-green-400 mr-3">$</span>
-                            <span class="text-white">git clone https://github.com/jochym/opendata.git</span>
-                        </div>
-                        <div class="flex">
-                            <span class="text-green-400 mr-3">$</span>
-                            <span class="text-white">cd opendata</span>
-                        </div>
-                        <div class="flex">
-                            <span class="text-green-400 mr-3">$</span>
-                            <span class="text-white">pip install -e ".[dev]"</span>
-                        </div>
-                        <div class="flex">
-                            <span class="text-green-400 mr-3">$</span>
-                            <span class="text-white">python src/opendata/main.py</span>
-                        </div>
-                    </div>
                 </div>
             </div>
         </section>

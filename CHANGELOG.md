@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Persistent Logging**: Implemented automatic file logging to `~/.opendata_tool/opendata.log` with 1MB rotation, ensuring diagnostic data is available even when running in GUI mode without a terminal.
 - **GUI-Only Mode**: Configured `pyApp` and `PyInstaller` to build binaries as native GUI applications, eliminating the unnecessary terminal window on startup.
 
+### Website
+- **Link Optimization**: Reorganized the testing portal (`website/index.html`) to prioritize binary downloads and ensure the "Development Installation" section is positioned directly below them for better user flow.
+- **Link Fix**: Updated the "Get Started" button to scroll precisely to the pre-built binaries section.
+- **Code Cleanup**: Removed redundant sections and status banners, and corrected HTML structural issues (incorrectly nested sections within the header).
+- **Version Sync**: Synchronized all download links and version references to the current 0.22.37 release.
+
 ### Changed
 - **Logging Architecture**: Refactored `setup_logging` to gracefully handle environments without `stdout` (native GUI mode).
 - **CI/CD Pipeline**: Updated pyApp build workflow to use `PYAPP_GUI="true"` and corrected PyInstaller spec to include `tkinter` for the Desktop Anchor window.
