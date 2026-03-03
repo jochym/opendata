@@ -43,7 +43,8 @@ def generate_spec(artifact_name, runner_os):
         added_files.append((str(secrets_file), "."))
 
     # General excludes to reduce size
-    general_excludes = ["tkinter", "tcl", "tk", "test", "distutils", "pydoc"]
+    # We MUST include tkinter for the Anchor window ("Kill Switch")
+    general_excludes = ["test", "distutils", "pydoc"]
 
     spec_template = f"""# -*- mode: python ; coding: utf-8 -*-
 import os

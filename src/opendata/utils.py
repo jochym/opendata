@@ -346,14 +346,47 @@ def scan_project_lazy(
 
 
 def setup_logging(level: int = logging.INFO):
-    """Configures the global logging for the application."""
+    """Configures the global logging for the application.
+    In frozen (binary) mode, it also logs to a file in the workspace.
+    """
     import sys
+    from pathlib import Path
+
+    handlers: List[logging.Handler] = []
+
+    # 1. Console handler (only if stdout is available)
+    if sys.stdout is not None:
+        handlers.append(logging.StreamHandler(sys.stdout))
+
+    # 2. File handler (persistent logs in workspace)
+    try:
+        # We use ~/.opendata_tool/opendata.log as a stable location
+        log_dir = Path.home() / ".opendata_tool"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_file = log_dir / "opendata.log"
+
+        # Rotate logs: keep current and one previous
+        if log_file.exists() and log_file.stat().st_size > 1024 * 1024:  # 1MB
+            old_log = log_file.with_suffix(".log.old")
+            if old_log.exists():
+                old_log.unlink()
+            log_file.rename(old_log)
+
+        file_handler = logging.FileHandler(log_file, encoding="utf-8", delay=True)
+        file_handler.setFormatter(
+            logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+        )
+        handlers.append(file_handler)
+    except Exception as e:
+        # Fallback if we can't write to home dir
+        if sys.stdout:
+            print(f"Warning: Could not setup file logging: {e}", file=sys.stderr)
 
     logging.basicConfig(
         level=level,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         datefmt="%H:%M:%S",
-        handlers=[logging.StreamHandler(sys.stdout)],
+        handlers=handlers,
     )
     # Suppress noisy debug logs from heavy libraries
     logging.getLogger("matplotlib").setLevel(logging.WARNING)

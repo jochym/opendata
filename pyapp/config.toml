@@ -5,6 +5,7 @@
 name = "opendata-tool"
 module = "opendata.main"
 function = "main"
+gui = true
 
 [python]
 version = "3.11"

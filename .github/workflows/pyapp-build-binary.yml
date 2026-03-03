@@ -94,6 +94,9 @@ jobs:
           export PYAPP_EXEC_MODULE="opendata.main"
           export PYAPP_PYTHON_VERSION="3.11"
           
+          # CRITICAL: Build as GUI application to prevent opening terminal
+          export PYAPP_GUI="true"
+          
           # CRITICAL: Embed Python distribution to avoid runtime downloads
           export PYAPP_DISTRIBUTION_EMBED="true"
           
