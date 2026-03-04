@@ -5,7 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.22.39] - 2026-03-04
+### Added
+- **AI Progress Messages**: Detailed real-time status updates in the progress modal (e.g., "Sending prompt...", "Waiting for reply...", "Parsing response...").
+- **File Explorer Pagination**: Added a "Load More" button in the file selector to handle large directories and prevent WebSocket "Message too long" errors.
+- **AI Analysis Guard**: The "AI Analyze" button now requires at least one significant file to be selected and shows a helpful tooltip if disabled.
+- **Default Selection Category**: The first selected important file now defaults to "Article", while subsequent ones default to "other".
+
+### Fixed
+- **YAML-First Parsing**: Refactored the metadata parser to prioritize YAML and added support for list-based structures often returned by newer models (e.g., gemini-3.1-flash-lite).
+- **Status Modal Stability**: Completely refactored the progress dialog to use pure reactive bindings with timer-based updates, eliminating all flickering and "client deleted" errors.
+- **Scanner Performance & OOM Prevention**: Optimized file scanning using fast string operations and a 0.5s UI update throttle to reduce CPU/memory pressure.
+- **Metadata Models**: Restored default mandatory fields while maintaining flexibility for AI drafting states.
+- **Chat Experience**: Implemented intelligent auto-scrolling (only triggers on new messages) and fixed horizontal overflow for code/YAML blocks.
+- **File Selection UI Sync**: Fixed the bug where the selection bar didn't update after using the editor.
+- **Project Switch Cleanup**: Opening a new project now correctly resets all internal agent and UI states.
+- **File Role Persistence**: Fixed critical bug where `AIAnalysis` model was missing `model_config = {"populate_by_name": True}`, causing file roles (Article/Other) to be lost when switching projects.
+
 ## [0.22.38] - 2026-03-04
+
 ### Added
 - **AI Progress Messages**: Detailed real-time status updates in the progress modal (e.g., "Sending prompt...", "Waiting for reply...").
 - **File Explorer Pagination**: Added a "Load More" button in the file selector to handle large directories and prevent WebSocket "Message too long" errors.
