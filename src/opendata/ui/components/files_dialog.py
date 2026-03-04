@@ -241,14 +241,6 @@ def navigate_to(ctx: AppContext, path: str):
 
 def open_file_management_dialog(ctx: AppContext):
     """Opens the file management dialog."""
-    # Ensure inventory is loaded before opening dialog
-    if not ctx.session.inventory_cache and ctx.agent.project_id:
-        from opendata.ui.components.inventory_logic import load_inventory_background
-        import asyncio
-
-        # Trigger background load if not already loaded
-        asyncio.create_task(load_inventory_background(ctx))
-
     with (
         ui.dialog().props("persistent") as dialog,
         ui.card().classes("w-[600px] h-[700px] flex flex-col p-0 overflow-hidden"),
