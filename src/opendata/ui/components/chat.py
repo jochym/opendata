@@ -23,6 +23,17 @@ logger = logging.getLogger("opendata.ui.chat")
 
 @ui.refreshable
 def chat_messages_ui(ctx: AppContext):
+    # Ensure code blocks and pre tags wrap correctly within the chat
+    ui.add_css("""
+        .chat-bubble pre {
+            white-space: pre-wrap !important;
+            word-break: break-all !important;
+        }
+        .chat-bubble code {
+            white-space: pre-wrap !important;
+            word-break: break-all !important;
+        }
+    """)
     with ui.column().classes("w-full gap-4 p-4"):
         if not ctx.agent.chat_history:
             with ui.column().classes(
@@ -48,15 +59,19 @@ def chat_messages_ui(ctx: AppContext):
             if role == "user":
                 with ui.row().classes("w-full justify-end"):
                     with ui.card().classes(
-                        "bg-blue-500 text-white rounded-lg py-2 px-4 max-w-[80%] shadow-sm"
+                        "bg-blue-500 text-white rounded-lg py-2 px-4 max-w-[85%] shadow-sm overflow-hidden chat-bubble"
                     ):
-                        ui.markdown(text).classes("text-sm")
+                        ui.markdown(text).classes(
+                            "text-sm break-words whitespace-pre-wrap"
+                        )
             else:
                 with ui.row().classes("w-full justify-start"):
                     with ui.card().classes(
-                        "bg-white border border-slate-200 rounded-lg py-2 px-4 max-w-[90%] shadow-sm"
+                        "bg-white border border-slate-200 rounded-lg py-2 px-4 max-w-[95%] shadow-sm overflow-hidden chat-bubble"
                     ):
-                        ui.markdown(text).classes("text-sm text-slate-800")
+                        ui.markdown(text).classes(
+                            "text-sm text-slate-800 break-words whitespace-pre-wrap"
+                        )
 
                         # If this is the last message and there's an active analysis form, show it
                         if (
@@ -65,60 +80,68 @@ def chat_messages_ui(ctx: AppContext):
                         ):
                             render_analysis_form(ctx, ctx.agent.current_analysis)
 
-        if ScanState.is_scanning or ScanState.is_processing_ai:
-            with ui.row().classes("w-full justify-start"):
-                with ui.card().classes(
-                    "bg-gray-100 border border-gray-200 rounded-lg py-1 px-3 w-full shadow-none"
-                ):
-                    with ui.row().classes("items-center w-full justify-between gap-2"):
-                        with ui.row().classes("items-center gap-2"):
-                            is_stopping = (
-                                (ScanState.stop_event and ScanState.stop_event.is_set())
-                                if ScanState.is_scanning
-                                else (
-                                    ctx.session.ai_stop_event
-                                    and ctx.session.ai_stop_event.is_set()
-                                )
-                            )
-
-                            if is_stopping:
-                                ui.icon("cancel", color="red", size="sm")
-                                label_text = _("Canceled")
-                            else:
-                                ui.spinner(size="sm")
-                                if ScanState.is_scanning:
-                                    label_text = ScanState.progress or _(
-                                        "Scanning project..."
-                                    )
-                                else:
-                                    label_text = _("AI is thinking...")
-
-                            ui.markdown(label_text).classes(
-                                "text-sm text-gray-800 m-0 p-0 font-medium"
-                            )
-                            if ScanState.is_scanning and ScanState.short_path:
-                                ui.label(ScanState.short_path).classes(
-                                    "text-[10px] text-gray-500 truncate max-w-xs"
-                                )
-
-                        if not is_stopping:
-                            if ScanState.is_scanning:
-                                ui.button(
-                                    "", on_click=lambda: handle_cancel_scan(ctx)
-                                ).props(
-                                    "icon=stop_circle flat color=red size=md"
-                                ).classes("p-0")
-                            elif ScanState.is_processing_ai:
-                                ui.button(
-                                    "", on_click=lambda: handle_cancel_ai(ctx)
-                                ).props(
-                                    "icon=stop_circle flat color=red size=md"
-                                ).classes("p-0")
     if ctx.chat_scroll_area:
-        try:
-            ctx.chat_scroll_area.scroll_to(percent=1.0)
-        except RuntimeError:
-            pass
+        # Only scroll if chat history has grown
+        if len(ctx.agent.chat_history) > ctx.session.last_chat_len:
+            try:
+                ctx.chat_scroll_area.scroll_to(percent=1.0)
+            except RuntimeError:
+                pass
+        # Always update last_chat_len to current state
+        ctx.session.last_chat_len = len(ctx.agent.chat_history)
+
+
+@ui.refreshable
+def render_status_dialog(ctx: AppContext):
+    """Renders a modal dialog for scanning and AI processing progress."""
+    if not ScanState.is_scanning and not ScanState.is_processing_ai:
+        return
+
+    with ui.dialog() as dialog, ui.card().classes("w-96 p-6 items-center gap-4"):
+        # Determine current state
+        is_stopping = (
+            (ScanState.stop_event and ScanState.stop_event.is_set())
+            if ScanState.is_scanning
+            else (ctx.session.ai_stop_event and ctx.session.ai_stop_event.is_set())
+        )
+
+        if is_stopping:
+            ui.icon("cancel", color="red", size="lg")
+            title = _("Cancelling...")
+        else:
+            ui.spinner(size="lg")
+            title = _("Processing...")
+
+        ui.label(title).classes("text-lg font-bold")
+
+        if ScanState.is_scanning:
+            label_text = ScanState.progress or _("Scanning project...")
+        else:
+            label_text = _("AI is thinking...")
+
+        ui.markdown(label_text).classes("text-sm text-center text-gray-700 w-full")
+
+        if ScanState.is_scanning and ScanState.short_path:
+            ui.label(ScanState.short_path).classes(
+                "text-[10px] text-gray-500 text-center break-all w-full"
+            )
+
+        if not is_stopping:
+            with ui.row().classes("w-full justify-center mt-2"):
+                if ScanState.is_scanning:
+                    ui.button(
+                        _("Stop Scan"),
+                        on_click=lambda: handle_cancel_scan(ctx),
+                        color="red",
+                    ).props("outline")
+                elif ScanState.is_processing_ai:
+                    ui.button(
+                        _("Stop AI"),
+                        on_click=lambda: handle_cancel_ai(ctx),
+                        color="red",
+                    ).props("outline")
+
+    dialog.open()
 
 
 def render_analysis_form(ctx: AppContext, analysis: Any):
@@ -228,6 +251,8 @@ def render_chat_panel(ctx: AppContext):
                     ui.tooltip(_("Clear Chat History"))
             with ui.scroll_area().classes("flex-grow w-full") as ctx.chat_scroll_area:
                 chat_messages_ui(ctx)
+            # Add modal status dialog at the end of chat panel
+            render_status_dialog(ctx)
             with ui.row().classes(
                 "bg-white p-3 border-t w-full items-center no-wrap gap-2 shrink-0"
             ):
@@ -262,12 +287,14 @@ async def handle_scan_only(ctx: AppContext, path: str):
     ScanState.stop_event = threading.Event()
     ScanState.is_scanning = True
     ScanState.progress = _("Scanning...")
+    # Refresh to show modal
     ctx.refresh("chat")
 
     def update_progress(msg, full_path="", short_path=""):
         ScanState.progress = msg
         ScanState.full_path = full_path
         ScanState.short_path = short_path
+        # Refresh to update modal
         ctx.refresh("chat")
 
     try:

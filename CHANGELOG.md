@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.39] - 2026-03-04
+### Added
+- **Progress Modal Dialog**: Replaced in-chat status cards with a modal dialog for scanning and AI analysis, providing a clear "Kill Switch" and preventing intrusive auto-scrolling during updates.
+
+### Fixed
+- **YAML Parsing**: Improved parser robustness against unquoted colons in LaTeX-style strings (e.g., in scientific titles), resolving "mapping values are not allowed here" errors.
+- **Chat Layout**: Implemented comprehensive text wrapping for chat bubbles, including preformatted blocks and code, eliminating horizontal scrolling.
+- **Scroll Optimization**: Optimized chat auto-scrolling to only trigger when new messages are added, allowing users to scroll up during background processes without being forced back to the bottom.
+
 ## [0.22.38] - 2026-03-04
 ### Fixed
 - **Chat Auto-Scrolling**: Implemented automatic scrolling to the latest message in the chat panel by correctly targeting the NiceGUI `scroll_area` instead of the document body.

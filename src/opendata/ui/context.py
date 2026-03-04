@@ -35,6 +35,7 @@ class SessionState:
     folder_children_map: dict[str, list[str]] = field(default_factory=dict)
     folder_stats: dict[str, dict[str, int]] = field(default_factory=dict)
     ai_stop_event: Optional[threading.Event] = None
+    last_chat_len: int = 0
 
     def reset(self):
         """Resets session state to default values without replacing the object."""
