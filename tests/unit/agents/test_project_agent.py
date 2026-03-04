@@ -1,4 +1,4 @@
-import urllib.parse
+import unittest.mock
 
 import pytest
 
@@ -78,35 +78,29 @@ def test_agent_generate_ai_prompt(agent, tmp_path):
     assert "RODBUK" in prompt
 
 
-def test_handle_bug_command_generates_github_url(agent, tmp_path):
-    """Without a token/email env var, command generates a pre-filled GitHub issue URL."""
+def test_bug_command_creates_pending_report_dict(agent, tmp_path):
+    """Bug command must store a pending_bug_report dict for the UI dialog."""
     project_path = tmp_path / "my_project"
     project_path.mkdir()
     agent.load_project(project_path)
 
     agent._handle_bug_command("/bug application crashes on startup")
 
-    # GitHub URL must be stored for the UI to open
-    assert agent._pending_bug_report_url is not None
-    url = agent._pending_bug_report_url
-    assert url.startswith("https://github.com/jochym/opendata/issues/new")
-    assert "labels=bug" in url
-
+    report = agent._pending_bug_report
+    assert report is not None
+    assert isinstance(report, dict)
     # Title must include the user's description
-    parsed = urllib.parse.urlparse(url)
-    params = urllib.parse.parse_qs(parsed.query)
-    assert "title" in params
-    title = urllib.parse.unquote(params["title"][0])
-    assert "application crashes on startup" in title
-
-    # Body must contain system info and description
-    body = urllib.parse.unquote(params["body"][0])
-    assert "application crashes on startup" in body
-    assert "OS" in body or "System Info" in body
+    assert "application crashes on startup" in report["title"]
+    # User description is stored separately for the editable text field
+    assert "application crashes on startup" in report["description"]
+    # Auto-generated context section is present
+    assert "System Info" in report["system_body"]
+    # YAML file path is in extra_files
+    assert len(report["extra_files"]) == 1
 
 
 def test_handle_bug_command_saves_yaml_report(agent, tmp_path):
-    """Bug command must still save a local YAML diagnostic report as a fallback."""
+    """Bug command must still save a local YAML diagnostic report."""
     project_path = tmp_path / "my_project"
     project_path.mkdir()
     agent.load_project(project_path)
@@ -117,90 +111,54 @@ def test_handle_bug_command_saves_yaml_report(agent, tmp_path):
     assert len(bug_files) == 1
 
 
-def test_handle_bug_command_response_contains_link(agent, tmp_path):
-    """Bug command response message must contain a clickable GitHub issue link."""
+def test_handle_bug_command_yaml_path_in_extra_files(agent, tmp_path):
+    """The auto-saved YAML report path must appear in extra_files."""
     project_path = tmp_path / "my_project"
     project_path.mkdir()
     agent.load_project(project_path)
 
-    msg = agent._handle_bug_command("/bug test description")
+    agent._handle_bug_command("/bug yaml attachment test")
 
-    assert "github.com/jochym/opendata/issues/new" in msg
-    # Confirm the link is embedded in markdown syntax
-    assert "](https://github.com" in msg
+    bug_files = list(agent.wm.bug_reports_dir.glob("bug_report_*.yaml"))
+    assert len(bug_files) == 1
+    yaml_path = str(bug_files[0])
+    assert yaml_path in agent._pending_bug_report["extra_files"]
 
 
 def test_handle_bug_command_no_description(agent, tmp_path):
-    """Bug command without description must still generate a valid GitHub URL."""
+    """Bug command without description must still populate pending_bug_report."""
     project_path = tmp_path / "my_project"
     project_path.mkdir()
     agent.load_project(project_path)
 
     agent._handle_bug_command("/bug")
 
-    assert agent._pending_bug_report_url is not None
-    assert "github.com/jochym/opendata/issues/new" in agent._pending_bug_report_url
+    assert agent._pending_bug_report is not None
+    assert agent._pending_bug_report["title"].startswith("Bug:")
 
 
-def test_handle_bug_command_uses_mailto_when_email_configured(agent, tmp_path, monkeypatch):
-    """When OPENDATA_BUG_REPORT_EMAIL is set, pending URL should be a mailto: link."""
-    monkeypatch.setenv("OPENDATA_BUG_REPORT_EMAIL", "bugs@example.com")
-    # Ensure no API token is present so we fall through to email path
-    monkeypatch.delenv("OPENDATA_BUG_REPORT_TOKEN", raising=False)
-
-    project_path = tmp_path / "my_project"
-    project_path.mkdir()
-    agent.load_project(project_path)
-
-    msg = agent._handle_bug_command("/bug crashes on open")
-
-    url = agent._pending_bug_report_url
-    assert url is not None
-    assert url.startswith("mailto:bugs@example.com")
-    # Message should still include GitHub fallback link
-    assert "github.com/jochym/opendata/issues/new" in msg
-
-
-def test_handle_bug_command_api_submission_success(agent, tmp_path, monkeypatch):
-    """When OPENDATA_BUG_REPORT_TOKEN is set and API call succeeds, no pending URL needed."""
-    import unittest.mock
-
+def test_submit_bug_via_github_api_calls_correct_endpoint(agent):
+    """_submit_bug_via_github_api must POST to the correct GitHub API endpoint."""
     fake_issue_url = "https://github.com/jochym/opendata/issues/999"
-    monkeypatch.setenv("OPENDATA_BUG_REPORT_TOKEN", "fake-token-abc")
-    monkeypatch.delenv("OPENDATA_BUG_REPORT_EMAIL", raising=False)
+    mock_response = unittest.mock.MagicMock()
+    mock_response.read.return_value = (
+        f'{{"html_url": "{fake_issue_url}"}}'.encode()
+    )
+    mock_response.__enter__ = lambda s: s
+    mock_response.__exit__ = unittest.mock.MagicMock(return_value=False)
 
-    project_path = tmp_path / "my_project"
-    project_path.mkdir()
-    agent.load_project(project_path)
+    with unittest.mock.patch("urllib.request.urlopen", return_value=mock_response):
+        result = agent._submit_bug_via_github_api("Test title", "Test body", "token")
 
-    with unittest.mock.patch.object(
-        agent, "_submit_bug_via_github_api", return_value=fake_issue_url
+    assert result == fake_issue_url
+
+
+def test_submit_bug_via_github_api_returns_none_on_failure(agent):
+    """_submit_bug_via_github_api must return None when the network call fails."""
+    with unittest.mock.patch(
+        "urllib.request.urlopen", side_effect=OSError("network error")
     ):
-        msg = agent._handle_bug_command("/bug api test")
+        result = agent._submit_bug_via_github_api("title", "body", "token")
 
-    # No pending URL — issue was created directly
-    assert agent._pending_bug_report_url is None
-    # Message should show the created issue link
-    assert fake_issue_url in msg
-    assert "submitted" in msg.lower() or "created" in msg.lower()
-
-
-def test_handle_bug_command_api_failure_falls_back_to_url(agent, tmp_path, monkeypatch):
-    """When API submission fails, command must fall back to the pre-filled GitHub URL."""
-    import unittest.mock
-
-    monkeypatch.setenv("OPENDATA_BUG_REPORT_TOKEN", "fake-token-abc")
-    monkeypatch.delenv("OPENDATA_BUG_REPORT_EMAIL", raising=False)
-
-    project_path = tmp_path / "my_project"
-    project_path.mkdir()
-    agent.load_project(project_path)
-
-    with unittest.mock.patch.object(
-        agent, "_submit_bug_via_github_api", return_value=None
-    ):
-        agent._handle_bug_command("/bug api failure")
-
-    assert agent._pending_bug_report_url is not None
-    assert "github.com/jochym/opendata/issues/new" in agent._pending_bug_report_url
+    assert result is None
 

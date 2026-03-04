@@ -481,18 +481,13 @@ async def handle_user_msg_from_code(ctx: AppContext, text: str, mode: str = "met
             mode=mode,
             stop_event=ctx.session.ai_stop_event,
         )
-        # If the /bug command generated a GitHub issue URL, open it in a new tab
-        bug_url = getattr(ctx.agent, "_pending_bug_report_url", None)
-        if bug_url:
-            ctx.agent._pending_bug_report_url = None
-            try:
-                ui.navigate.to(bug_url, new_tab=True)
-            except Exception as nav_err:
-                logger.warning(
-                    "Could not auto-open bug report URL: %s — "
-                    "user can still click the link in the chat.",
-                    nav_err,
-                )
+        # If the /bug command generated a pending bug report, open the dialog
+        bug_report = getattr(ctx.agent, "_pending_bug_report", None)
+        if bug_report:
+            ctx.agent._pending_bug_report = None
+            from opendata.ui.components.bug_report_dialog import show_bug_report_dialog
+
+            show_bug_report_dialog(ctx, bug_report)
     except asyncio.CancelledError:
         logger.info("AI interaction cancelled by user.")
         ctx.agent.chat_history.append(
