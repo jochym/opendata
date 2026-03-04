@@ -79,14 +79,14 @@ def test_agent_generate_ai_prompt(agent, tmp_path):
 
 
 def test_handle_bug_command_generates_github_url(agent, tmp_path):
-    """Bug command must generate a pre-filled GitHub issue URL for zero-friction reporting."""
+    """Without a token/email env var, command generates a pre-filled GitHub issue URL."""
     project_path = tmp_path / "my_project"
     project_path.mkdir()
     agent.load_project(project_path)
 
     agent._handle_bug_command("/bug application crashes on startup")
 
-    # A GitHub issue URL must be stored for the UI to open
+    # GitHub URL must be stored for the UI to open
     assert agent._pending_bug_report_url is not None
     url = agent._pending_bug_report_url
     assert url.startswith("https://github.com/jochym/opendata/issues/new")
@@ -137,6 +137,69 @@ def test_handle_bug_command_no_description(agent, tmp_path):
     agent.load_project(project_path)
 
     agent._handle_bug_command("/bug")
+
+    assert agent._pending_bug_report_url is not None
+    assert "github.com/jochym/opendata/issues/new" in agent._pending_bug_report_url
+
+
+def test_handle_bug_command_uses_mailto_when_email_configured(agent, tmp_path, monkeypatch):
+    """When OPENDATA_BUG_REPORT_EMAIL is set, pending URL should be a mailto: link."""
+    monkeypatch.setenv("OPENDATA_BUG_REPORT_EMAIL", "bugs@example.com")
+    # Ensure no API token is present so we fall through to email path
+    monkeypatch.delenv("OPENDATA_BUG_REPORT_TOKEN", raising=False)
+
+    project_path = tmp_path / "my_project"
+    project_path.mkdir()
+    agent.load_project(project_path)
+
+    msg = agent._handle_bug_command("/bug crashes on open")
+
+    url = agent._pending_bug_report_url
+    assert url is not None
+    assert url.startswith("mailto:bugs@example.com")
+    # Message should still include GitHub fallback link
+    assert "github.com/jochym/opendata/issues/new" in msg
+
+
+def test_handle_bug_command_api_submission_success(agent, tmp_path, monkeypatch):
+    """When OPENDATA_BUG_REPORT_TOKEN is set and API call succeeds, no pending URL needed."""
+    import unittest.mock
+
+    fake_issue_url = "https://github.com/jochym/opendata/issues/999"
+    monkeypatch.setenv("OPENDATA_BUG_REPORT_TOKEN", "fake-token-abc")
+    monkeypatch.delenv("OPENDATA_BUG_REPORT_EMAIL", raising=False)
+
+    project_path = tmp_path / "my_project"
+    project_path.mkdir()
+    agent.load_project(project_path)
+
+    with unittest.mock.patch.object(
+        agent, "_submit_bug_via_github_api", return_value=fake_issue_url
+    ):
+        msg = agent._handle_bug_command("/bug api test")
+
+    # No pending URL — issue was created directly
+    assert agent._pending_bug_report_url is None
+    # Message should show the created issue link
+    assert fake_issue_url in msg
+    assert "submitted" in msg.lower() or "created" in msg.lower()
+
+
+def test_handle_bug_command_api_failure_falls_back_to_url(agent, tmp_path, monkeypatch):
+    """When API submission fails, command must fall back to the pre-filled GitHub URL."""
+    import unittest.mock
+
+    monkeypatch.setenv("OPENDATA_BUG_REPORT_TOKEN", "fake-token-abc")
+    monkeypatch.delenv("OPENDATA_BUG_REPORT_EMAIL", raising=False)
+
+    project_path = tmp_path / "my_project"
+    project_path.mkdir()
+    agent.load_project(project_path)
+
+    with unittest.mock.patch.object(
+        agent, "_submit_bug_via_github_api", return_value=None
+    ):
+        agent._handle_bug_command("/bug api failure")
 
     assert agent._pending_bug_report_url is not None
     assert "github.com/jochym/opendata/issues/new" in agent._pending_bug_report_url

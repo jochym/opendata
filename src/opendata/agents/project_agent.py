@@ -1,9 +1,12 @@
 import datetime
+import json
 import logging
+import os
 import platform
 import re
 import sys
 import urllib.parse
+import urllib.request
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -28,6 +31,14 @@ from opendata.utils import FullTextReader, PromptManager, format_size, scan_proj
 from opendata.workspace import WorkspaceManager
 
 logger = logging.getLogger("opendata.agents.project_agent")
+
+# Bug reporting: env-var names and GitHub repo slug.
+# Set OPENDATA_BUG_REPORT_TOKEN to a fine-grained PAT with issues:write on this
+# repo to enable account-free direct submission via the GitHub REST API.
+# Set OPENDATA_BUG_REPORT_EMAIL to enable the mailto: fallback.
+_GITHUB_BUG_REPORT_REPO = "jochym/opendata"
+_GITHUB_BUG_REPORT_TOKEN_ENV = "OPENDATA_BUG_REPORT_TOKEN"
+_BUG_REPORT_EMAIL_ENV = "OPENDATA_BUG_REPORT_EMAIL"
 
 
 class ProjectAnalysisAgent:
@@ -847,8 +858,43 @@ class ProjectAnalysisAgent:
             mode, self.current_metadata, self.current_fingerprint, effective
         )
 
+    def _submit_bug_via_github_api(
+        self, title: str, body: str, token: str
+    ) -> str | None:
+        """Submit a bug report directly to GitHub Issues via the REST API.
+
+        Uses only stdlib so no extra dependency is needed.
+        Returns the created issue URL on success, or None on failure.
+        """
+        payload = json.dumps(
+            {"title": title, "body": body, "labels": ["bug"]}
+        ).encode("utf-8")
+        req = urllib.request.Request(
+            f"https://api.github.com/repos/{_GITHUB_BUG_REPORT_REPO}/issues",
+            data=payload,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+                "Accept": "application/vnd.github.v3+json",
+                "User-Agent": "opendata-tool-bug-reporter",
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=10) as response:
+                result = json.loads(response.read().decode("utf-8"))
+                issue_url = result.get("html_url")
+                if not issue_url:
+                    logger.warning(
+                        "GitHub API response missing html_url: %s", result
+                    )
+                return issue_url
+        except Exception as e:
+            logger.warning("GitHub API bug submission failed: %s", e)
+            return None
+
     def _handle_bug_command(self, user_text: str) -> str:
-        """Generates a diagnostic report and opens a pre-filled GitHub issue."""
+        """Generates a diagnostic report; submits to GitHub or opens issue/email form."""
         description = user_text[4:].strip() or _("No description provided.")
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         report_name = f"bug_report_{timestamp}.yaml"
@@ -900,18 +946,18 @@ class ProjectAnalysisAgent:
         with open(report_path, "w", encoding="utf-8") as f:
             yaml.dump(report_data, f, allow_unicode=True, sort_keys=False)
 
-        # Truncate body if it would make the URL too long (keep under 7 KB)
-        # The body text is limited to ~7 KB before percent-encoding to avoid
-        # exceeding GitHub's maximum URL length (~65 KB encoded).
+        # Build the issue title / body shared by all submission paths.
+        # Body text is limited to ~7 KB before percent-encoding to stay well
+        # under GitHub's ~65 KB encoded URL limit.
         _MAX_ISSUE_BODY_CHARS = 7000
         _ISSUE_BODY_TRUNCATION = 6950
         _MAX_ISSUE_TITLE_CHARS = 80
 
-        # Build pre-filled GitHub issue body (keep concise to respect URL limits)
         recent_chat = self.chat_history[-5:] if self.chat_history else []
         chat_lines = "\n".join(
             f"**{role}:** {text[:200]}" for role, text in recent_chat
         )
+        issue_title_text = f"Bug: {description[:_MAX_ISSUE_TITLE_CHARS]}"
         issue_body = (
             f"## Bug Description\n{description}\n\n"
             f"## System Info\n"
@@ -925,26 +971,69 @@ class ProjectAnalysisAgent:
             f"---\n"
             f"*Full diagnostic report: `{report_path}`*"
         )
-
         if len(issue_body) > _MAX_ISSUE_BODY_CHARS:
             issue_body = issue_body[:_ISSUE_BODY_TRUNCATION] + "\n...(truncated)"
 
-        issue_title = urllib.parse.quote(
-            f"Bug: {description[:_MAX_ISSUE_TITLE_CHARS]}", safe=""
-        )
-        issue_body_enc = urllib.parse.quote(issue_body, safe="")
-        github_url = (
-            f"https://github.com/jochym/opendata/issues/new"
-            f"?title={issue_title}&body={issue_body_enc}&labels=bug"
-        )
-        self._pending_bug_report_url = github_url
+        # --- Submission strategy ---
+        # 1. Direct GitHub API (account-free) if a reporter token is configured.
+        # 2. mailto: fallback if a bug-report e-mail address is configured.
+        # 3. Pre-filled GitHub "new issue" URL (requires GitHub account as last resort).
 
-        msg = (
-            f"🐞 **{_('Bug report generated!')}**\n\n"
-            f"{_('Diagnostic data saved to:')}\n`{report_path}`\n\n"
-            f"**[🐛 {_('Open GitHub Issue (pre-filled)')}]({github_url})**\n\n"
-            f"_{_('A browser tab will open automatically. If you do not have a GitHub account, you can create one for free to submit the report.')}_"
-        )
+        token = os.environ.get(_GITHUB_BUG_REPORT_TOKEN_ENV, "").strip()
+        bug_email = os.environ.get(_BUG_REPORT_EMAIL_ENV, "").strip()
+
+        created_issue_url: str | None = None
+        if token:
+            created_issue_url = self._submit_bug_via_github_api(
+                issue_title_text, issue_body, token
+            )
+
+        if created_issue_url:
+            # Issue was created directly — nothing extra to open in UI.
+            self._pending_bug_report_url = None
+            msg = (
+                f"✅ **{_('Bug report submitted!')}**\n\n"
+                f"{_('A GitHub issue was created automatically (no account needed):')}\n"
+                f"**[{created_issue_url}]({created_issue_url})**\n\n"
+                f"{_('Local diagnostic data saved to:')}\n`{report_path}`"
+            )
+        else:
+            # Build URL-encoded GitHub new-issue URL as fallback.
+            issue_title_enc = urllib.parse.quote(issue_title_text, safe="")
+            issue_body_enc = urllib.parse.quote(issue_body, safe="")
+            github_new_url = (
+                f"https://github.com/{_GITHUB_BUG_REPORT_REPO}/issues/new"
+                f"?title={issue_title_enc}&body={issue_body_enc}&labels=bug"
+            )
+
+            if bug_email:
+                # Open pre-filled email — no GitHub account needed.
+                mailto_url = (
+                    "mailto:"
+                    + urllib.parse.quote(bug_email, safe="@")
+                    + "?subject="
+                    + urllib.parse.quote(issue_title_text, safe="")
+                    + "&body="
+                    + urllib.parse.quote(issue_body, safe="")
+                )
+                self._pending_bug_report_url = mailto_url
+                msg = (
+                    f"🐞 **{_('Bug report generated!')}**\n\n"
+                    f"{_('A pre-filled email will open in your mail client — just click Send (no account needed).')}\n\n"
+                    f"{_('Alternatively, if you have a GitHub account:')}\n"
+                    f"**[🐛 {_('Open GitHub Issue (pre-filled)')}]({github_new_url})**\n\n"
+                    f"{_('Local diagnostic data saved to:')}\n`{report_path}`"
+                )
+            else:
+                # Last resort: pre-filled GitHub URL (requires GitHub account).
+                self._pending_bug_report_url = github_new_url
+                msg = (
+                    f"🐞 **{_('Bug report generated!')}**\n\n"
+                    f"**[🐛 {_('Open GitHub Issue (pre-filled)')}]({github_new_url})**\n\n"
+                    f"_{_('A browser tab will open automatically. If you do not have a GitHub account, you can create one for free to submit the report.')}_\n\n"
+                    f"{_('Local diagnostic data saved to:')}\n`{report_path}`"
+                )
+
         self.chat_history.append(("agent", msg))
         self.save_state()
         return msg
