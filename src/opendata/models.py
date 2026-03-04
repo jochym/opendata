@@ -91,7 +91,7 @@ class Metadata(BaseModel):
     )
 
     # RODBUK Mandatory Fields (Made optional for intermediate drafting)
-    title: str | None = Field(None, description="Full dataset title")
+    title: str | None = Field(default=None, description="Full dataset title")
     authors: list[PersonOrOrg] = Field(default_factory=list)
     contacts: list[Contact] = Field(default_factory=list)
     description: list[str] = Field(
@@ -100,14 +100,14 @@ class Metadata(BaseModel):
     keywords: list[str] = Field(default_factory=list)
     science_branches_mnisw: list[str] = Field(default_factory=list)
     science_branches_oecd: list[str] = Field(default_factory=list)
-    languages: list[str] = Field(default=["English"])
+    languages: list[str] = Field(default_factory=lambda: ["English"])
     kind_of_data: str | None = Field(
-        None,
+        default=None,
         description="e.g., 'Experimental', 'Simulation'",
         validation_alias="kindof_data",
     )
     license: str | None = Field(
-        "CC-BY-4.0", description="Data license (e.g., CC-BY-4.0, MIT)"
+        default="CC-BY-4.0", description="Data license (e.g., CC-BY-4.0, MIT)"
     )
     software: list[str] = Field(
         default_factory=list,
@@ -115,15 +115,17 @@ class Metadata(BaseModel):
     )
 
     # Persistence of session settings
-    ai_model: str | None = Field(None, description="Selected AI model for this project")
+    ai_model: str | None = Field(
+        default=None, description="Selected AI model for this project"
+    )
 
     # Optional Fields
     alternative_titles: list[str] = Field(default_factory=list)
-    abstract: str | None = Field(None)
+    abstract: str | None = Field(default=None)
     related_publications: list[RelatedResource] = Field(default_factory=list)
     related_datasets: list[RelatedResource] = Field(default_factory=list)
     funding: list[dict] = Field(default_factory=list)
-    notes: str | None = Field(None)
+    notes: str | None = Field(default=None)
 
     @field_validator(
         "description",
