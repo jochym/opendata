@@ -174,7 +174,7 @@ class FileSuggestion(BaseModel):
     """A suggestion from AI to include a file in the package."""
 
     path: str
-    reason: str
+    reason: str = "Supporting file"
 
 
 class AIAnalysis(BaseModel):

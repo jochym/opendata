@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.41] - 2026-03-04
+### Fixed
+- **Status Modal Flickering**: Refactored the progress dialog to create it once and only update its content, eliminating the disruptive hide/show behavior during updates.
+- **Scan Performance & Stability**: Optimized path resolution in the file scanner to reduce CPU/memory usage and increased the UI update interval to prevent system overload (OOM).
+- **Scan Guard**: Added a protection mechanism to prevent multiple simultaneous scans from being triggered.
+- **Metadata Robustness**: Updated data models to better handle intermediate metadata states during the AI drafting process.
+
 ## [0.22.40] - 2026-03-04
 ### Added
 - **Persistent Progress Modal**: All long-running processes (Scan, AI Analysis) now use a persistent modal dialog with live progress stats and a prominent "Stop" button, ensuring the main UI remains stable and interactive.

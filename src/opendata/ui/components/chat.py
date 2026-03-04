@@ -92,58 +92,72 @@ def chat_messages_ui(ctx: AppContext):
 
 
 @ui.refreshable
-def render_status_dialog(ctx: AppContext):
-    """Renders a modal dialog for scanning and AI processing progress."""
-    if not ScanState.is_scanning and not ScanState.is_processing_ai:
-        return
+def status_dialog_content(ctx: AppContext):
+    """Refreshes ONLY the content inside the status dialog."""
+    # Determine current state
+    is_stopping = (
+        (ScanState.stop_event and ScanState.stop_event.is_set())
+        if ScanState.is_scanning
+        else (ctx.session.ai_stop_event and ctx.session.ai_stop_event.is_set())
+    )
 
-    # We use a non-closable dialog to force attention while processing
-    with ui.dialog().props("persistent") as dialog:
-        with ui.card().classes("w-96 p-6 items-center gap-4"):
-            # Determine current state
-            is_stopping = (
-                (ScanState.stop_event and ScanState.stop_event.is_set())
-                if ScanState.is_scanning
-                else (ctx.session.ai_stop_event and ctx.session.ai_stop_event.is_set())
+    with ui.card().classes("w-96 p-6 items-center gap-4"):
+        if is_stopping:
+            ui.icon("cancel", color="red", size="lg")
+            title = _("Cancelling...")
+        else:
+            ui.spinner(size="lg")
+            title = _("Processing...")
+
+        ui.label(title).classes("text-lg font-bold")
+
+        if ScanState.is_scanning:
+            label_text = ScanState.progress or _("Scanning project...")
+        else:
+            label_text = _("AI is thinking...")
+
+        ui.markdown(label_text).classes("text-sm text-center text-gray-700 w-full")
+
+        if ScanState.is_scanning and ScanState.short_path:
+            ui.label(ScanState.short_path).classes(
+                "text-[10px] text-gray-500 text-center break-all w-full"
             )
 
-            if is_stopping:
-                ui.icon("cancel", color="red", size="lg")
-                title = _("Cancelling...")
-            else:
-                ui.spinner(size="lg")
-                title = _("Processing...")
+        if not is_stopping:
+            with ui.row().classes("w-full justify-center mt-2"):
+                if ScanState.is_scanning:
+                    ui.button(
+                        _("Stop Scan"),
+                        on_click=lambda: handle_cancel_scan(ctx),
+                        color="red",
+                    ).props("outline")
+                elif ScanState.is_processing_ai:
+                    ui.button(
+                        _("Stop AI"),
+                        on_click=lambda: handle_cancel_ai(ctx),
+                        color="red",
+                    ).props("outline")
 
-            ui.label(title).classes("text-lg font-bold")
 
-            if ScanState.is_scanning:
-                label_text = ScanState.progress or _("Scanning project...")
-            else:
-                label_text = _("AI is thinking...")
+def render_status_dialog(ctx: AppContext):
+    """Creates the persistent dialog structure once and manages its visibility."""
+    # Use a unique attribute name to avoid conflicts
+    dialog_key = "_status_dialog_instance"
 
-            ui.markdown(label_text).classes("text-sm text-center text-gray-700 w-full")
+    if not hasattr(ctx, dialog_key) or getattr(ctx, dialog_key) is None:
+        with ui.dialog().props("persistent") as dialog:
+            status_dialog_content(ctx)
+        setattr(ctx, dialog_key, dialog)
+        ctx.register_refreshable("status_dialog", status_dialog_content)
 
-            if ScanState.is_scanning and ScanState.short_path:
-                ui.label(ScanState.short_path).classes(
-                    "text-[10px] text-gray-500 text-center break-all w-full"
-                )
+    dialog = getattr(ctx, dialog_key)
+    is_active = ScanState.is_scanning or ScanState.is_processing_ai
 
-            if not is_stopping:
-                with ui.row().classes("w-full justify-center mt-2"):
-                    if ScanState.is_scanning:
-                        ui.button(
-                            _("Stop Scan"),
-                            on_click=lambda: handle_cancel_scan(ctx),
-                            color="red",
-                        ).props("outline")
-                    elif ScanState.is_processing_ai:
-                        ui.button(
-                            _("Stop AI"),
-                            on_click=lambda: handle_cancel_ai(ctx),
-                            color="red",
-                        ).props("outline")
-
-    dialog.open()
+    # Toggle visibility based on state
+    if is_active:
+        dialog.open()
+    else:
+        dialog.close()
 
 
 def render_analysis_form(ctx: AppContext, analysis: Any):
@@ -286,11 +300,13 @@ async def handle_scan_only(ctx: AppContext, path: str):
     if not path:
         ui.notify(_("Please provide a path"), type="warning")
         return
+
     ScanState.current_path = path
+
     resolved_path = Path(path).expanduser()
 
-    ScanState.stop_event = threading.Event()
     ScanState.is_scanning = True
+    ScanState.stop_event = threading.Event()
     ScanState.progress = _("Scanning...")
     # Refresh modal
     ctx.refresh("status_dialog")
