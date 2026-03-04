@@ -129,6 +129,32 @@ def extract_metadata_from_ai_response(
             yaml_content = re.sub(r"```(?:json|yaml|metadata)?\s*", "", yaml_content)
             yaml_content = yaml_content.replace("```", "")
 
+            # Guardrail: Handle common unquoted colons in LaTeX-style titles or strings
+            # which cause "mapping values are not allowed here" in YAML
+            # We look for lines that look like a key but have a second colon in the value
+            # e.g. title: "Study of : Something" -> this is fine
+            # but title: Study of : Something -> this is BAD
+            def fix_unquoted_colons(match):
+                key = match.group(1)
+                value = match.group(2).strip()
+                # If value has colons but is not quoted, wrap it in quotes
+                if ":" in value and not (
+                    (value.startswith('"') and value.endswith('"'))
+                    or (value.startswith("'") and value.endswith("'"))
+                ):
+                    # Escape existing double quotes if we use them for wrapping
+                    value = value.replace('"', '\\"')
+                    return f'{key}: "{value}"'
+                return match.group(0)
+
+            # Apply fix to likely key-value pairs (single level)
+            yaml_content = re.sub(
+                r"^(\s*[\w_]+): (.*)$",
+                fix_unquoted_colons,
+                yaml_content,
+                flags=re.MULTILINE,
+            )
+
             # QUESTION: already split off at line 70-72, yaml_content is clean
             # (we check again here as a safety measure)
             if "QUESTION:" in yaml_content:

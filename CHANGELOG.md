@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.22.39] - 2026-03-04
+### Added
+- **AI Progress Messages**: Detailed real-time status updates in the progress modal (e.g., "Sending prompt...", "Waiting for reply...", "Parsing response...").
+- **File Explorer Pagination**: Added a "Load More" button in the file selector to handle large directories and prevent WebSocket "Message too long" errors.
+- **AI Analysis Guard**: The "AI Analyze" button now requires at least one significant file to be selected and shows a helpful tooltip if disabled.
+- **Default Selection Category**: The first selected important file now defaults to "Article", while subsequent ones default to "other".
+
+### Fixed
+- **YAML-First Parsing**: Refactored the metadata parser to prioritize YAML and added support for list-based structures often returned by newer models (e.g., gemini-3.1-flash-lite).
+- **Status Modal Stability**: Completely refactored the progress dialog to use pure reactive bindings with timer-based updates, eliminating all flickering and "client deleted" errors.
+- **Scanner Performance & OOM Prevention**: Optimized file scanning using fast string operations and a 0.5s UI update throttle to reduce CPU/memory pressure.
+- **Metadata Models**: Restored default mandatory fields while maintaining flexibility for AI drafting states.
+- **Chat Experience**: Implemented intelligent auto-scrolling (only triggers on new messages) and fixed horizontal overflow for code/YAML blocks.
+- **File Selection UI Sync**: Fixed the bug where the selection bar didn't update after using the editor.
+- **Project Switch Cleanup**: Opening a new project now correctly resets all internal agent and UI states.
+- **File Role Persistence**: Fixed critical bug where `AIAnalysis` model was missing `model_config = {"populate_by_name": True}`, causing file roles (Article/Other) to be lost when switching projects.
+
+## [0.22.38] - 2026-03-04
+
+### Added
+- **AI Progress Messages**: Detailed real-time status updates in the progress modal (e.g., "Sending prompt...", "Waiting for reply...").
+- **File Explorer Pagination**: Added a "Load More" button in the file selector to handle large directories and prevent WebSocket "Message too long" errors.
+- **AI Analysis Guard**: The "AI Analyze" button now requires at least one significant file to be selected and shows a helpful tooltip if disabled.
+- **Default Selection Category**: The first selected important file now defaults to "Article", while subsequent ones default to "other".
+
+### Fixed
+- **YAML-First Parsing**: Refactored the metadata parser to prioritize YAML and added support for list-based structures often returned by newer models (e.g., gemini-3.1-flash-lite).
+- **Status Modal Stability**: Completely refactored the progress dialog to use pure reactive bindings, eliminating all flickering and "client deleted" errors.
+- **Scanner Performance & OOM Prevention**: Optimized file scanning using fast string operations and a 0.5s UI update throttle to reduce CPU/memory pressure.
+- **Metadata Models**: Restored default mandatory fields while maintaining flexibility for AI drafting states.
+- **Chat Experience**: Implemented intelligent auto-scrolling and fixed horizontal overflow for code/YAML blocks.
+- **File Selection UI Sync**: Fixed the bug where the selection bar didn't update after using the editor.
+- **Project Switch Cleanup**: Opening a new project now correctly resets all internal agent and UI states.
+- **File Role Persistence**: Fixed critical bug where `AIAnalysis` model was missing `model_config = {"populate_by_name": True}`, causing file roles (Article/Other) to be lost when switching projects.
+
 ## [0.22.37] - 2026-03-03
 ### Added
 - **Persistent Logging**: Implemented automatic file logging to `~/.opendata_tool/opendata.log` with 1MB rotation, ensuring diagnostic data is available even when running in GUI mode without a terminal.
@@ -20,99 +57,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Verified logging fallback when `stdout` is redirected or unavailable.
 
 ## [0.22.36] - 2026-03-03
-### Added
-- **File Management Dialog**: Replaced the large file selection and explorer blocks in the Analysis tab with a dedicated modal dialog for a cleaner, focused interface.
-- **Compact Summary**: Added a compact "Important Files" summary card to the metadata panel with an "Edit Selection" button to launch the new dialog.
-
-### Changed
-- **UI Layout**: Optimized vertical spacing in the metadata preview panel, reducing gaps and padding to maximize information density.
-- **Layout Robustness**: Refactored the metadata panel to use a proper flexbox layout, eliminating the "double scroller" issue while ensuring elements stay tightly packed at the top.
-
-### Fixed
-- **UI Spacing**: Resolved issues where elements in the metadata panel were stretched or separated by excessive empty space on different screen sizes.
-
-### Testing
-- Added comprehensive unit and integration tests for the new File Management Dialog component.
-- Verified UI responsiveness and layout behavior across various viewports.
-- All 168 tests pass.
-
-## [0.22.35] - 2026-03-02
-### Added
-- **Documentation**: Added comprehensive, step-by-step installation guides for beta testers in English and Polish (`website/docs/installation.md`, `website/docs/installation_pl.md`).
-- **Website UI**: Enhanced the testing portal (`website/index.html`) with a new "Step-by-Step Installation" section and direct links to the new guides.
-
-### Changed
-- **Tester Manual**: Updated `docs/TESTER_MANUAL.md` (and the website version) to reflect the new PyApp-based installation workflow, including security bypass instructions for Windows and macOS.
-- **Documentation**: Unified binary naming patterns across all guides to use version placeholders (e.g., `opendata-<system>-pyapp-<version>`).
-
-### Fixed
-- **Documentation**: Corrected the default application port from `8000` to `8080` in all manuals.
-- **Documentation**: Fixed a typo in the Polish installation guide ("adreres" -> "adresem").
-- **Cross-Platform Path Handling**: Fixed `test_lazy_scanner_no_reads` failure on macOS and Windows caused by `Path.relative_to()` errors with symlinks and short paths (e.g., `/var` vs `/private/var`, `runneradmin` vs `RUNNER~1`). Both file path and root are now resolved before computing relative paths in `scan_project_lazy` and `format_file_list`.
-
-### Testing
-- All 152 tests pass on all platforms (Ubuntu, macOS, Windows).
-- CI/CD pipeline now passes on all platforms after symlink path resolution fix.
-
-## [0.22.34] - 2026-02-28
-### Fixed
-- **AI Spinner State**: Fixed bug where "AI is thinking" spinner would not disappear after AI completion or cancellation. Added explicit `ctx.refresh("chat")` calls to ensure UI reflects current state.
-- **Cancellation Handling**: Added explicit `asyncio.CancelledError` handling in chat to log cancellation messages, matching the scan cancellation pattern.
-- **Parsing Robustness**: Updated parser guardrail to accept YAML list markers and increased check window from 200 to 500 characters, preventing crashes on prose-only AI responses.
-- **Prompt-Parser Format Mismatch**: Updated all prompt templates to use YAML-first format (with JSON fallback), resolving inconsistencies between prompts and parser expectations.
-
-### Changed
-- **Prompts**: All system prompts now prefer YAML format for better readability while maintaining JSON compatibility.
-- **E2E Tests**: Replaced hardcoded project paths with realistic fixtures from `tests/fixtures/realistic_projects/`, making tests portable across environments.
-
-### Added
-- **Test Coverage**: Added comprehensive test suite for AI cancellation state management (8 tests).
-- **Test Coverage**: Added test for prose-only parsing guard to verify parser skips parsing when METADATA section contains only text.
-- **Wheel Packaging**: Auto-build wheel for packaging tests, eliminating manual build step requirement.
-
-### Removed
-- **Redundant Tests**: Removed `tests/test_workspace.py` (duplicated integration tests in `tests/integration/test_workspace_io.py`).
-- **Unnecessary Markers**: Removed `local_only` marker from `tests/test_utils.py` - tests now run in CI/CD.
-
-### Testing
-- Fixed `test_help_argument` to verify actual help text output and exit code.
-- All 152 tests pass (10 wheel packaging tests now auto-build and run).
-- E2E tests now use realistic project fixtures instead of hardcoded paths.
-
-## [0.22.33] - 2026-02-26
-### Fixed
-- **AI Model Validation**: Prevented application crash when an invalid model name is configured.
-- **Model Selection Dialog**: Added a UI dialog that appears when the configured AI model is unavailable, allowing users to select a valid one from the list.
-- **NiceGUI Safety**: Fixed a `ValueError` in the settings tab caused by missing model options in the selection dropdown.
-- **Startup Logic**: Improved startup sequence to ensure UI notifications and dialogs are called within the correct page context.
-
-## [0.22.32] - 2026-02-25
-### Fixed
-- **Binary Build Pipeline**: Restored missing dependencies in CI/CD workflow that caused empty wheel filenames in pyApp builds.
-- **CI Logic**: Decoupled wheel building from GUI tests to ensure binaries can be built even when GUI tests are skipped.
-- **Release Assets**: Ensured all binary artifacts (Windows, Linux, macOS) are correctly attached to the GitHub release.
-
-## [0.22.31] - 2026-02-25
-### Added
-- **macOS Intel Support**: Added support for macOS Intel (x86_64) pyApp binary builds.
-- **System Documentation**: Created `docs/BINARY_SYSTEM.md` detailing the CI/CD build and verification architecture.
-- **Smoke Testing**: Implemented a robust two-stage verification system (Smoke Test + Functional API Test) for all distributed binaries.
-- **Agent Guidelines**: Updated `AGENTS.md` with a detailed, mandatory release procedure.
-
-### Fixed
-- **Windows pyApp**: Fixed critical `ModuleNotFoundError` on Windows by correcting POSIX-to-Windows path conversion in the build pipeline.
-- **Linux Compatibility**: Enforced `v1` CPU variant for Linux x86_64 pyApp builds, ensuring compatibility with older CPUs (fixing "Illegal Instruction" crashes).
-- **CI Stability**: Standardized temporary path usage across all runners and containers to prevent permission and availability issues.
-- **macOS Verification**: Fixed script failures on macOS by removing the dependency on the non-existent `timeout` command.
-- **Workflow Cleanup**: Removed duplicate code blocks and unreachable logic in CI/CD workflows identified during system audit.
-- **Website Fixes**: Repaired HTML corruption and corrected installation instructions (uvx, pipx) on the portal.
-
-### Changed
-- **Dependencies**: Downgraded `bibtexparser` to `>=1.3.0` for better compatibility with older distributions.
-- **CI Workflow**: Optimized main workflow to only build binaries on tags or the `develop-binaries` branch.
-- **CI Workflow**: Restricted GUI smoke tests to `main` branch, PRs to `main`, and tags.
-
-## [0.22.28] - 2026-02-25
-### Fixed
-- **PyApp Configuration**: Removed invalid `PYAPP_EXEC_FUNCTION` and ensured proper Python distribution embedding.
-- **CI Testing**: Increased verification timeouts to accommodate first-run installation.
+...

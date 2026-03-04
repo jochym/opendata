@@ -35,6 +35,7 @@ class SessionState:
     folder_children_map: dict[str, list[str]] = field(default_factory=dict)
     folder_stats: dict[str, dict[str, int]] = field(default_factory=dict)
     ai_stop_event: Optional[threading.Event] = None
+    last_chat_len: int = 0
 
     def reset(self):
         """Resets session state to default values without replacing the object."""
@@ -65,6 +66,7 @@ class AppContext:
     analysis_tab: Any = None
     package_tab: Any = None
     preview_tab: Any = None
+    chat_scroll_area: Any = None
 
     # Callback to refresh all UI components
     refresh_all: Callable[[], None] = field(default_factory=lambda: lambda: None)
@@ -77,4 +79,9 @@ class AppContext:
 
     def refresh(self, name: str):
         if name in self._refreshables:
-            self._refreshables[name].refresh()
+            obj = self._refreshables[name]
+            if hasattr(obj, "refresh"):
+                obj.refresh()
+            elif callable(obj):
+                # Fallback if a raw function was registered
+                obj()

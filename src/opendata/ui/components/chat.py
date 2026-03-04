@@ -3,7 +3,7 @@ import logging
 import re
 import threading
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from nicegui import ui
 
@@ -23,6 +23,17 @@ logger = logging.getLogger("opendata.ui.chat")
 
 @ui.refreshable
 def chat_messages_ui(ctx: AppContext):
+    # Ensure code blocks and pre tags wrap correctly within the chat
+    ui.add_css("""
+        .chat-bubble pre {
+            white-space: pre-wrap !important;
+            word-break: break-all !important;
+        }
+        .chat-bubble code {
+            white-space: pre-wrap !important;
+            word-break: break-all !important;
+        }
+    """)
     with ui.column().classes("w-full gap-4 p-4"):
         if not ctx.agent.chat_history:
             with ui.column().classes(
@@ -48,15 +59,19 @@ def chat_messages_ui(ctx: AppContext):
             if role == "user":
                 with ui.row().classes("w-full justify-end"):
                     with ui.card().classes(
-                        "bg-blue-500 text-white rounded-lg py-2 px-4 max-w-[80%] shadow-sm"
+                        "bg-blue-500 text-white rounded-lg py-2 px-4 max-w-[85%] shadow-sm overflow-hidden chat-bubble"
                     ):
-                        ui.markdown(text).classes("text-sm")
+                        ui.markdown(text).classes(
+                            "text-sm break-words whitespace-pre-wrap"
+                        )
             else:
                 with ui.row().classes("w-full justify-start"):
                     with ui.card().classes(
-                        "bg-white border border-slate-200 rounded-lg py-2 px-4 max-w-[90%] shadow-sm"
+                        "bg-white border border-slate-200 rounded-lg py-2 px-4 max-w-[95%] shadow-sm overflow-hidden chat-bubble"
                     ):
-                        ui.markdown(text).classes("text-sm text-slate-800")
+                        ui.markdown(text).classes(
+                            "text-sm text-slate-800 break-words whitespace-pre-wrap"
+                        )
 
                         # If this is the last message and there's an active analysis form, show it
                         if (
@@ -65,59 +80,102 @@ def chat_messages_ui(ctx: AppContext):
                         ):
                             render_analysis_form(ctx, ctx.agent.current_analysis)
 
-        if ScanState.is_scanning or ScanState.is_processing_ai:
-            with ui.row().classes("w-full justify-start"):
-                with ui.card().classes(
-                    "bg-gray-100 border border-gray-200 rounded-lg py-1 px-3 w-full shadow-none"
-                ):
-                    with ui.row().classes("items-center w-full justify-between gap-2"):
-                        with ui.row().classes("items-center gap-2"):
-                            is_stopping = (
-                                (ScanState.stop_event and ScanState.stop_event.is_set())
-                                if ScanState.is_scanning
-                                else (
-                                    ctx.session.ai_stop_event
-                                    and ctx.session.ai_stop_event.is_set()
-                                )
-                            )
+    if ctx.chat_scroll_area:
+        # Only scroll if chat history has grown
+        if len(ctx.agent.chat_history) > ctx.session.last_chat_len:
+            try:
+                ctx.chat_scroll_area.scroll_to(percent=1.0)
+            except RuntimeError:
+                pass
+        # Always update last_chat_len to current state
+        ctx.session.last_chat_len = len(ctx.agent.chat_history)
 
-                            if is_stopping:
-                                ui.icon("cancel", color="red", size="sm")
-                                label_text = _("Canceled")
-                            else:
-                                ui.spinner(size="sm")
-                                if ScanState.is_scanning:
-                                    label_text = ScanState.progress or _(
-                                        "Scanning project..."
-                                    )
-                                else:
-                                    label_text = _("AI is thinking...")
 
-                            ui.markdown(label_text).classes(
-                                "text-sm text-gray-800 m-0 p-0 font-medium"
-                            )
-                            if ScanState.is_scanning and ScanState.short_path:
-                                ui.label(ScanState.short_path).classes(
-                                    "text-[10px] text-gray-500 truncate max-w-xs"
-                                )
+def render_status_dialog(ctx: AppContext):
+    """Renders a modal dialog for scanning and AI processing progress.
+    Purely reactive implementation using bindings to avoid flickering and 'client deleted' errors.
+    """
+    with ui.dialog().props("persistent") as dialog:
+        # Visibility bound to scanning OR processing AI
+        dialog.bind_value_from(
+            ScanState, "is_scanning", backward=lambda x: x or ScanState.is_processing_ai
+        )
+        dialog.bind_value_from(
+            ScanState, "is_processing_ai", backward=lambda x: x or ScanState.is_scanning
+        )
 
-                        if not is_stopping:
-                            if ScanState.is_scanning:
-                                ui.button(
-                                    "", on_click=lambda: handle_cancel_scan(ctx)
-                                ).props(
-                                    "icon=stop_circle flat color=red size=md"
-                                ).classes("p-0")
-                            elif ScanState.is_processing_ai:
-                                ui.button(
-                                    "", on_click=lambda: handle_cancel_ai(ctx)
-                                ).props(
-                                    "icon=stop_circle flat color=red size=md"
-                                ).classes("p-0")
-    try:
-        ui.run_javascript("window.scrollTo(0, document.body.scrollHeight)")
-    except RuntimeError:
-        pass
+        with ui.card().classes("w-96 p-6 items-center gap-4"):
+            # Status Indicator (Spinner or Cancel Icon)
+            # We use two elements and bind their visibility to the STOP event state
+            with ui.column().classes("items-center w-full"):
+                ui.spinner(size="lg").bind_visibility_from(
+                    ScanState,
+                    "stop_event",
+                    backward=lambda ev: ev is None or not ev.is_set(),
+                ).bind_visibility_from(
+                    ctx.session,
+                    "ai_stop_event",
+                    backward=lambda ev: ev is None or not ev.is_set(),
+                )
+
+                ui.icon("cancel", color="red", size="lg").bind_visibility_from(
+                    ScanState,
+                    "stop_event",
+                    backward=lambda ev: ev is not None and ev.is_set(),
+                ).bind_visibility_from(
+                    ctx.session,
+                    "ai_stop_event",
+                    backward=lambda ev: ev is not None and ev.is_set(),
+                )
+
+                ui.label(_("Processing...")).classes(
+                    "text-lg font-bold"
+                ).bind_text_from(
+                    ScanState,
+                    "stop_event",
+                    backward=lambda ev: _("Cancelling...")
+                    if ev is not None and ev.is_set()
+                    else _("Processing..."),
+                )
+
+            # Progress content
+            ui.markdown("").classes(
+                "text-sm text-center text-gray-700 w-full"
+            ).bind_content_from(
+                ScanState,
+                "progress",
+                backward=lambda x: x
+                if ScanState.is_scanning
+                else _("AI is thinking..."),
+            )
+
+            # Current file path (Scan only)
+            ui.label("").classes(
+                "text-[10px] text-gray-500 text-center break-all w-full"
+            ).bind_text_from(ScanState, "short_path").bind_visibility_from(
+                ScanState, "is_scanning"
+            )
+
+            # Action buttons
+            with ui.row().classes("w-full justify-center mt-2"):
+                stop_btn = ui.button(
+                    _("Stop"),
+                    on_click=lambda: handle_cancel_scan(ctx)
+                    if ScanState.is_scanning
+                    else handle_cancel_ai(ctx),
+                    color="red",
+                ).props("outline")
+
+                # Hide stop button if already cancelling
+                stop_btn.bind_visibility_from(
+                    ScanState,
+                    "stop_event",
+                    backward=lambda ev: ev is None or not ev.is_set(),
+                ).bind_visibility_from(
+                    ctx.session,
+                    "ai_stop_event",
+                    backward=lambda ev: ev is None or not ev.is_set(),
+                )
 
 
 def render_analysis_form(ctx: AppContext, analysis: Any):
@@ -225,8 +283,12 @@ def render_chat_panel(ctx: AppContext):
                         on_click=lambda: handle_clear_chat(ctx),
                     ).props("flat dense color=red").classes("text-xs")
                     ui.tooltip(_("Clear Chat History"))
-            with ui.scroll_area().classes("flex-grow w-full"):
+            with ui.scroll_area().classes("flex-grow w-full") as ctx.chat_scroll_area:
                 chat_messages_ui(ctx)
+
+            # Modal status dialog - created once per session/client
+            render_status_dialog(ctx)
+
             with ui.row().classes(
                 "bg-white p-3 border-t w-full items-center no-wrap gap-2 shrink-0"
             ):
@@ -255,19 +317,19 @@ async def handle_scan_only(ctx: AppContext, path: str):
     if not path:
         ui.notify(_("Please provide a path"), type="warning")
         return
+
     ScanState.current_path = path
     resolved_path = Path(path).expanduser()
 
-    ScanState.stop_event = threading.Event()
     ScanState.is_scanning = True
+    ScanState.stop_event = threading.Event()
     ScanState.progress = _("Scanning...")
-    ctx.refresh("chat")
+    # Reactive bindings handle the dialog opening
 
     def update_progress(msg, full_path="", short_path=""):
         ScanState.progress = msg
         ScanState.full_path = full_path
         ScanState.short_path = short_path
-        ctx.refresh("chat")
 
     try:
         result = await asyncio.to_thread(
@@ -290,10 +352,9 @@ async def handle_scan_only(ctx: AppContext, path: str):
                 pass
 
         # Refresh the UI inventory cache and stats
-        # This will trigger targeted refreshes via inventory_logic.py
         await load_inventory_background(ctx)
 
-        # Force a global UI refresh to ensure all components see the new state
+        # Force a global UI refresh
         ctx.refresh_all()
 
         # Persist the updated chat history
@@ -312,6 +373,8 @@ async def handle_scan_only(ctx: AppContext, path: str):
     finally:
         ScanState.is_scanning = False
         ScanState.stop_event = None
+        # Reactive bindings handle the dialog closing
+        ctx.refresh("chat")
         try:
             ctx.refresh_all()
         except Exception:
@@ -325,7 +388,7 @@ async def handle_ai_analysis(ctx: AppContext, path: str):
 
     ScanState.is_processing_ai = True
     ctx.session.ai_stop_event = threading.Event()
-    ctx.refresh("chat")
+    # Reactive bindings handle the dialog opening
 
     try:
         await asyncio.to_thread(
@@ -344,6 +407,7 @@ async def handle_ai_analysis(ctx: AppContext, path: str):
     finally:
         ScanState.is_processing_ai = False
         ctx.session.ai_stop_event = None
+        # Reactive bindings handle the dialog closing
         ctx.refresh("chat")
         ctx.refresh_all()
 
@@ -406,9 +470,7 @@ def render_metadata_panel(ctx: AppContext):
                     _("Scan"),
                     icon="refresh",
                     on_click=lambda: handle_scan_only(ctx, path_input.value),
-                ).classes("flex-grow").props("dense outline").bind_visibility_from(
-                    ScanState, "is_scanning", backward=lambda x: not x
-                )
+                ).classes("flex-grow").props("dense outline")
 
                 ai_btn = (
                     ui.button(
@@ -418,9 +480,6 @@ def render_metadata_panel(ctx: AppContext):
                     )
                     .classes("flex-grow")
                     .props("dense elevated color=primary")
-                    .bind_visibility_from(
-                        ScanState, "is_scanning", backward=lambda x: not x
-                    )
                 )
                 ai_btn.bind_enabled_from(
                     ctx.agent, "heuristics_run", backward=lambda x: bool(x)
@@ -433,14 +492,6 @@ def render_metadata_panel(ctx: AppContext):
                 )
                 render_file_selection_summary(ctx)
 
-            ui.button(
-                _("Cancel"),
-                icon="stop",
-                on_click=lambda: handle_cancel_scan(ctx),
-                color="red",
-            ).classes("w-full").props("dense").bind_visibility_from(
-                ScanState, "is_scanning"
-            )
             ui.separator().classes("my-1")
 
             with ui.scroll_area().classes("flex-grow w-full"):
@@ -470,7 +521,7 @@ async def handle_user_msg_from_code(ctx: AppContext, text: str, mode: str = "met
 
     ScanState.is_processing_ai = True
     ctx.session.ai_stop_event = threading.Event()
-    ctx.refresh("chat")
+    # Reactive bindings handle the dialog opening
 
     try:
         await asyncio.to_thread(
@@ -494,13 +545,9 @@ async def handle_user_msg_from_code(ctx: AppContext, text: str, mode: str = "met
     finally:
         ScanState.is_processing_ai = False
         ctx.session.ai_stop_event = None
+        # Reactive bindings handle the dialog closing
         ctx.refresh("chat")
         ctx.refresh_all()
-
-        try:
-            ui.run_javascript("window.scrollTo(0, document.body.scrollHeight)")
-        except RuntimeError:
-            pass
 
 
 async def handle_clear_chat(ctx: AppContext):

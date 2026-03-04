@@ -299,13 +299,22 @@ def scan_project_lazy(
     full_inventory = []
 
     last_ui_update = 0
-    UI_UPDATE_INTERVAL = 0.1
+    UI_UPDATE_INTERVAL = 1.0
+    # Use string operations for speed
+    root_abs = str(root.absolute())
 
     for p, stat in walk_project_files(root, stop_event, exclude_patterns):
         if stop_event and stop_event.is_set():
             import asyncio
 
             raise asyncio.CancelledError("Scan cancelled by user")
+
+        # Fast relative path calculation
+        p_abs = str(p)
+        if p_abs.startswith(root_abs):
+            rel_path = p_abs[len(root_abs) :].lstrip("/").lstrip("\\")
+        else:
+            rel_path = p.name
 
         if stat is not None:  # It's a file
             file_count += 1
@@ -314,9 +323,6 @@ def scan_project_lazy(
             suffix = p.suffix.lower()
             extensions.add(suffix)
 
-            # Resolve both paths to handle symlinks (macOS /var → /private/var)
-            # and Windows short paths (RUNNER~1 → runneradmin)
-            rel_path = str(p.resolve().relative_to(root.resolve()))
             full_inventory.append(
                 {"path": rel_path, "size": size, "mtime": stat.st_mtime}
             )
@@ -329,7 +335,7 @@ def scan_project_lazy(
             total_size_str = format_size(total_size)
             progress_callback(
                 f"{total_size_str} - {file_count} files",
-                str(p.resolve().relative_to(root.resolve())),
+                rel_path,
                 f"Scanning {p.name}...",
             )
             last_ui_update = now
@@ -340,6 +346,8 @@ def scan_project_lazy(
         total_size_bytes=total_size,
         extensions=list(extensions),
         structure_sample=structure_sample,
+        primary_file=None,
+        significant_files=[],
     )
 
     return fingerprint, full_inventory

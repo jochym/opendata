@@ -61,7 +61,7 @@ def render_selected_files_list(ctx: AppContext):
             with ui.row().classes(
                 "w-full items-center gap-2 p-2 bg-slate-50 rounded border border-slate-200"
             ):
-                # Role dropdown
+                # Role dropdown - use keys as values, labels as display
                 current_cat = "other"
                 for reason, cat in REASON_MAP.items():
                     if reason in fs.reason:
@@ -75,6 +75,7 @@ def render_selected_files_list(ctx: AppContext):
                         render_selected_files_list.refresh(),
                     )
 
+                # Use category KEYS as values (not translated labels)
                 ui.select(
                     options=CATEGORIES,
                     value=current_cat,
@@ -90,7 +91,7 @@ def render_selected_files_list(ctx: AppContext):
                     return lambda _: (
                         ctx.agent.remove_significant_file(p),
                         render_selected_files_list.refresh(),
-                        ctx.refresh("inventory_selector"),
+                        render_dialog_explorer.refresh(),
                     )
 
                 ui.button(
@@ -146,7 +147,19 @@ def render_dialog_explorer(ctx: AppContext):
                     "text-sm text-slate-400 p-4 text-center"
                 )
 
-            for item in children:
+            # Limit number of items to avoid WebSocket "Message too long" errors
+            display_items = children[: ctx.session.explorer_limit]
+
+            if len(children) > ctx.session.explorer_limit:
+                ui.label(
+                    _("Showing first {n} items of {total}").format(
+                        n=ctx.session.explorer_limit, total=len(children)
+                    )
+                ).classes(
+                    "text-[10px] text-orange-600 bg-orange-50 w-full p-1 text-center font-bold border-b border-orange-100"
+                )
+
+            for item in display_items:
                 is_selected = any(
                     fs.path == item["path"]
                     for fs in (
@@ -182,10 +195,16 @@ def render_dialog_explorer(ctx: AppContext):
                     else:
                         # Capture path for file click
                         def make_file_handler(p):
+                            # First file defaults to 'main_article', subsequent to 'other'
+                            is_first = not (
+                                ctx.agent.current_fingerprint
+                                and ctx.agent.current_fingerprint.significant_files
+                            )
+                            category = "main_article" if is_first else "other"
                             return lambda _: (
-                                ctx.agent.add_significant_file(p, "other"),
+                                ctx.agent.add_significant_file(p, category),
                                 render_selected_files_list.refresh(),
-                                ctx.refresh("inventory_selector"),
+                                render_dialog_explorer.refresh(),
                             )
 
                         btn = (
@@ -200,18 +219,30 @@ def render_dialog_explorer(ctx: AppContext):
                             btn.disable()
                             ui.icon("check", color="green", size="sm")
 
+            if len(children) > ctx.session.explorer_limit:
+
+                async def load_more():
+                    ctx.session.explorer_limit += 100
+                    render_dialog_explorer.refresh()
+
+                ui.button(
+                    _("Load More (+100)"),
+                    on_click=load_more,
+                ).props("flat dense color=primary").classes("w-full py-2")
+
 
 def navigate_to(ctx: AppContext, path: str):
     """Updates the explorer path and refreshes the dialog."""
     logger.info(f"Navigating to: {path}")
     ctx.session.explorer_path = path
+    ctx.session.explorer_limit = 100
     render_dialog_explorer.refresh()
 
 
 def open_file_management_dialog(ctx: AppContext):
     """Opens the file management dialog."""
     with (
-        ui.dialog() as dialog,
+        ui.dialog().props("persistent") as dialog,
         ui.card().classes("w-[600px] h-[700px] flex flex-col p-0 overflow-hidden"),
     ):
         # Header
@@ -221,9 +252,13 @@ def open_file_management_dialog(ctx: AppContext):
             with ui.row().classes("items-center gap-2"):
                 ui.icon("fact_check")
                 ui.label(_("Manage Important Files")).classes("text-lg font-bold")
-            ui.button(icon="close", on_click=dialog.close).props(
-                "flat dense color=white"
-            )
+            ui.button(
+                icon="close",
+                on_click=lambda: (
+                    dialog.close(),
+                    ctx.refresh("file_selection_summary"),
+                ),
+            ).props("flat dense color=white")
 
         # Body - Split into selected files and explorer
         with ui.scroll_area().classes("flex-grow w-full p-3"):
@@ -233,6 +268,7 @@ def open_file_management_dialog(ctx: AppContext):
                     ui.label(_("Selected Files")).classes(
                         "text-sm font-bold text-slate-700 mb-2"
                     )
+                    # Force refresh to ensure we have latest data
                     render_selected_files_list(ctx)
 
                 # Divider
@@ -252,8 +288,16 @@ def open_file_management_dialog(ctx: AppContext):
         with ui.row().classes(
             "w-full justify-end p-3 gap-2 shrink-0 border-t bg-slate-50"
         ):
-            ui.button(_("Close"), on_click=dialog.close).props("elevated color=primary")
+            ui.button(
+                _("Close"),
+                on_click=lambda: (
+                    dialog.close(),
+                    ctx.refresh("file_selection_summary"),
+                ),
+            ).props("elevated color=primary")
 
+    # Force refresh the list when dialog opens to ensure fresh data
+    render_selected_files_list.refresh()
     dialog.open()
 
 

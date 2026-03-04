@@ -8,20 +8,6 @@ from opendata.ui.context import AppContext
 
 @ui.refreshable
 def metadata_preview_ui(ctx: AppContext):
-    if ScanState.is_scanning:
-        with ui.column().classes("w-full items-center justify-center p-8 gap-1"):
-            ui.spinner(size="lg")
-            ui.label("").classes("text-xs font-bold text-slate-700").bind_text_from(
-                ScanState, "progress"
-            )
-            with ui.label("").classes(
-                "text-[10px] text-slate-500 animate-pulse text-center w-full truncate cursor-help"
-            ) as lbl:
-                ui.tooltip("").bind_text_from(ScanState, "full_path")
-                lbl.bind_text_from(ScanState, "short_path")
-            ScanState.progress_label = lbl
-        return
-
     if not ctx.agent.project_id:
         return
 
