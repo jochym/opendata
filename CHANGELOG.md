@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.40] - 2026-03-04
+### Added
+- **Persistent Progress Modal**: All long-running processes (Scan, AI Analysis) now use a persistent modal dialog with live progress stats and a prominent "Stop" button, ensuring the main UI remains stable and interactive.
+
+### Changed
+- **UI Stability**: Decoupled the main application interface (buttons, metadata preview) from the background scan state, preventing disruptive layout changes and spinners during operations.
+
+### Fixed
+- **Live Status Updates**: Fixed a bug where modal progress information was not updating in real-time by properly registering the status dialog in the refresh cycle.
+- **YAML Parsing**: Enhanced robustness against unquoted colons in LaTeX-style strings (e.g., in scientific titles), resolving common parsing failures.
+- **Chat Layout**: Implemented comprehensive text wrapping for chat bubbles, eliminating horizontal scrolling for YAML and code blocks.
+
 ## [0.22.39] - 2026-03-04
 ### Added
 - **Progress Modal Dialog**: Replaced in-chat status cards with a modal dialog for scanning and AI analysis, providing a clear "Kill Switch" and preventing intrusive auto-scrolling during updates.

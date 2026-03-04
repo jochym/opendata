@@ -97,49 +97,51 @@ def render_status_dialog(ctx: AppContext):
     if not ScanState.is_scanning and not ScanState.is_processing_ai:
         return
 
-    with ui.dialog() as dialog, ui.card().classes("w-96 p-6 items-center gap-4"):
-        # Determine current state
-        is_stopping = (
-            (ScanState.stop_event and ScanState.stop_event.is_set())
-            if ScanState.is_scanning
-            else (ctx.session.ai_stop_event and ctx.session.ai_stop_event.is_set())
-        )
-
-        if is_stopping:
-            ui.icon("cancel", color="red", size="lg")
-            title = _("Cancelling...")
-        else:
-            ui.spinner(size="lg")
-            title = _("Processing...")
-
-        ui.label(title).classes("text-lg font-bold")
-
-        if ScanState.is_scanning:
-            label_text = ScanState.progress or _("Scanning project...")
-        else:
-            label_text = _("AI is thinking...")
-
-        ui.markdown(label_text).classes("text-sm text-center text-gray-700 w-full")
-
-        if ScanState.is_scanning and ScanState.short_path:
-            ui.label(ScanState.short_path).classes(
-                "text-[10px] text-gray-500 text-center break-all w-full"
+    # We use a non-closable dialog to force attention while processing
+    with ui.dialog().props("persistent") as dialog:
+        with ui.card().classes("w-96 p-6 items-center gap-4"):
+            # Determine current state
+            is_stopping = (
+                (ScanState.stop_event and ScanState.stop_event.is_set())
+                if ScanState.is_scanning
+                else (ctx.session.ai_stop_event and ctx.session.ai_stop_event.is_set())
             )
 
-        if not is_stopping:
-            with ui.row().classes("w-full justify-center mt-2"):
-                if ScanState.is_scanning:
-                    ui.button(
-                        _("Stop Scan"),
-                        on_click=lambda: handle_cancel_scan(ctx),
-                        color="red",
-                    ).props("outline")
-                elif ScanState.is_processing_ai:
-                    ui.button(
-                        _("Stop AI"),
-                        on_click=lambda: handle_cancel_ai(ctx),
-                        color="red",
-                    ).props("outline")
+            if is_stopping:
+                ui.icon("cancel", color="red", size="lg")
+                title = _("Cancelling...")
+            else:
+                ui.spinner(size="lg")
+                title = _("Processing...")
+
+            ui.label(title).classes("text-lg font-bold")
+
+            if ScanState.is_scanning:
+                label_text = ScanState.progress or _("Scanning project...")
+            else:
+                label_text = _("AI is thinking...")
+
+            ui.markdown(label_text).classes("text-sm text-center text-gray-700 w-full")
+
+            if ScanState.is_scanning and ScanState.short_path:
+                ui.label(ScanState.short_path).classes(
+                    "text-[10px] text-gray-500 text-center break-all w-full"
+                )
+
+            if not is_stopping:
+                with ui.row().classes("w-full justify-center mt-2"):
+                    if ScanState.is_scanning:
+                        ui.button(
+                            _("Stop Scan"),
+                            on_click=lambda: handle_cancel_scan(ctx),
+                            color="red",
+                        ).props("outline")
+                    elif ScanState.is_processing_ai:
+                        ui.button(
+                            _("Stop AI"),
+                            on_click=lambda: handle_cancel_ai(ctx),
+                            color="red",
+                        ).props("outline")
 
     dialog.open()
 
@@ -251,8 +253,11 @@ def render_chat_panel(ctx: AppContext):
                     ui.tooltip(_("Clear Chat History"))
             with ui.scroll_area().classes("flex-grow w-full") as ctx.chat_scroll_area:
                 chat_messages_ui(ctx)
-            # Add modal status dialog at the end of chat panel
+
+            # Register and call the status dialog
+            ctx.register_refreshable("status_dialog", render_status_dialog)
             render_status_dialog(ctx)
+
             with ui.row().classes(
                 "bg-white p-3 border-t w-full items-center no-wrap gap-2 shrink-0"
             ):
@@ -287,15 +292,15 @@ async def handle_scan_only(ctx: AppContext, path: str):
     ScanState.stop_event = threading.Event()
     ScanState.is_scanning = True
     ScanState.progress = _("Scanning...")
-    # Refresh to show modal
-    ctx.refresh("chat")
+    # Refresh modal
+    ctx.refresh("status_dialog")
 
     def update_progress(msg, full_path="", short_path=""):
         ScanState.progress = msg
         ScanState.full_path = full_path
         ScanState.short_path = short_path
-        # Refresh to update modal
-        ctx.refresh("chat")
+        # Refresh modal
+        ctx.refresh("status_dialog")
 
     try:
         result = await asyncio.to_thread(
@@ -340,6 +345,9 @@ async def handle_scan_only(ctx: AppContext, path: str):
     finally:
         ScanState.is_scanning = False
         ScanState.stop_event = None
+        # Ensure modal closes and chat refreshes
+        ctx.refresh("status_dialog")
+        ctx.refresh("chat")
         try:
             ctx.refresh_all()
         except Exception:
@@ -353,7 +361,8 @@ async def handle_ai_analysis(ctx: AppContext, path: str):
 
     ScanState.is_processing_ai = True
     ctx.session.ai_stop_event = threading.Event()
-    ctx.refresh("chat")
+    # Refresh modal
+    ctx.refresh("status_dialog")
 
     try:
         await asyncio.to_thread(
@@ -372,6 +381,8 @@ async def handle_ai_analysis(ctx: AppContext, path: str):
     finally:
         ScanState.is_processing_ai = False
         ctx.session.ai_stop_event = None
+        # Ensure modal closes and chat refreshes
+        ctx.refresh("status_dialog")
         ctx.refresh("chat")
         ctx.refresh_all()
 
@@ -434,9 +445,7 @@ def render_metadata_panel(ctx: AppContext):
                     _("Scan"),
                     icon="refresh",
                     on_click=lambda: handle_scan_only(ctx, path_input.value),
-                ).classes("flex-grow").props("dense outline").bind_visibility_from(
-                    ScanState, "is_scanning", backward=lambda x: not x
-                )
+                ).classes("flex-grow").props("dense outline")
 
                 ai_btn = (
                     ui.button(
@@ -446,9 +455,6 @@ def render_metadata_panel(ctx: AppContext):
                     )
                     .classes("flex-grow")
                     .props("dense elevated color=primary")
-                    .bind_visibility_from(
-                        ScanState, "is_scanning", backward=lambda x: not x
-                    )
                 )
                 ai_btn.bind_enabled_from(
                     ctx.agent, "heuristics_run", backward=lambda x: bool(x)
@@ -461,14 +467,6 @@ def render_metadata_panel(ctx: AppContext):
                 )
                 render_file_selection_summary(ctx)
 
-            ui.button(
-                _("Cancel"),
-                icon="stop",
-                on_click=lambda: handle_cancel_scan(ctx),
-                color="red",
-            ).classes("w-full").props("dense").bind_visibility_from(
-                ScanState, "is_scanning"
-            )
             ui.separator().classes("my-1")
 
             with ui.scroll_area().classes("flex-grow w-full"):
