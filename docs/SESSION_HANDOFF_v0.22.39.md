@@ -1,369 +1,401 @@
-# OpenData Tool - Session Handoff Summary (v0.22.39)
+# OpenData Tool - Session Handoff Guide (v0.22.39)
 
-## 📋 Release Summary
+## 🎯 Purpose
 
-**Version**: v0.22.39  
-**Date**: 2026-03-04  
-**Status**: ✅ Released successfully  
-**Branch**: Merged to `main`, feature branch deleted  
-**CI/CD**: All tests passed (169 tests), all platforms verified
+This document contains **universal lessons and practical patterns** learned from fixing bugs in the OpenData Tool. It focuses on actionable knowledge for future debugging sessions, not specific bug details.
 
 ---
 
-## 🎯 Issues Fixed in This Session
+## ⚡ Critical Session Setup
 
-### #38: Chat Auto-Scrolling
-- **Problem**: Chat window didn't scroll to latest message automatically
-- **Solution**: Implemented smart auto-scroll that only triggers when new messages are added
-- **Files**: `src/opendata/ui/components/chat.py`
+### 1. Process Management (ALWAYS DO THIS FIRST)
+```bash
+# Kill ALL existing instances before starting
+pkill -9 -f "python src/opendata/main.py"
+lsof -ti :8080 | xargs -r kill -9
+sleep 2
 
-### File Role Persistence (Critical Bug)
-- **Problem**: File roles (Article/Other) were lost when switching projects
-- **Root Cause**: `AIAnalysis` model missing `model_config = {"populate_by_name": True}`
-- **Solution**: Added model config to allow Pydantic to accept both `file_suggestions` and `filesuggestions`
-- **Files**: `src/opendata/models.py`
+# Start on NON-STANDARD PORT for exclusive access
+export PYTHONPATH=$PYTHONPATH:$(pwd)/src
+python src/opendata/main.py --host 127.0.0.1 --port 8889 --no-browser --headless > app.log 2>&1 &
 
-### Status Modal Flickering
-- **Problem**: Progress dialog flickered and showed "client deleted" errors
-- **Solution**: Refactored to use timer-based reactive bindings instead of manual refresh calls
-- **Files**: `src/opendata/ui/components/chat.py`
+# Verify IMMEDIATELY
+sleep 5
+ps aux | grep main.py | grep -v grep
+lsof -i :8889
+curl -I http://127.0.0.1:8889
+```
 
-### Scanner Performance & OOM Prevention
-- **Problem**: Large project scans caused system instability
-- **Solution**: 
-  - Replaced heavy `Path.resolve()` with fast string operations
-  - Increased UI update throttle to 0.5s
-- **Files**: `src/opendata/utils.py`
+**Why**: 
+- Multiple instances cause data corruption and unpredictable UI behavior
+- `0.0.0.0:8080` is public - use `127.0.0.1:8889` (or any unusual port) for testing
+- Always verify the process actually started before testing
 
-### YAML Parser Robustness
-- **Problem**: Parser failed on LaTeX math symbols and list-based YAML structures
-- **Solution**: 
-  - YAML-first parsing with JSON fallback
-  - Better handling of unquoted colons in values
-- **Files**: `src/opendata/agents/parsing.py`
+### 2. agent-browser Testing Workflow
+
+```bash
+# Open and wait for full load
+agent-browser open http://127.0.0.1:8889
+agent-browser wait 10000  # Wait longer than you think necessary
+
+# Take snapshot to see interactive elements
+agent-browser snapshot -i -C
+
+# For dropdowns/menus, wait extra time
+agent-browser click @e1  # Click dropdown
+agent-browser wait 5000  # Wait for animation
+agent-browser snapshot -i -C  # Get fresh refs
+
+# Common patterns:
+agent-browser fill @e14 "/path/to/project"  # Fill textbox
+agent-browser press Enter                    # Press Enter
+agent-browser click @e19                     # Click button
+agent-browser wait 3000                      # Wait for action
+agent-browser snapshot -i -C                 # Check result
+```
+
+**Key Lessons**:
+- Elements get new refs after EVERY page change - always re-snapshot
+- Dropdowns need 3-5 seconds to fully render
+- If action "times out", the element ref is stale - snapshot again
+- Use `-C` flag to see cursor-interactive elements (divs with onclick)
 
 ---
 
-## 🔧 Technical Learnings & Patterns
+## 🐛 Bug Investigation Patterns
 
-### 1. Pydantic Model Configuration
-```python
-class AIAnalysis(BaseModel):
-    model_config = {"populate_by_name": True}  # CRITICAL for JSON loading
-    
-    file_suggestions: list[FileSuggestion] = Field(
-        default_factory=list,
-        validation_alias="filesuggestions",  # Accepts both with/without underscore
-        alias="file_suggestions",
-    )
-```
-**Lesson**: Always add `model_config = {"populate_by_name": True}` when using `validation_alias` to accept both field name formats from JSON.
+### Pattern 1: "Data Saves But Doesn't Load"
 
-### 2. NiceGUI Reactive Bindings vs Manual Refresh
-**Bad Pattern** (causes flickering):
-```python
-@ui.refreshable
-def render_dialog(ctx):
-    with ui.dialog() as d:
-        # Recreates dialog on every refresh
-        content()
-    d.open()
-```
+**Symptoms**: Data appears correct in JSON files but shows as empty/defaults in UI after reload.
 
-**Good Pattern** (stable):
-```python
-def render_dialog(ctx):
-    if not hasattr(ctx, '_dialog'):
-        with ui.dialog().props("persistent") as dialog:
-            # Create once
-            spinner = ui.spinner()
-            label = ui.label()
-        ctx._dialog = dialog
-    
-    # Update content via bindings or timer
-    ui.timer(0.5, update_ui)
-    
-    if is_active:
-        ctx._dialog.open()
-```
+**Checklist**:
+1. ✅ Verify file is actually written: `cat <file>.json | python -m json.tool`
+2. ✅ Test model loading directly:
+   ```bash
+   cd /home/jochym/Projects/OpenData
+   PYTHONPATH=$PYTHONPATH:$(pwd)/src python3 << 'EOF'
+   from opendata.models import AIAnalysis
+   from pathlib import Path
+   
+   with open("/path/to/analysis.json", "r") as f:
+       data = f.read()
+   
+   try:
+       obj = AIAnalysis.model_validate_json(data)
+       print(f"Loaded: {len(obj.file_suggestions)} suggestions")
+       for fs in obj.file_suggestions:
+           print(f"  {fs.path}: {fs.reason}")
+   except Exception as e:
+       print(f"ERROR: {e}")
+   EOF
+   ```
+3. ✅ Check for `model_config = {"populate_by_name": True}` in Pydantic models with aliases
 
-### 3. File Scanner Optimization
-**Bad Pattern** (slow, memory-heavy):
-```python
-for p, stat in walk_project_files(root):
-    rel_path = str(p.resolve().relative_to(root.resolve()))  # Resolves twice per file!
-```
+**Root Cause**: Usually Pydantic `validation_alias` without `populate_by_name=True`.
 
-**Good Pattern** (fast):
-```python
-root_abs = str(root.absolute())
-for p, stat in walk_project_files(root):
-    p_abs = str(p)
-    if p_abs.startswith(root_abs):
-        rel_path = p_abs[len(root_abs):].lstrip("/").lstrip("\\")
-    else:
-        rel_path = p.name
-```
+### Pattern 2: "UI Doesn't Reflect State Changes"
 
-### 4. State Persistence Across Project Switches
-**Critical Files**:
-- `analysis.json` - Contains file suggestions with roles
-- `fingerprint.json` - Contains significant_files list
-- `metadata.yaml` - Contains project metadata
+**Symptoms**: State changes in code but UI shows old values.
 
-**Loading Order** (in `load_project`):
-1. `reset_agent_state()` - Clears all in-memory state
-2. `state_manager.load_project()` - Loads from disk
-3. Sync `file_suggestions` with `significant_files`
-4. Call `refresh_all()` to update UI
+**Checklist**:
+1. ✅ Verify state is actually changed: Add logging before/after change
+2. ✅ Check if component is registered: `ctx.register_refreshable("name", render_func)`
+3. ✅ Verify refresh is called: `ctx.refresh("name")` or `render_func.refresh()`
+4. ✅ Check for stale closures in lambda handlers - capture variables properly:
+   ```python
+   # BAD - captures loop variable by reference
+   for item in items:
+       btn.on_click=lambda _: handler(item)
+   
+   # GOOD - captures by value
+   for item in items:
+       btn.on_click=(lambda x: lambda _: handler(x))(item)
+   ```
 
-### 5. UI Component Refresh Strategy
-**Register refreshable components**:
-```python
-ctx.register_refreshable("file_selection_summary", render_file_selection_summary)
-```
+**Root Cause**: Usually missing refresh call or stale closure.
 
-**Refresh by name**:
-```python
-ctx.refresh("file_selection_summary")  # Calls .refresh() on registered component
-```
+### Pattern 3: "Dialog/Flickering Issues"
 
-**Global refresh**:
-```python
-ctx.refresh_all()  # Refreshes all registered components with 0.5s debounce
-```
+**Symptoms**: Dialog flickers, shows "client deleted" errors, or doesn't stay open.
+
+**Checklist**:
+1. ✅ Is dialog created ONCE and stored? Check for `hasattr(ctx, '_dialog')`
+2. ✅ Are you recreating dialog on every refresh? Don't do that.
+3. ✅ Use timer-based updates instead of manual refresh:
+   ```python
+   # GOOD pattern
+   def render_dialog(ctx):
+       if not hasattr(ctx, '_dialog'):
+           with ui.dialog() as dialog:
+               spinner = ui.spinner()
+               label = ui.label()
+           ctx._dialog = dialog
+           
+           def update():
+               # Update label text, visibility, etc.
+               pass
+           
+           ui.timer(0.5, update)
+       
+       if is_active:
+           ctx._dialog.open()
+   ```
+
+**Root Cause**: Recreating NiceGUI components on every refresh instead of updating existing ones.
+
+### Pattern 4: "Performance/Memory Issues"
+
+**Symptoms**: App slows down or crashes on large datasets.
+
+**Checklist**:
+1. ✅ Check for expensive operations in loops:
+   ```python
+   # BAD - resolves path twice per file
+   for p, stat in walk_project_files(root):
+       rel_path = str(p.resolve().relative_to(root.resolve()))
+   
+   # GOOD - cache root resolution
+   root_abs = str(root.absolute())
+   for p, stat in walk_project_files(root):
+       p_abs = str(p)
+       rel_path = p_abs[len(root_abs):].lstrip("/") if p_abs.startswith(root_abs) else p.name
+   ```
+2. ✅ Check UI update frequency - should throttle to 0.5-1.0s
+3. ✅ Check for unbounded lists/caches in session state
+
+**Root Cause**: Usually path resolution in loops or too-frequent UI updates.
 
 ---
 
-## 🧪 Testing Philosophy (Established in This Session)
+## 🔧 Code Review Checklist
+
+### Before Running Tests
+- [ ] Only one app process running (`ps aux | grep main.py`)
+- [ ] Running on localhost:unusual_port (not 0.0.0.0:8080)
+- [ ] Working tree is clean OR changes are intentional
+- [ ] `PYTHONPATH` is set correctly
+
+### Before Committing
+- [ ] All tests pass: `pytest`
+- [ ] Syntax check passes: `python -m py_compile src/opendata/main.py`
+- [ ] App starts: `python src/opendata/main.py --help`
+- [ ] No LSP errors in changed files (ignore false positives for refreshable)
+
+### Before Merging to Main
+- [ ] VERSION file updated
+- [ ] CHANGELOG.md updated
+- [ ] website/index.html updated (version + download links)
+- [ ] Documentation synced: `cp docs/*.md website/docs/`
+- [ ] Full test suite passes
+- [ ] Working tree is clean
+
+---
+
+## 🧪 Testing Best Practices
 
 ### Test Categories
-1. **Unit Tests** (`tests/unit/`) - Fast, isolated (< 1s each)
-2. **Integration Tests** (`tests/integration/`) - Component interactions
-3. **AI Tests** (`@pytest.mark.ai_interaction`) - Excluded from CI/CD, require API key
-4. **Local Tests** (`@pytest.mark.local_only`) - Require app running
-
-### Running Tests
 ```bash
-# CI/CD safe (default)
+# CI/CD safe (default, ~5 seconds)
 pytest
-# Result: 169 tests, ~5 seconds
 
-# All tests (local with AI configured)
+# All tests including AI (requires API key, ~30 seconds)
 pytest -m ""
 
-# Only AI tests (local only, requires OpenAI endpoint)
+# Only AI tests (local only)
 pytest -m ai_interaction
+
+# Only local tests (requires app running)
+pytest -m local_only
+
+# Specific test file
+pytest tests/unit/agents/test_parsing.py
+
+# Specific test function
+pytest tests/unit/agents/test_parsing.py -k "test_yaml_list_based"
 ```
 
-### Test-Driven Development Pattern
+### Writing Good Tests
 ```python
-def test_correct_behavior():
-    """Test description should specify CORRECT behavior, not implementation."""
-    # Arrange: Set up the scenario
-    # Act: Perform the action
-    # Assert: Verify CORRECT outcome (not implementation details)
-```
-
-**Good Test Example**:
-```python
+# GOOD - Tests CORRECT behavior
 def test_file_role_persists_across_project_switch():
     """File roles (Article/Other) are preserved when switching projects."""
-    # Arrange: Create project with file marked as Article
+    # Arrange
     agent.add_significant_file("paper.tex", "main_article")
     agent.save_state()
     
-    # Act: Switch to different project and back
+    # Act
     agent.load_project(other_path)
     agent.load_project(original_path)
     
-    # Assert: Role is still Article
+    # Assert
     assert agent.current_analysis.file_suggestions[0].reason == "Main article/paper"
+
+# BAD - Tests implementation details
+def test_analysis_json_has_reason_field():
+    """Don't test JSON structure, test behavior."""
+    # This is too implementation-focused
 ```
+
+### Debugging Test Failures
+1. Run single test: `pytest tests/unit/test.py::test_function -v`
+2. Add print statements to test
+3. Check if test expects CORRECT behavior vs CURRENT behavior
+4. Verify test fixtures are set up correctly
 
 ---
 
-## 🚀 Release Procedure (Verified in This Session)
+## 📁 Critical File Locations
 
-### Pre-Release Checklist
-1. ✅ Run full test suite: `pytest`
-2. ✅ Update `src/opendata/VERSION`
-3. ✅ Update `CHANGELOG.md` with all changes
-4. ✅ Update `website/index.html`:
-   - Version in header (line ~82)
-   - Download links for all 4 platforms
-5. ✅ Sync documentation: `cp docs/*.md website/docs/`
-6. ✅ Update `docs/DOCUMENTATION_INDEX.md` if needed
+### State Persistence
+- `~/.opendata_tool/projects/<id>/analysis.json` - File suggestions with roles
+- `~/.opendata_tool/projects/<id>/fingerprint.json` - Significant files list
+- `~/.opendata_tool/projects/<id>/metadata.yaml` - Project metadata
+- `~/.opendata_tool/projects/<id>/inventory.db` - SQLite file cache
+
+### Core Logic
+- `src/opendata/agents/project_agent.py` - Project loading, state management
+- `src/opendata/agents/parsing.py` - AI response parsing
+- `src/opendata/models.py` - Pydantic models (CRITICAL: check for model_config)
+- `src/opendata/workspace.py` - Save/load project state
+
+### UI Components
+- `src/opendata/ui/components/chat.py` - Chat, status modal
+- `src/opendata/ui/components/files_dialog.py` - File selection
+- `src/opendata/ui/context.py` - AppContext, refreshable registration
+- `src/opendata/ui/state.py` - ScanState, UIState
+
+---
+
+## 🚀 Release Checklist
+
+### Pre-Release
+- [ ] Run `pytest` - all tests must pass
+- [ ] Check working tree is clean
+- [ ] Verify no uncommitted debugging code
 
 ### Release Steps
 ```bash
-# 1. Commit all changes
-git add CHANGELOG.md src/opendata/VERSION website/index.html
-git commit -m "chore: prepare for v0.22.39 release"
+# 1. Update version files
+echo "0.22.40" > src/opendata/VERSION
 
-# 2. Merge to main
+# 2. Update CHANGELOG.md (top of file)
+# 3. Update website/index.html (version + 4 download links)
+# 4. Sync docs
+cp docs/*.md website/docs/
+
+# 5. Commit
+git add CHANGELOG.md src/opendata/VERSION website/index.html
+git commit -m "chore: prepare for v0.22.40 release"
+git push origin fix/branch
+
+# 6. Merge to main (from main branch)
 git checkout main
-git merge fix/branch-name --no-ff -m "Release v0.22.39"
+git merge fix/branch --no-ff -m "Release v0.22.40"
 git push origin main
 
-# 3. Create tag
-git tag v0.22.39
-git push origin v0.22.39
+# 7. Tag and release
+git tag v0.22.40
+git push origin v0.22.40
 
-# 4. Create GitHub Release (ALWAYS use heredoc for notes)
-cat << 'EOF' | gh release create v0.22.39 --title "v0.22.39 - Description" --notes-file -
+cat << 'EOF' | gh release create v0.22.40 --title "v0.22.40 - Description" --notes-file -
 ## Release Notes
 ...
 EOF
 
-# 5. Verify CI/CD
+# 8. Verify CI/CD
 gh run list --limit 3 --branch main
 gh run view <run-id> --json conclusion
 ```
 
-### Important Notes
-- **NEVER** update git config
-- **NEVER** use `--force` push to main
-- **ALWAYS** use heredoc for release notes (prevents markdown escaping issues)
-- **WAIT** for CI/CD to complete before announcing release
+### Post-Release
+- [ ] Verify website updated: `curl https://jochym.github.io/opendata/ | grep "v0.22"`
+- [ ] Verify release assets: `gh release view v0.22.40 --json assets`
+- [ ] Delete feature branch: `git branch -d fix/branch && git push origin --delete fix/branch`
+- [ ] Clean working tree: `git status` should show clean
 
 ---
 
-## ⚠️ Common Pitfalls & Solutions
+## 💡 Universal Debugging Principles
 
-### 1. "File roles disappear after project switch"
-**Cause**: `AIAnalysis` model not accepting JSON field names with underscores  
-**Fix**: Add `model_config = {"populate_by_name": True}`
+### 1. Verify Assumptions Immediately
+```bash
+# Don't assume app is running - VERIFY
+ps aux | grep main.py | grep -v grep
+lsof -i :8080
+curl -I http://localhost:8080
 
-### 2. "Status dialog flickers or shows 'client deleted'"
-**Cause**: Recreating dialog on every refresh  
-**Fix**: Create dialog once, use timer-based content updates
+# Don't assume file is saved - VERIFY
+cat ~/.opendata_tool/projects/*/analysis.json | python -m json.tool
 
-### 3. "Scanner causes OOM on large projects"
-**Cause**: Calling `Path.resolve()` for every file in loop  
-**Fix**: Use string operations, cache root path resolution
+# Don't assume model loads correctly - VERIFY
+PYTHONPATH=$PYTHONPATH:$(pwd)/src python3 -c "from opendata.models import X; print(X.model_validate_json('{}'))"
+```
 
-### 4. "YAML parser fails on LaTeX titles"
-**Cause**: Unquoted colons in values (e.g., `title: Study of: Something`)  
-**Fix**: Add guardrail to quote values with colons before parsing
+### 2. Isolate the Problem Layer
+```
+User sees issue → UI layer? → Check browser (agent-browser)
+                          ↓
+                    State layer? → Check ctx.session, ScanState
+                          ↓
+                 Persistence layer? → Check JSON files, database
+                          ↓
+                   Model layer? → Test model_validate_json directly
+```
 
-### 5. "UI doesn't update after file selection"
-**Cause**: Missing refresh call after state change  
-**Fix**: Call `ctx.refresh("component_name")` after modifying state
+### 3. Use the Right Tool for the Job
+- **UI issues**: `agent-browser` + snapshots
+- **State issues**: Add logging, check `ctx.refresh()` calls
+- **Persistence issues**: `cat <file>.json`, test model loading
+- **Performance issues**: `ps aux`, check loop operations
 
----
+### 4. One Change at a Time
+- Make ONE fix
+- Test immediately
+- Verify it works
+- THEN move to next fix
 
-## 📁 Key File Locations
+**Never** make 5 changes then test - you won't know which one fixed/broke it.
 
-### Core Logic
-- `src/opendata/agents/project_agent.py` - Main agent logic, project loading
-- `src/opendata/agents/parsing.py` - AI response parsing (YAML/JSON)
-- `src/opendata/agents/engine.py` - AI analysis loop
-- `src/opendata/models.py` - Pydantic models (Metadata, AIAnalysis, FileSuggestion)
-
-### UI Components
-- `src/opendata/ui/components/chat.py` - Chat panel, status modal
-- `src/opendata/ui/components/files_dialog.py` - File selection editor
-- `src/opendata/ui/components/header.py` - Project loading logic
-- `src/opendata/ui/components/inventory_logic.py` - Inventory loading
-- `src/opendata/ui/context.py` - AppContext, session state
-- `src/opendata/ui/state.py` - ScanState, UIState
-
-### Persistence
-- `src/opendata/workspace.py` - Project state save/load
-- `src/opendata/packaging/manager.py` - Inventory management
-- `~/.opendata_tool/projects/<id>/` - Project data directory
-  - `metadata.yaml` - Project metadata
-  - `analysis.json` - AI analysis results with file suggestions
-  - `fingerprint.json` - Project fingerprint with significant files
-  - `inventory.db` - SQLite cache of file inventory
-
-### Testing
-- `tests/unit/` - Unit tests (fast, isolated)
-- `tests/integration/` - Integration tests
-- `tests/fixtures/` - Test fixtures
-- `pytest` - Run all CI/CD safe tests
+### 5. Document as You Go
+- When you find a bug, note the symptom and root cause
+- When you fix it, note the pattern for future reference
+- Add to this handoff document after the session
 
 ---
 
-## 🎯 Next Issues to Address (GitHub)
-
-Check `gh issue list` for open issues. Priority order:
-1. Issues tagged `bug` with high priority
-2. Issues tagged `enhancement` with user votes
-3. Issues tagged `performance`
-
-### Recommended First Steps for Next Session
-1. Read this handoff document completely
-2. Run `pytest` to verify current state
-3. Check `gh issue list` and pick next issue
-4. Create feature branch: `git checkout -b fix/issue-<number>`
-5. Follow TDD: write test first, then implement fix
-6. Verify with `pytest` before committing
-7. Follow release procedure only when merging to main
-
----
-
-## 💡 Session Best Practices
-
-### Before Starting Work
-- [ ] Read relevant source files
-- [ ] Understand existing test coverage
-- [ ] Create feature branch from `main`
-
-### During Implementation
-- [ ] Write tests first (TDD)
-- [ ] Run `pytest` frequently
-- [ ] Keep commits small and focused
-- [ ] Update CHANGELOG.md incrementally
-
-### Before Committing
-- [ ] Run full test suite: `pytest`
-- [ ] Verify syntax: `python -m py_compile src/opendata/main.py`
-- [ ] Check app starts: `python src/opendata/main.py --help`
-
-### Before Merging to Main
-- [ ] Update VERSION file
-- [ ] Update CHANGELOG.md
-- [ ] Update website/index.html
-- [ ] Sync documentation
-- [ ] Run full test suite
-- [ ] Create PR or merge with `--no-ff`
-- [ ] Create tag and GitHub release
-
----
-
-## 📞 Quick Reference Commands
+## 🎯 Next Session Starter Checklist
 
 ```bash
-# Run tests
-pytest                          # CI/CD safe
-pytest tests/unit/agents/       # Specific test file
-pytest -k "test_file_role"      # Specific test case
+# 1. Clean environment
+git checkout main
+git pull origin main
+git status  # Should be clean
 
-# Check app health
-python src/opendata/main.py --help
-python -m py_compile src/opendata/main.py
+# 2. Check issues
+gh issue list
 
-# Git workflow
-git checkout -b fix/issue-38
-git add <files>
-git commit -m "fix: description"
-git push origin fix/issue-38
+# 3. Pick issue and create branch
+git checkout -b fix/issue-<number>
 
-# Release (main branch only)
-git tag v0.22.39
-git push origin main --tags
-cat << 'EOF' | gh release create v0.22.39 --notes-file -
-Release notes
-EOF
+# 4. Set up test environment
+pkill -9 -f "python src/opendata/main.py"
+export PYTHONPATH=$PYTHONPATH:$(pwd)/src
+python src/opendata/main.py --host 127.0.0.1 --port 8891 --no-browser --headless &
+sleep 5
+curl -I http://127.0.0.1:8891  # Verify it's running
 
-# Check CI/CD
-gh run list --limit 3
-gh run view <run-id> --json conclusion
+# 5. Reproduce the bug (document steps)
+# 6. Write test that fails
+# 7. Implement fix
+# 8. Verify test passes
+# 9. Clean up and commit
+
+# 10. Before finishing
+pytest  # All tests must pass
+pkill -f "python src/opendata/main.py"  # Clean up test process
 ```
 
 ---
 
-**End of Session Handoff**  
-*Generated after v0.22.39 release - 2026-03-04*
+**Last Updated**: v0.22.39 (2026-03-04)  
+**Maintainer**: Add new lessons after each session
