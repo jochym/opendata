@@ -1,23 +1,23 @@
 """Bug Report Dialog component.
 
-Presents a dialog with editable title, description, and an attached-file list
-(the diagnostic YAML is auto-included).  On submit, attempts a direct GitHub
-API call (account-free) when ``OPENDATA_BUG_REPORT_TOKEN`` is set; otherwise
-falls back to opening a pre-filled GitHub new-issue URL.
+Presents a dialog with editable title, reporter name, description, and an
+attached-file list (the diagnostic YAML is auto-included).
+
+Submission strategy:
+- If ``OPENDATA_BUG_REPORT_TOKEN`` is set, the issue is created directly via
+  the GitHub REST API (no user account needed).
+- Otherwise the user is informed that automatic submission is not available
+  and instructed to share the diagnostic YAML file with the maintainer.
 """
 
 import asyncio
 import logging
 import os
-import urllib.parse
 from pathlib import Path
 
 from nicegui import ui
 
-from opendata.agents.project_agent import (
-    _GITHUB_BUG_REPORT_REPO,
-    _GITHUB_BUG_REPORT_TOKEN_ENV,
-)
+from opendata.agents.project_agent import _GITHUB_BUG_REPORT_TOKEN_ENV
 from opendata.i18n.translator import _
 from opendata.ui.context import AppContext
 
@@ -42,10 +42,23 @@ def show_bug_report_dialog(ctx: AppContext, bug_report: dict) -> None:
 
     selected_files: list[str] = list(bug_report.get("extra_files", []))
 
-    def _build_body(description: str) -> str:
+    def _build_body(description: str, reporter_name: str) -> str:
         """Assemble the full issue body from description + auto context + files."""
         system_body = bug_report.get("system_body", "")
-        parts = [f"## Bug Description\n{description}", system_body]
+        reporter_section = (
+            f"## Reporter\n- **Name:** {reporter_name}"
+            if reporter_name.strip()
+            else ""
+        )
+        parts = [
+            p
+            for p in [
+                f"## Bug Description\n{description}",
+                reporter_section,
+                system_body,
+            ]
+            if p
+        ]
         for fpath in selected_files:
             p = Path(fpath)
             if not p.exists():
@@ -91,6 +104,15 @@ def show_bug_report_dialog(ctx: AppContext, bug_report: dict) -> None:
                     ui.input(
                         label=_("Title"),
                         value=bug_report.get("title", "Bug"),
+                    )
+                    .props("outlined dense")
+                    .classes("w-full")
+                )
+
+                name_input = (
+                    ui.input(
+                        label=_("Your Name (for contact)"),
+                        placeholder=_("Full name or nickname"),
                     )
                     .props("outlined dense")
                     .classes("w-full")
@@ -192,10 +214,11 @@ def show_bug_report_dialog(ctx: AppContext, bug_report: dict) -> None:
 
                 async def _submit() -> None:
                     title = title_input.value.strip() or _("Bug Report")
+                    reporter_name = name_input.value.strip()
                     description = (
                         desc_input.value.strip() or _("No description provided.")
                     )
-                    body = _build_body(description)
+                    body = _build_body(description, reporter_name)
 
                     token = os.environ.get(_GITHUB_BUG_REPORT_TOKEN_ENV, "").strip()
                     if token:
@@ -224,28 +247,30 @@ def show_bug_report_dialog(ctx: AppContext, bug_report: dict) -> None:
                             return
                         submit_btn.enable()
                         status_label.set_text(
-                            _("Direct submission failed — opening GitHub form.")
+                            _("Direct submission failed.")
                         )
+                        return
 
-                    # Fallback: open a pre-filled GitHub new-issue URL.
-                    issue_title_enc = urllib.parse.quote(title, safe="")
-                    issue_body_enc = urllib.parse.quote(body, safe="")
-                    github_url = (
-                        f"https://github.com/{_GITHUB_BUG_REPORT_REPO}/issues/new"
-                        f"?title={issue_title_enc}&body={issue_body_enc}&labels=bug"
+                    # No token configured — inform user and show file to share.
+                    yaml_path = (
+                        bug_report["extra_files"][0]
+                        if bug_report.get("extra_files")
+                        else None
+                    )
+                    no_token_msg = _(
+                        "Automatic bug submission is not available."
                     )
                     dialog.close()
-                    try:
-                        ui.navigate.to(github_url, new_tab=True)
-                    except Exception as nav_err:
-                        logger.warning("Could not open GitHub URL: %s", nav_err)
+                    path_hint = f"\n`{yaml_path}`" if yaml_path else ""
                     ctx.agent.chat_history.append(
                         (
                             "agent",
-                            f"🐞 **{_('Bug report form opened in browser.')}**\n\n"
-                            "**[🐛 "
-                            + _("Open GitHub Issue (pre-filled)")
-                            + f"]({github_url})**",
+                            f"ℹ️ **{no_token_msg}**\n\n"
+                            + _(
+                                "Please share the diagnostic report file"
+                                " with the maintainer:"
+                            )
+                            + path_hint,
                         )
                     )
                     ctx.agent.save_state()
@@ -258,3 +283,4 @@ def show_bug_report_dialog(ctx: AppContext, bug_report: dict) -> None:
                 ).props("elevated color=red")
 
     dialog.open()
+
