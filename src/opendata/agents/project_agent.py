@@ -1,32 +1,31 @@
-import yaml
-import re
-import platform
-import sys
 import datetime
 import logging
-import threading
-import asyncio
-from typing import List, Optional, Dict, Any, Tuple, Callable
+import platform
+import re
+import sys
+import urllib.parse
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
+
+import yaml
+
+from opendata.agents.engine import AnalysisEngine
+from opendata.agents.parsing import extract_metadata_from_ai_response
+from opendata.agents.persistence import ProjectStateManager
+from opendata.agents.scanner import ScannerService
+from opendata.extractors.base import ExtractorRegistry
+from opendata.i18n.translator import _
 from opendata.models import (
-    Metadata,
-    ProjectFingerprint,
     AIAnalysis,
-    PersonOrOrg,
     Contact,
     FileSuggestion,
+    Metadata,
+    PersonOrOrg,
+    ProjectFingerprint,
 )
-from opendata.i18n.translator import _
-
-from opendata.extractors.base import ExtractorRegistry
+from opendata.utils import FullTextReader, PromptManager, format_size, scan_project_lazy
 from opendata.workspace import WorkspaceManager
-from opendata.utils import scan_project_lazy, PromptManager, FullTextReader, format_size
-from opendata.agents.parsing import extract_metadata_from_ai_response
-from opendata.agents.tools import handle_external_tools
-from opendata.agents.scanner import ScannerService
-from opendata.agents.persistence import ProjectStateManager
-from opendata.agents.engine import AnalysisEngine
-
 
 logger = logging.getLogger("opendata.agents.project_agent")
 
@@ -52,13 +51,14 @@ class ProjectAnalysisAgent:
         if registry is None:
             self._setup_extractors()
         self.prompt_manager = prompt_manager or PromptManager()
-        self.project_id: Optional[str] = None
+        self.project_id: str | None = None
 
-        self.current_fingerprint: Optional[ProjectFingerprint] = None
+        self.current_fingerprint: ProjectFingerprint | None = None
         self.current_metadata = Metadata()
-        self.current_analysis: Optional[AIAnalysis] = None
-        self.chat_history: List[Tuple[str, str]] = []  # (Role, Message)
+        self.current_analysis: AIAnalysis | None = None
+        self.chat_history: list[tuple[str, str]] = []  # (Role, Message)
         self.heuristics_run = False
+        self._pending_bug_report_url: str | None = None
 
         # Specialized services
         self.scanner = ScannerService(wm)
@@ -66,15 +66,15 @@ class ProjectAnalysisAgent:
         self.engine = AnalysisEngine(self.prompt_manager)
 
     def _setup_extractors(self):
-        from opendata.extractors.latex import LatexExtractor
-        from opendata.extractors.docx import DocxExtractor
-        from opendata.extractors.medical import DicomExtractor
         from opendata.extractors.citations import BibtexExtractor
+        from opendata.extractors.docx import DocxExtractor
         from opendata.extractors.hierarchical import Hdf5Extractor
+        from opendata.extractors.latex import LatexExtractor
+        from opendata.extractors.medical import DicomExtractor
         from opendata.extractors.physics import (
-            VaspExtractor,
-            LatticeDynamicsExtractor,
             ColumnarDataExtractor,
+            LatticeDynamicsExtractor,
+            VaspExtractor,
         )
 
         self.registry.register(LatexExtractor())
@@ -182,7 +182,7 @@ class ProjectAnalysisAgent:
         self.current_fingerprint = None
         self.project_id = None
 
-    def _get_effective_field(self) -> Optional[str]:
+    def _get_effective_field(self) -> str | None:
         """Gets the user-selected field protocol from project config.
 
         NO HEURISTICS - Returns ONLY what user explicitly selected.
@@ -211,8 +211,8 @@ class ProjectAnalysisAgent:
     def refresh_inventory(
         self,
         project_dir: Path,
-        progress_callback: Optional[Callable[[str, str, str], None]] = None,
-        stop_event: Optional[Any] = None,
+        progress_callback: Callable[[str, str, str], None] | None = None,
+        stop_event: Any | None = None,
         force: bool = False,
     ) -> str:
         """
@@ -254,7 +254,6 @@ class ProjectAnalysisAgent:
         #    science_branches_mnisw is for RODBUK repository classification only
         #    Field protocol is stored in project_config.json
 
-        from opendata.utils import format_size
 
         total_size = self.current_fingerprint.total_size_bytes
 
@@ -290,7 +289,7 @@ class ProjectAnalysisAgent:
             self.current_fingerprint.significant_files.append(path)
 
         # Update or create suggestion
-        from opendata.models import FileSuggestion, AIAnalysis
+        from opendata.models import AIAnalysis
 
         category_labels = {
             "main_article": "Main article/paper",
@@ -380,7 +379,7 @@ class ProjectAnalysisAgent:
                     break
 
         # 4. Store categories in analysis for context injection
-        from opendata.models import FileSuggestion, AIAnalysis
+        from opendata.models import AIAnalysis
 
         category_labels = {
             "main_article": "Main article/paper",
@@ -421,8 +420,8 @@ class ProjectAnalysisAgent:
     def run_ai_analysis_phase(
         self,
         ai_service: Any,
-        progress_callback: Optional[Callable[[str, str, str], None]] = None,
-        stop_event: Optional[Any] = None,
+        progress_callback: Callable[[str, str, str], None] | None = None,
+        stop_event: Any | None = None,
     ) -> str:
         """
         Phase 3: Runs the AI analysis loop to refine metadata.
@@ -498,9 +497,9 @@ class ProjectAnalysisAgent:
         user_text: str,
         ai_service: Any,
         skip_user_append: bool = False,
-        on_update: Optional[Callable[[], None]] = None,
+        on_update: Callable[[], None] | None = None,
         mode: str = "metadata",
-        stop_event: Optional[Any] = None,
+        stop_event: Any | None = None,
     ) -> str:
         """Main iterative loop delegated to AnalysisEngine."""
         if not skip_user_append:
@@ -689,8 +688,8 @@ class ProjectAnalysisAgent:
     def analyze_full_text(
         self,
         ai_service: Any,
-        extra_files: Optional[List[Path]] = None,
-        on_update: Optional[Callable[[], None]] = None,
+        extra_files: list[Path] | None = None,
+        on_update: Callable[[], None] | None = None,
     ) -> str:
         """Executes the One-Shot Full Text Extraction."""
         if not self.current_fingerprint:
@@ -758,7 +757,7 @@ class ProjectAnalysisAgent:
         return clean_msg
 
     def submit_analysis_answers(
-        self, answers: Dict[str, Any], on_update: Optional[Callable[[], None]] = None
+        self, answers: dict[str, Any], on_update: Callable[[], None] | None = None
     ) -> str:
         """
         Updates metadata based on form answers and clears current analysis.
@@ -830,7 +829,7 @@ class ProjectAnalysisAgent:
             human_answers.append(f"- **{label}**: {val_str}")
 
         self.chat_history.append(
-            ("user", f"Updated fields via form:\n\n" + "\n".join(human_answers))
+            ("user", "Updated fields via form:\n\n" + "\n".join(human_answers))
         )
         msg = "Thank you! I've updated the metadata with your choices."
         self.chat_history.append(("agent", msg))
@@ -849,20 +848,37 @@ class ProjectAnalysisAgent:
         )
 
     def _handle_bug_command(self, user_text: str) -> str:
-        """Generates a diagnostic report for debugging."""
-        description = user_text[4:].strip() or "No description provided."
+        """Generates a diagnostic report and opens a pre-filled GitHub issue."""
+        description = user_text[4:].strip() or _("No description provided.")
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         report_name = f"bug_report_{timestamp}.yaml"
         report_path = self.wm.bug_reports_dir / report_name
+
+        os_name = platform.system()
+        os_release = platform.release()
+        python_ver = sys.version.split()[0]
+        try:
+            version_file = Path(__file__).parent.parent / "VERSION"
+            app_version = version_file.read_text(encoding="utf-8").strip()
+        except (OSError, UnicodeDecodeError):
+            app_version = "unknown"
+
+        file_count = (
+            self.current_fingerprint.file_count if self.current_fingerprint else 0
+        )
+        extensions = (
+            self.current_fingerprint.extensions if self.current_fingerprint else []
+        )
 
         report_data = {
             "timestamp": timestamp,
             "user_description": description,
             "system_info": {
-                "os": platform.system(),
-                "os_release": platform.release(),
+                "os": os_name,
+                "os_release": os_release,
                 "python_version": sys.version,
                 "platform": platform.platform(),
+                "app_version": app_version,
             },
             "project_context": {
                 "project_id": self.project_id,
@@ -871,15 +887,11 @@ class ProjectAnalysisAgent:
                 else "Unknown",
                 "metadata": self.current_metadata.model_dump(exclude_unset=True),
                 "fingerprint_summary": {
-                    "file_count": self.current_fingerprint.file_count
-                    if self.current_fingerprint
-                    else 0,
+                    "file_count": file_count,
                     "total_size": self.current_fingerprint.total_size_bytes
                     if self.current_fingerprint
                     else 0,
-                    "extensions": self.current_fingerprint.extensions
-                    if self.current_fingerprint
-                    else [],
+                    "extensions": extensions,
                 },
             },
             "recent_history": self.chat_history[-20:] if self.chat_history else [],
@@ -888,7 +900,51 @@ class ProjectAnalysisAgent:
         with open(report_path, "w", encoding="utf-8") as f:
             yaml.dump(report_data, f, allow_unicode=True, sort_keys=False)
 
-        msg = f"🐞 **Bug report generated!**\n\nDiagnostic data has been saved to:\n`{report_path}`\n\nPlease share this file with the developers."
+        # Truncate body if it would make the URL too long (keep under 7 KB)
+        # The body text is limited to ~7 KB before percent-encoding to avoid
+        # exceeding GitHub's maximum URL length (~65 KB encoded).
+        _MAX_ISSUE_BODY_CHARS = 7000
+        _ISSUE_BODY_TRUNCATION = 6950
+        _MAX_ISSUE_TITLE_CHARS = 80
+
+        # Build pre-filled GitHub issue body (keep concise to respect URL limits)
+        recent_chat = self.chat_history[-5:] if self.chat_history else []
+        chat_lines = "\n".join(
+            f"**{role}:** {text[:200]}" for role, text in recent_chat
+        )
+        issue_body = (
+            f"## Bug Description\n{description}\n\n"
+            f"## System Info\n"
+            f"- **OS:** {os_name} {os_release}\n"
+            f"- **Python:** {python_ver}\n"
+            f"- **App Version:** {app_version}\n\n"
+            f"## Project Info\n"
+            f"- **File Count:** {file_count}\n"
+            f"- **Extensions:** {', '.join(str(e) for e in extensions[:20])}\n\n"
+            f"## Recent Conversation\n```\n{chat_lines}\n```\n\n"
+            f"---\n"
+            f"*Full diagnostic report: `{report_path}`*"
+        )
+
+        if len(issue_body) > _MAX_ISSUE_BODY_CHARS:
+            issue_body = issue_body[:_ISSUE_BODY_TRUNCATION] + "\n...(truncated)"
+
+        issue_title = urllib.parse.quote(
+            f"Bug: {description[:_MAX_ISSUE_TITLE_CHARS]}", safe=""
+        )
+        issue_body_enc = urllib.parse.quote(issue_body, safe="")
+        github_url = (
+            f"https://github.com/jochym/opendata/issues/new"
+            f"?title={issue_title}&body={issue_body_enc}&labels=bug"
+        )
+        self._pending_bug_report_url = github_url
+
+        msg = (
+            f"🐞 **{_('Bug report generated!')}**\n\n"
+            f"{_('Diagnostic data saved to:')}\n`{report_path}`\n\n"
+            f"**[🐛 {_('Open GitHub Issue (pre-filled)')}]({github_url})**\n\n"
+            f"_{_('A browser tab will open automatically. If you do not have a GitHub account, you can create one for free to submit the report.')}_"
+        )
         self.chat_history.append(("agent", msg))
         self.save_state()
         return msg

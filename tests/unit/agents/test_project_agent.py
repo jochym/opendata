@@ -1,8 +1,9 @@
+import urllib.parse
+
 import pytest
-from pathlib import Path
-from unittest.mock import MagicMock
+
 from opendata.agents.project_agent import ProjectAnalysisAgent
-from opendata.models import Metadata, ProjectFingerprint
+from opendata.models import ProjectFingerprint
 from opendata.workspace import WorkspaceManager
 
 
@@ -75,3 +76,68 @@ def test_agent_generate_ai_prompt(agent, tmp_path):
     prompt = agent.generate_ai_prompt()
     assert "CURRENT METADATA DRAFT" in prompt
     assert "RODBUK" in prompt
+
+
+def test_handle_bug_command_generates_github_url(agent, tmp_path):
+    """Bug command must generate a pre-filled GitHub issue URL for zero-friction reporting."""
+    project_path = tmp_path / "my_project"
+    project_path.mkdir()
+    agent.load_project(project_path)
+
+    agent._handle_bug_command("/bug application crashes on startup")
+
+    # A GitHub issue URL must be stored for the UI to open
+    assert agent._pending_bug_report_url is not None
+    url = agent._pending_bug_report_url
+    assert url.startswith("https://github.com/jochym/opendata/issues/new")
+    assert "labels=bug" in url
+
+    # Title must include the user's description
+    parsed = urllib.parse.urlparse(url)
+    params = urllib.parse.parse_qs(parsed.query)
+    assert "title" in params
+    title = urllib.parse.unquote(params["title"][0])
+    assert "application crashes on startup" in title
+
+    # Body must contain system info and description
+    body = urllib.parse.unquote(params["body"][0])
+    assert "application crashes on startup" in body
+    assert "OS" in body or "System Info" in body
+
+
+def test_handle_bug_command_saves_yaml_report(agent, tmp_path):
+    """Bug command must still save a local YAML diagnostic report as a fallback."""
+    project_path = tmp_path / "my_project"
+    project_path.mkdir()
+    agent.load_project(project_path)
+
+    agent._handle_bug_command("/bug something went wrong")
+
+    bug_files = list(agent.wm.bug_reports_dir.glob("bug_report_*.yaml"))
+    assert len(bug_files) == 1
+
+
+def test_handle_bug_command_response_contains_link(agent, tmp_path):
+    """Bug command response message must contain a clickable GitHub issue link."""
+    project_path = tmp_path / "my_project"
+    project_path.mkdir()
+    agent.load_project(project_path)
+
+    msg = agent._handle_bug_command("/bug test description")
+
+    assert "github.com/jochym/opendata/issues/new" in msg
+    # Confirm the link is embedded in markdown syntax
+    assert "](https://github.com" in msg
+
+
+def test_handle_bug_command_no_description(agent, tmp_path):
+    """Bug command without description must still generate a valid GitHub URL."""
+    project_path = tmp_path / "my_project"
+    project_path.mkdir()
+    agent.load_project(project_path)
+
+    agent._handle_bug_command("/bug")
+
+    assert agent._pending_bug_report_url is not None
+    assert "github.com/jochym/opendata/issues/new" in agent._pending_bug_report_url
+

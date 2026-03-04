@@ -9,12 +9,11 @@ from nicegui import ui
 
 from opendata.i18n.translator import _
 from opendata.ui.components.file_picker import LocalFilePicker
+from opendata.ui.components.files_dialog import render_file_selection_summary
 from opendata.ui.components.inventory_logic import (
     load_inventory_background,
-    build_folder_index,
 )
 from opendata.ui.components.metadata import metadata_preview_ui
-from opendata.ui.components.files_dialog import render_file_selection_summary
 from opendata.ui.context import AppContext
 from opendata.ui.state import ScanState
 
@@ -482,6 +481,18 @@ async def handle_user_msg_from_code(ctx: AppContext, text: str, mode: str = "met
             mode=mode,
             stop_event=ctx.session.ai_stop_event,
         )
+        # If the /bug command generated a GitHub issue URL, open it in a new tab
+        bug_url = getattr(ctx.agent, "_pending_bug_report_url", None)
+        if bug_url:
+            ctx.agent._pending_bug_report_url = None
+            try:
+                ui.navigate.to(bug_url, new_tab=True)
+            except Exception as nav_err:
+                logger.warning(
+                    "Could not auto-open bug report URL: %s — "
+                    "user can still click the link in the chat.",
+                    nav_err,
+                )
     except asyncio.CancelledError:
         logger.info("AI interaction cancelled by user.")
         ctx.agent.chat_history.append(
