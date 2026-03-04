@@ -1,10 +1,5 @@
 # Project Roadmap
 
-**Project:** OpenData Tool
-**Current Version:** v0.12.0 (Beta / PoC)
-
----
-
 ## 🏗️ Completed Milestones
 
 ### Phase 1: Proof of Concept (v0.1 - v0.5) ✅

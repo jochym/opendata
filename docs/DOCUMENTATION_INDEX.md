@@ -1,10 +1,5 @@
 # OpenData Tool - Documentation Index
 
-**Last Updated:** March 3, 2026
-**Current Version:** v0.22.37
-
----
-
 ## 📖 User Documentation
 
 ### [Testing Guide](TESTING.md)

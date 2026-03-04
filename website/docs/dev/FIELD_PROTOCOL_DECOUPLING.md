@@ -1,10 +1,5 @@
 # Field Protocol Decoupling - Bug Fix
 
-**Date:** February 17, 2026  
-**Issue:** Field protocol selection was incorrectly coupled with RODBUK metadata classification fields
-
----
-
 ## Problem
 
 ### Root Cause
