@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.38] - 2026-03-04
+### Fixed
+- **Chat Auto-Scrolling**: Implemented automatic scrolling to the latest message in the chat panel by correctly targeting the NiceGUI `scroll_area` instead of the document body.
+- **UI State**: Added `chat_scroll_area` to `AppContext` to maintain a robust reference for scroll operations across re-renders.
+
 ## [0.22.37] - 2026-03-03
 ### Added
 - **Persistent Logging**: Implemented automatic file logging to `~/.opendata_tool/opendata.log` with 1MB rotation, ensuring diagnostic data is available even when running in GUI mode without a terminal.

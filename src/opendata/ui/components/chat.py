@@ -114,10 +114,11 @@ def chat_messages_ui(ctx: AppContext):
                                 ).props(
                                     "icon=stop_circle flat color=red size=md"
                                 ).classes("p-0")
-    try:
-        ui.run_javascript("window.scrollTo(0, document.body.scrollHeight)")
-    except RuntimeError:
-        pass
+    if ctx.chat_scroll_area:
+        try:
+            ctx.chat_scroll_area.scroll_to(percent=1.0)
+        except RuntimeError:
+            pass
 
 
 def render_analysis_form(ctx: AppContext, analysis: Any):
@@ -225,7 +226,7 @@ def render_chat_panel(ctx: AppContext):
                         on_click=lambda: handle_clear_chat(ctx),
                     ).props("flat dense color=red").classes("text-xs")
                     ui.tooltip(_("Clear Chat History"))
-            with ui.scroll_area().classes("flex-grow w-full"):
+            with ui.scroll_area().classes("flex-grow w-full") as ctx.chat_scroll_area:
                 chat_messages_ui(ctx)
             with ui.row().classes(
                 "bg-white p-3 border-t w-full items-center no-wrap gap-2 shrink-0"
@@ -496,11 +497,6 @@ async def handle_user_msg_from_code(ctx: AppContext, text: str, mode: str = "met
         ctx.session.ai_stop_event = None
         ctx.refresh("chat")
         ctx.refresh_all()
-
-        try:
-            ui.run_javascript("window.scrollTo(0, document.body.scrollHeight)")
-        except RuntimeError:
-            pass
 
 
 async def handle_clear_chat(ctx: AppContext):

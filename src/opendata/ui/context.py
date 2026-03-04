@@ -65,6 +65,7 @@ class AppContext:
     analysis_tab: Any = None
     package_tab: Any = None
     preview_tab: Any = None
+    chat_scroll_area: Any = None
 
     # Callback to refresh all UI components
     refresh_all: Callable[[], None] = field(default_factory=lambda: lambda: None)
