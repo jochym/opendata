@@ -483,7 +483,7 @@ async def handle_user_msg_from_code(ctx: AppContext, text: str, mode: str = "met
         )
         # If the /bug command generated a pending bug report, open the dialog
         bug_report = getattr(ctx.agent, "_pending_bug_report", None)
-        if bug_report:
+        if isinstance(bug_report, dict):
             ctx.agent._pending_bug_report = None
             from opendata.ui.components.bug_report_dialog import show_bug_report_dialog
 
