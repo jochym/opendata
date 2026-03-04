@@ -7,14 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.22.38] - 2026-03-04
 ### Fixed
-- **Status Modal Flickering**: Refactored the progress dialog to create it once and only update its content, eliminating the disruptive hide/show behavior during updates.
-- **Scan Performance & Stability**: Optimized path resolution in the file scanner to reduce CPU/memory usage and increased the UI update interval to prevent system overload (OOM).
-- **Scan Guard**: Added a protection mechanism to prevent multiple simultaneous scans from being triggered.
-- **Metadata Robustness**: Updated data models to better handle intermediate metadata states during the AI drafting process.
-- **Chat Auto-Scrolling**: Implemented intelligent automatic scrolling to the latest message in the chat panel, only triggering when new messages are added.
-- **UI Stability**: Decoupled the main application interface (buttons, metadata preview) from the background scan state, preventing disruptive layout changes and spinners during operations.
-- **YAML Parsing**: Enhanced robustness against unquoted colons in LaTeX-style strings (e.g., in scientific titles), resolving common parsing failures.
-- **Chat Layout**: Implemented comprehensive text wrapping for chat bubbles, eliminating horizontal scrolling for YAML and code blocks.
+- **Status Modal Stability**: Completely refactored the progress dialog to use pure reactive bindings, eliminating all flickering, "client deleted" errors, and the "disappearing" behavior during long scans.
+- **Scanner Performance & OOM Prevention**: Optimized file scanning by replacing heavy Path resolution with high-performance string operations and increasing the UI update interval to 1.0s. This significantly reduces CPU/memory load during large project indexing.
+- **Metadata Models**: Restored default mandatory fields while maintaining flexibility for AI drafting states.
+- **Chat Experience**: Implemented intelligent auto-scrolling and fixed horizontal overflow for code/YAML blocks.
+- **UI Consistency**: Decoupled the main application layout from background process states, ensuring a stable and reliable user interface.
 
 ## [0.22.37] - 2026-03-03
 ### Added

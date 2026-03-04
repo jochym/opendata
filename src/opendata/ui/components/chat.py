@@ -3,7 +3,7 @@ import logging
 import re
 import threading
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from nicegui import ui
 
@@ -91,73 +91,91 @@ def chat_messages_ui(ctx: AppContext):
         ctx.session.last_chat_len = len(ctx.agent.chat_history)
 
 
-@ui.refreshable
-def status_dialog_content(ctx: AppContext):
-    """Refreshes ONLY the content inside the status dialog."""
-    # Determine current state
-    is_stopping = (
-        (ScanState.stop_event and ScanState.stop_event.is_set())
-        if ScanState.is_scanning
-        else (ctx.session.ai_stop_event and ctx.session.ai_stop_event.is_set())
-    )
+def render_status_dialog(ctx: AppContext):
+    """Renders a modal dialog for scanning and AI processing progress.
+    Purely reactive implementation using bindings to avoid flickering and 'client deleted' errors.
+    """
+    with ui.dialog().props("persistent") as dialog:
+        # Visibility bound to scanning OR processing AI
+        dialog.bind_value_from(
+            ScanState, "is_scanning", backward=lambda x: x or ScanState.is_processing_ai
+        )
+        dialog.bind_value_from(
+            ScanState, "is_processing_ai", backward=lambda x: x or ScanState.is_scanning
+        )
 
-    with ui.card().classes("w-96 p-6 items-center gap-4"):
-        if is_stopping:
-            ui.icon("cancel", color="red", size="lg")
-            title = _("Cancelling...")
-        else:
-            ui.spinner(size="lg")
-            title = _("Processing...")
+        with ui.card().classes("w-96 p-6 items-center gap-4"):
+            # Status Indicator (Spinner or Cancel Icon)
+            # We use two elements and bind their visibility to the STOP event state
+            with ui.column().classes("items-center w-full"):
+                ui.spinner(size="lg").bind_visibility_from(
+                    ScanState,
+                    "stop_event",
+                    backward=lambda ev: ev is None or not ev.is_set(),
+                ).bind_visibility_from(
+                    ctx.session,
+                    "ai_stop_event",
+                    backward=lambda ev: ev is None or not ev.is_set(),
+                )
 
-        ui.label(title).classes("text-lg font-bold")
+                ui.icon("cancel", color="red", size="lg").bind_visibility_from(
+                    ScanState,
+                    "stop_event",
+                    backward=lambda ev: ev is not None and ev.is_set(),
+                ).bind_visibility_from(
+                    ctx.session,
+                    "ai_stop_event",
+                    backward=lambda ev: ev is not None and ev.is_set(),
+                )
 
-        if ScanState.is_scanning:
-            label_text = ScanState.progress or _("Scanning project...")
-        else:
-            label_text = _("AI is thinking...")
+                ui.label(_("Processing...")).classes(
+                    "text-lg font-bold"
+                ).bind_text_from(
+                    ScanState,
+                    "stop_event",
+                    backward=lambda ev: _("Cancelling...")
+                    if ev is not None and ev.is_set()
+                    else _("Processing..."),
+                )
 
-        ui.markdown(label_text).classes("text-sm text-center text-gray-700 w-full")
-
-        if ScanState.is_scanning and ScanState.short_path:
-            ui.label(ScanState.short_path).classes(
-                "text-[10px] text-gray-500 text-center break-all w-full"
+            # Progress content
+            ui.markdown("").classes(
+                "text-sm text-center text-gray-700 w-full"
+            ).bind_content_from(
+                ScanState,
+                "progress",
+                backward=lambda x: x
+                if ScanState.is_scanning
+                else _("AI is thinking..."),
             )
 
-        if not is_stopping:
+            # Current file path (Scan only)
+            ui.label("").classes(
+                "text-[10px] text-gray-500 text-center break-all w-full"
+            ).bind_text_from(ScanState, "short_path").bind_visibility_from(
+                ScanState, "is_scanning"
+            )
+
+            # Action buttons
             with ui.row().classes("w-full justify-center mt-2"):
-                if ScanState.is_scanning:
-                    ui.button(
-                        _("Stop Scan"),
-                        on_click=lambda: handle_cancel_scan(ctx),
-                        color="red",
-                    ).props("outline")
-                elif ScanState.is_processing_ai:
-                    ui.button(
-                        _("Stop AI"),
-                        on_click=lambda: handle_cancel_ai(ctx),
-                        color="red",
-                    ).props("outline")
+                stop_btn = ui.button(
+                    _("Stop"),
+                    on_click=lambda: handle_cancel_scan(ctx)
+                    if ScanState.is_scanning
+                    else handle_cancel_ai(ctx),
+                    color="red",
+                ).props("outline")
 
-
-def render_status_dialog(ctx: AppContext):
-    """Creates the persistent dialog structure once and manages its visibility."""
-    # Use a unique attribute name to avoid conflicts
-    dialog_key = "_status_dialog_instance"
-
-    if not hasattr(ctx, dialog_key) or getattr(ctx, dialog_key) is None:
-        with ui.dialog().props("persistent") as dialog:
-            status_dialog_content(ctx)
-        setattr(ctx, dialog_key, dialog)
-        ctx.register_refreshable("status_dialog", status_dialog_content)
-
-    dialog = getattr(ctx, dialog_key)
-    is_active = ScanState.is_scanning or ScanState.is_processing_ai
-
-    # Toggle visibility based on state
-    if is_active:
-        dialog.open()
-    else:
-        dialog.close()
+                # Hide stop button if already cancelling
+                stop_btn.bind_visibility_from(
+                    ScanState,
+                    "stop_event",
+                    backward=lambda ev: ev is None or not ev.is_set(),
+                ).bind_visibility_from(
+                    ctx.session,
+                    "ai_stop_event",
+                    backward=lambda ev: ev is None or not ev.is_set(),
+                )
 
 
 def render_analysis_form(ctx: AppContext, analysis: Any):
@@ -268,8 +286,7 @@ def render_chat_panel(ctx: AppContext):
             with ui.scroll_area().classes("flex-grow w-full") as ctx.chat_scroll_area:
                 chat_messages_ui(ctx)
 
-            # Register and call the status dialog
-            ctx.register_refreshable("status_dialog", render_status_dialog)
+            # Modal status dialog - created once per session/client
             render_status_dialog(ctx)
 
             with ui.row().classes(
@@ -302,21 +319,17 @@ async def handle_scan_only(ctx: AppContext, path: str):
         return
 
     ScanState.current_path = path
-
     resolved_path = Path(path).expanduser()
 
     ScanState.is_scanning = True
     ScanState.stop_event = threading.Event()
     ScanState.progress = _("Scanning...")
-    # Refresh modal
-    ctx.refresh("status_dialog")
+    # Reactive bindings handle the dialog opening
 
     def update_progress(msg, full_path="", short_path=""):
         ScanState.progress = msg
         ScanState.full_path = full_path
         ScanState.short_path = short_path
-        # Refresh modal
-        ctx.refresh("status_dialog")
 
     try:
         result = await asyncio.to_thread(
@@ -339,10 +352,9 @@ async def handle_scan_only(ctx: AppContext, path: str):
                 pass
 
         # Refresh the UI inventory cache and stats
-        # This will trigger targeted refreshes via inventory_logic.py
         await load_inventory_background(ctx)
 
-        # Force a global UI refresh to ensure all components see the new state
+        # Force a global UI refresh
         ctx.refresh_all()
 
         # Persist the updated chat history
@@ -361,8 +373,7 @@ async def handle_scan_only(ctx: AppContext, path: str):
     finally:
         ScanState.is_scanning = False
         ScanState.stop_event = None
-        # Ensure modal closes and chat refreshes
-        ctx.refresh("status_dialog")
+        # Reactive bindings handle the dialog closing
         ctx.refresh("chat")
         try:
             ctx.refresh_all()
@@ -377,8 +388,7 @@ async def handle_ai_analysis(ctx: AppContext, path: str):
 
     ScanState.is_processing_ai = True
     ctx.session.ai_stop_event = threading.Event()
-    # Refresh modal
-    ctx.refresh("status_dialog")
+    # Reactive bindings handle the dialog opening
 
     try:
         await asyncio.to_thread(
@@ -397,8 +407,7 @@ async def handle_ai_analysis(ctx: AppContext, path: str):
     finally:
         ScanState.is_processing_ai = False
         ctx.session.ai_stop_event = None
-        # Ensure modal closes and chat refreshes
-        ctx.refresh("status_dialog")
+        # Reactive bindings handle the dialog closing
         ctx.refresh("chat")
         ctx.refresh_all()
 
@@ -512,7 +521,7 @@ async def handle_user_msg_from_code(ctx: AppContext, text: str, mode: str = "met
 
     ScanState.is_processing_ai = True
     ctx.session.ai_stop_event = threading.Event()
-    ctx.refresh("chat")
+    # Reactive bindings handle the dialog opening
 
     try:
         await asyncio.to_thread(
@@ -536,6 +545,7 @@ async def handle_user_msg_from_code(ctx: AppContext, text: str, mode: str = "met
     finally:
         ScanState.is_processing_ai = False
         ctx.session.ai_stop_event = None
+        # Reactive bindings handle the dialog closing
         ctx.refresh("chat")
         ctx.refresh_all()
 

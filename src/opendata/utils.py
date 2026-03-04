@@ -299,8 +299,9 @@ def scan_project_lazy(
     full_inventory = []
 
     last_ui_update = 0
-    UI_UPDATE_INTERVAL = 0.5
-    root_resolved = root.resolve()
+    UI_UPDATE_INTERVAL = 1.0
+    # Use string operations for speed
+    root_abs = str(root.absolute())
 
     for p, stat in walk_project_files(root, stop_event, exclude_patterns):
         if stop_event and stop_event.is_set():
@@ -308,13 +309,12 @@ def scan_project_lazy(
 
             raise asyncio.CancelledError("Scan cancelled by user")
 
-        # Get path relative to root WITHOUT resolve() inside the loop
-        # walk_project_files already ensures paths are within root
-        try:
-            rel_path = str(p.relative_to(root))
-        except ValueError:
-            # Fallback for complex symlink scenarios
-            rel_path = str(p.resolve().relative_to(root_resolved))
+        # Fast relative path calculation
+        p_abs = str(p)
+        if p_abs.startswith(root_abs):
+            rel_path = p_abs[len(root_abs) :].lstrip("/").lstrip("\\")
+        else:
+            rel_path = p.name
 
         if stat is not None:  # It's a file
             file_count += 1

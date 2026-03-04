@@ -79,4 +79,9 @@ class AppContext:
 
     def refresh(self, name: str):
         if name in self._refreshables:
-            self._refreshables[name].refresh()
+            obj = self._refreshables[name]
+            if hasattr(obj, "refresh"):
+                obj.refresh()
+            elif callable(obj):
+                # Fallback if a raw function was registered
+                obj()
