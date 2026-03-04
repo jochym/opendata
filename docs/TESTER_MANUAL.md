@@ -1,11 +1,5 @@
 # OpenData Tool - Beta Tester Manual
 
-**Version:** v0.22.35
-**Status:** Alpha (Active Development)
-**Target Audience:** Domain Scientists (Physics, Materials Science, Medical Physics) & Research Data Stewards
-
----
-
 ## 1. Introduction & Mission
 The **OpenData Tool** is an AI-powered assistant designed to "read" your research directory and automatically draft high-quality metadata for the [RODBUK](https://rodbuk.pl/) repository. 
 

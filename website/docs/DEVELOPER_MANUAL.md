@@ -1,10 +1,5 @@
 # OpenData Tool - Developer Manual
 
-**Version:** v0.22.22
-**Maintained By:** Pawel T. Jochym & AI Agents
-
----
-
 ## 1. Architecture Overview
 
 The OpenData Tool is a **hybrid desktop-web application** designed to provide a modern, browser-based interface for local file system operations, backed by agentic AI.
