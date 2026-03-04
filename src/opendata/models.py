@@ -180,6 +180,8 @@ class FileSuggestion(BaseModel):
 
 
 class AIAnalysis(BaseModel):
+    model_config = {"populate_by_name": True}
+
     summary: str
     missing_fields: list[str] = Field(
         default_factory=list, validation_alias="missingfields", alias="missing_fields"
