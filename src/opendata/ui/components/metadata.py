@@ -288,29 +288,29 @@ def metadata_preview_ui(ctx: AppContext):
                             "click", lambda _e, k=key: open_edit_dialog(ctx, k)
                         )
 
-                    with (
-                        ui.button(
-                            icon="lock" if is_locked else "lock_open",
-                            on_click=lambda _e, k=key: toggle_lock_list(_e, k),
-                        )
-                        .props("flat dense")
-                        .classes(
-                            f"absolute -top-4 right-0 z-10 opacity-0 group-hover:opacity-100 transition-opacity {'text-orange-600 opacity-100' if is_locked else 'text-slate-400'}"
-                        )
-                        .style(
-                            "font-size: 10px; background: white; border-radius: 50%; border: 1px solid #eee; width: 20px; height: 20px;"
-                        )
-                    ):
-                        ui.tooltip(
-                            _("Lock field from AI updates")
-                            if not is_locked
-                            else _("Unlock field")
-                        )
+                        with (
+                            ui.button(
+                                icon="lock" if is_locked else "lock_open",
+                                on_click=lambda _e, k=key: toggle_lock_list(_e, k),
+                            )
+                            .props("flat dense")
+                            .classes(
+                                f"absolute -top-4 right-0 z-10 opacity-0 group-hover:opacity-100 transition-opacity {'text-orange-600 opacity-100' if is_locked else 'text-slate-400'}"
+                            )
+                            .style(
+                                "font-size: 10px; background: white; border-radius: 50%; border: 1px solid #eee; width: 20px; height: 20px;"
+                            )
+                        ):
+                            ui.tooltip(
+                                _("Lock field from AI updates")
+                                if not is_locked
+                                else _("Unlock field")
+                            )
 
-                    for kw in value:
-                        ui.badge(str(kw), color="blue-1").classes(
-                            "text-blue-800 px-2 py-1 rounded-md cursor-help"
-                        )
+                        for kw in value:
+                            ui.badge(str(kw), color="blue-1").classes(
+                                "text-blue-800 px-2 py-1 rounded-md cursor-help"
+                            )
             elif key == "related_publications":
                 ui.label(key.replace("_", " ").title()).classes(
                     "text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-wider"
