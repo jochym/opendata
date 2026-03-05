@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.41] - 2026-03-05
+### Fixed
+- **Non-editable Metadata Fields (#48)**: Fixed critical bug where empty metadata fields were not visible or editable in the UI.
+  - Changed `model_dump(exclude_unset=True)` to `model_dump()` to display ALL RODBUK fields, including empty ones
+  - Added visual indicators: mandatory fields (title, authors, abstract, license, keywords) show in **red** when empty
+  - Added "Empty (click to add)" placeholders with dashed borders for all empty fields
+  - Fixed duplicate rendering bug causing field values to appear twice
+  - Restored special formatting for Title field (large font, white card background)
+  - Formatted keywords as horizontal badges (similar to software field)
+  - Added 12 unit tests to verify empty field handling and editing
+
 ## [0.22.40] - 2026-03-05
 ### Fixed
 - **Welcome Message Persistence**: Welcome instruction in chat now stays visible until explicitly dismissed with X button, instead of disappearing after first system interaction (scan/AI analysis).
