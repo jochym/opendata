@@ -11,7 +11,9 @@ def metadata_preview_ui(ctx: AppContext):
     if not ctx.agent.project_id:
         return
 
-    fields = ctx.agent.current_metadata.model_dump(exclude_unset=True)
+    MANDATORY_FIELDS = {"title", "authors", "abstract", "license", "keywords"}
+
+    fields = ctx.agent.current_metadata.model_dump()
 
     def create_expandable_text(text, key=None):
         with ui.column().classes(
@@ -103,149 +105,212 @@ def metadata_preview_ui(ctx: AppContext):
 
     with ui.column().classes("w-full gap-1 p-0"):
         for key, value in fields.items():
-            if key == "locked_fields":
+            if key == "locked_fields" or key == "ai_model":
                 continue
+
+            is_mandatory = key in MANDATORY_FIELDS
+            is_empty = value is None or (isinstance(value, list) and len(value) == 0)
+
             if key == "authors" or key == "contacts":
-                ui.label(key.replace("_", " ").title()).classes(
-                    "text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-wider"
+                label_color = (
+                    "text-red-600" if is_mandatory and is_empty else "text-slate-500"
                 )
-                with ui.row().classes("w-full gap-0.5 flex-wrap items-center -mt-0.5"):
-                    for item in value:
-                        if isinstance(item, dict):
-                            name = item.get(
-                                "name", item.get("person_to_contact", str(item))
-                            )
-                            name_clean = (
-                                name.replace("{", "")
-                                .replace("}", "")
-                                .replace("\\", "")
-                                .replace("orcidlink", "")
-                            )
-                            affiliation = item.get("affiliation", "")
-                            identifier = item.get("identifier", "")
-                            email = item.get("email", "")
-
-                            bg_color = (
-                                "bg-slate-100 border-slate-200"
-                                if key == "authors"
-                                else "bg-indigo-50 border-indigo-100 hover:bg-indigo-100"
-                            )
-
-                            with ui.label("").classes(
-                                f"py-0.5 px-1.5 rounded {bg_color} border cursor-pointer text-sm inline-block mr-1 mb-1 relative group"
-                            ) as container:
-                                is_locked = (
-                                    key in ctx.agent.current_metadata.locked_fields
-                                )
-
-                                async def toggle_lock_list(e, k=key):
-                                    if k in ctx.agent.current_metadata.locked_fields:
-                                        ctx.agent.current_metadata.locked_fields.remove(
-                                            k
-                                        )
-                                    else:
-                                        ctx.agent.current_metadata.locked_fields.append(
-                                            k
-                                        )
-                                    ctx.agent.save_state()
-                                    ctx.refresh("metadata")
-
-                                with (
-                                    ui.button(
-                                        icon="lock" if is_locked else "lock_open",
-                                        on_click=toggle_lock_list,
-                                    )
-                                    .props("flat dense")
-                                    .classes(
-                                        f"absolute -top-2 -right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity {'text-orange-600 opacity-100' if is_locked else 'text-slate-400'}"
-                                    )
-                                    .style(
-                                        "font-size: 10px; background: white; border-radius: 50%; border: 1px solid #eee; width: 20px; height: 20px;"
-                                    )
-                                ):
-                                    ui.tooltip(
-                                        _("Lock field from AI updates")
-                                        if not is_locked
-                                        else _("Unlock field")
-                                    )
-
-                                container.on(
-                                    "click",
-                                    lambda _e, k=key: open_edit_dialog(ctx, k),
-                                )
-
-                                ui.label(name_clean).classes(
-                                    "text-sm font-medium inline mr-1"
-                                )
-                                with ui.row().classes(
-                                    "inline-flex items-center gap-0.5"
-                                ):
-                                    if identifier:
-                                        ui.icon(
-                                            "verified", size="0.75rem", color="green"
-                                        ).classes("inline-block align-middle")
-                                    if affiliation:
-                                        ui.icon(
-                                            "business", size="0.75rem", color="blue"
-                                        ).classes("inline-block align-middle")
-                                    if email:
-                                        ui.icon(
-                                            "email", size="0.75rem", color="indigo"
-                                        ).classes("inline-block align-middle")
-
-                                with ui.tooltip().classes(
-                                    "bg-slate-800 text-white p-2 text-xs whitespace-normal max-w-xs"
-                                ):
-                                    ui.label(f"Name: {name_clean}")
-                                    if affiliation:
-                                        ui.label(f"Affiliation: {affiliation}")
-                                    if identifier:
-                                        ui.label(f"ORCID: {identifier}")
-                                    if email:
-                                        ui.label(f"Email: {email}")
-                        else:
-                            ui.label(str(item)).classes(
-                                "text-sm bg-slate-50 p-1 rounded border border-slate-100 break-words"
-                            )
-            elif key == "description":
                 ui.label(key.replace("_", " ").title()).classes(
-                    "text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-wider"
+                    f"text-[10px] font-bold {label_color} ml-1 uppercase tracking-wider"
                 )
-                with ui.column().classes("w-full gap-0 -mt-0.5"):
-                    create_expandable_text(value, key=key)
-            elif key == "keywords":
-                ui.label(key.replace("_", " ").title()).classes(
-                    "text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-wider"
-                )
-                with ui.row().classes(
-                    "w-full gap-0.5 flex-wrap items-center -mt-0.5 relative group"
-                ) as kw_container:
-                    is_locked = key in ctx.agent.current_metadata.locked_fields
-                    kw_container.on("click", lambda _e, k=key: open_edit_dialog(ctx, k))
-
-                    with (
-                        ui.button(
-                            icon="lock" if is_locked else "lock_open",
-                            on_click=lambda _e, k=key: toggle_lock_list(_e, k),
-                        )
-                        .props("flat dense")
-                        .classes(
-                            f"absolute -top-4 right-0 z-10 opacity-0 group-hover:opacity-100 transition-opacity {'text-orange-600 opacity-100' if is_locked else 'text-slate-400'}"
-                        )
-                        .style(
-                            "font-size: 10px; background: white; border-radius: 50%; border: 1px solid #eee; width: 20px; height: 20px;"
-                        )
+                if is_empty:
+                    with ui.row().classes(
+                        "w-full gap-0.5 flex-wrap items-center -mt-0.5"
                     ):
-                        ui.tooltip(
-                            _("Lock field from AI updates")
-                            if not is_locked
-                            else _("Unlock field")
+                        with (
+                            ui.label(_("Empty (click to add)"))
+                            .classes(
+                                "text-sm text-slate-400 italic cursor-pointer bg-slate-50 border border-dashed border-slate-300 rounded px-2 py-1"
+                            )
+                            .on("click", lambda _e, k=key: open_edit_dialog(ctx, k))
+                        ):
+                            ui.tooltip(
+                                _("Click to add {field}").format(
+                                    field=key.replace("_", " ")
+                                )
+                            )
+                else:
+                    with ui.row().classes(
+                        "w-full gap-0.5 flex-wrap items-center -mt-0.5"
+                    ):
+                        for item in value:
+                            if isinstance(item, dict):
+                                name = item.get(
+                                    "name", item.get("person_to_contact", str(item))
+                                )
+                                name_clean = (
+                                    name.replace("{", "")
+                                    .replace("}", "")
+                                    .replace("\\", "")
+                                    .replace("orcidlink", "")
+                                )
+                                affiliation = item.get("affiliation", "")
+                                identifier = item.get("identifier", "")
+                                email = item.get("email", "")
+
+                                bg_color = (
+                                    "bg-slate-100 border-slate-200"
+                                    if key == "authors"
+                                    else "bg-indigo-50 border-indigo-100 hover:bg-indigo-100"
+                                )
+
+                                with ui.label("").classes(
+                                    f"py-0.5 px-1.5 rounded {bg_color} border cursor-pointer text-sm inline-block mr-1 mb-1 relative group"
+                                ) as container:
+                                    is_locked = (
+                                        key in ctx.agent.current_metadata.locked_fields
+                                    )
+
+                                    async def toggle_lock_list(e, k=key):
+                                        if (
+                                            k
+                                            in ctx.agent.current_metadata.locked_fields
+                                        ):
+                                            ctx.agent.current_metadata.locked_fields.remove(
+                                                k
+                                            )
+                                        else:
+                                            ctx.agent.current_metadata.locked_fields.append(
+                                                k
+                                            )
+                                        ctx.agent.save_state()
+                                        ctx.refresh("metadata")
+
+                                    with (
+                                        ui.button(
+                                            icon="lock" if is_locked else "lock_open",
+                                            on_click=toggle_lock_list,
+                                        )
+                                        .props("flat dense")
+                                        .classes(
+                                            f"absolute -top-2 -right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity {'text-orange-600 opacity-100' if is_locked else 'text-slate-400'}"
+                                        )
+                                        .style(
+                                            "font-size: 10px; background: white; border-radius: 50%; border: 1px solid #eee; width: 20px; height: 20px;"
+                                        )
+                                    ):
+                                        ui.tooltip(
+                                            _("Lock field from AI updates")
+                                            if not is_locked
+                                            else _("Unlock field")
+                                        )
+
+                                    container.on(
+                                        "click",
+                                        lambda _e, k=key: open_edit_dialog(ctx, k),
+                                    )
+
+                                    ui.label(name_clean).classes(
+                                        "text-sm font-medium inline mr-1"
+                                    )
+                                    with ui.row().classes(
+                                        "inline-flex items-center gap-0.5"
+                                    ):
+                                        if identifier:
+                                            ui.icon(
+                                                "verified",
+                                                size="0.75rem",
+                                                color="green",
+                                            ).classes("inline-block align-middle")
+                                        if affiliation:
+                                            ui.icon(
+                                                "business", size="0.75rem", color="blue"
+                                            ).classes("inline-block align-middle")
+                                        if email:
+                                            ui.icon(
+                                                "email", size="0.75rem", color="indigo"
+                                            ).classes("inline-block align-middle")
+
+                                    with ui.tooltip().classes(
+                                        "bg-slate-800 text-white p-2 text-xs whitespace-normal max-w-xs"
+                                    ):
+                                        ui.label(f"Name: {name_clean}")
+                                        if affiliation:
+                                            ui.label(f"Affiliation: {affiliation}")
+                                        if identifier:
+                                            ui.label(f"ORCID: {identifier}")
+                                        if email:
+                                            ui.label(f"Email: {email}")
+                            else:
+                                ui.label(str(item)).classes(
+                                    "text-sm bg-slate-50 p-1 rounded border border-slate-100 break-words"
+                                )
+            elif key == "description":
+                label_color = (
+                    "text-red-600" if is_mandatory and is_empty else "text-slate-500"
+                )
+                ui.label(key.replace("_", " ").title()).classes(
+                    f"text-[10px] font-bold {label_color} ml-1 uppercase tracking-wider"
+                )
+                if is_empty:
+                    with ui.column().classes("w-full gap-0 -mt-0.5"):
+                        with (
+                            ui.label(_("Empty (click to add)"))
+                            .classes(
+                                "text-sm text-slate-400 italic cursor-pointer bg-slate-50 border border-dashed border-slate-300 rounded px-3 py-2"
+                            )
+                            .on("click", lambda _e, k=key: open_edit_dialog(ctx, k))
+                        ):
+                            ui.tooltip(_("Click to add description"))
+                else:
+                    with ui.column().classes("w-full gap-0 -mt-0.5"):
+                        create_expandable_text(value, key=key)
+            elif key == "keywords":
+                label_color = (
+                    "text-red-600" if is_mandatory and is_empty else "text-slate-500"
+                )
+                ui.label(key.replace("_", " ").title()).classes(
+                    f"text-[10px] font-bold {label_color} ml-1 uppercase tracking-wider"
+                )
+                if is_empty:
+                    with ui.row().classes(
+                        "w-full gap-0.5 flex-wrap items-center -mt-0.5 relative group"
+                    ) as kw_container:
+                        with (
+                            ui.label(_("Empty (click to add)"))
+                            .classes(
+                                "text-sm text-slate-400 italic cursor-pointer bg-slate-50 border border-dashed border-slate-300 rounded px-2 py-1"
+                            )
+                            .on("click", lambda _e, k=key: open_edit_dialog(ctx, k))
+                        ):
+                            ui.tooltip(_("Click to add keywords"))
+                else:
+                    with ui.row().classes(
+                        "w-full gap-0.5 flex-wrap items-center -mt-0.5 relative group"
+                    ) as kw_container:
+                        is_locked = key in ctx.agent.current_metadata.locked_fields
+                        kw_container.on(
+                            "click", lambda _e, k=key: open_edit_dialog(ctx, k)
                         )
 
-                    for kw in value:
-                        ui.label(str(kw)).classes(
-                            "text-sm bg-slate-100 py-0.5 px-2 rounded border border-slate-200 inline-block mr-1 mb-1"
-                        )
+                        with (
+                            ui.button(
+                                icon="lock" if is_locked else "lock_open",
+                                on_click=lambda _e, k=key: toggle_lock_list(_e, k),
+                            )
+                            .props("flat dense")
+                            .classes(
+                                f"absolute -top-4 right-0 z-10 opacity-0 group-hover:opacity-100 transition-opacity {'text-orange-600 opacity-100' if is_locked else 'text-slate-400'}"
+                            )
+                            .style(
+                                "font-size: 10px; background: white; border-radius: 50%; border: 1px solid #eee; width: 20px; height: 20px;"
+                            )
+                        ):
+                            ui.tooltip(
+                                _("Lock field from AI updates")
+                                if not is_locked
+                                else _("Unlock field")
+                            )
+
+                        for kw in value:
+                            ui.badge(str(kw), color="blue-1").classes(
+                                "text-blue-800 px-2 py-1 rounded-md cursor-help"
+                            )
             elif key == "related_publications":
                 ui.label(key.replace("_", " ").title()).classes(
                     "text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-wider"
@@ -404,60 +469,105 @@ def metadata_preview_ui(ctx: AppContext):
                 or key == "science_branches_oecd"
                 or key == "languages"
             ):
+                label_color = "text-slate-500"
                 ui.label(key.replace("_", " ").title()).classes(
-                    "text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-wider"
+                    f"text-[10px] font-bold {label_color} ml-1 uppercase tracking-wider"
                 )
-                with ui.row().classes("w-full gap-0.5 flex-wrap items-center -mt-0.5"):
-                    for item in value:
-                        ui.label(str(item)).classes(
-                            "text-sm bg-slate-100 py-0.5 px-2 rounded border border-slate-200 inline-block mr-1 mb-1"
-                        )
-            # Fallback for other fields
-            else:
-                label_text = key.replace("_", " ").title()
-                label_class = (
-                    "text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-wider"
-                )
-
-                # Special styling for Title
-                if key == "title":
-                    ui.label(_("Dataset Title")).classes(label_class)
-                    with ui.column().classes("w-full -mt-0.5 mb-1"):
-                        with ui.column().classes(
-                            "w-full gap-0 bg-white border border-slate-200 rounded-lg relative group shadow-sm p-2"
+                if is_empty:
+                    with ui.row().classes(
+                        "w-full gap-0.5 flex-wrap items-center -mt-0.5"
+                    ):
+                        with (
+                            ui.label(_("Empty (click to add)"))
+                            .classes(
+                                "text-sm text-slate-400 italic cursor-pointer bg-slate-50 border border-dashed border-slate-300 rounded px-2 py-1"
+                            )
+                            .on("click", lambda _e, k=key: open_edit_dialog(ctx, k))
                         ):
-                            # Lock indicator for title
-                            is_locked = key in ctx.agent.current_metadata.locked_fields
-
-                            async def toggle_lock_title(e, k=key):
-                                if k in ctx.agent.current_metadata.locked_fields:
-                                    ctx.agent.current_metadata.locked_fields.remove(k)
-                                else:
-                                    ctx.agent.current_metadata.locked_fields.append(k)
-                                ctx.agent.save_state()
-                                ctx.refresh("metadata")
-
-                            with (
-                                ui.button(
-                                    icon="lock" if is_locked else "lock_open",
-                                    on_click=toggle_lock_title,
+                            ui.tooltip(
+                                _("Click to add {field}").format(
+                                    field=key.replace("_", " ")
                                 )
-                                .props("flat dense")
-                                .classes(
-                                    f"absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity {'text-orange-600 opacity-100' if is_locked else 'text-slate-400'}"
-                                )
-                            ):
-                                ui.tooltip(_("Lock field from AI updates"))
+                            )
+                else:
+                    with ui.row().classes(
+                        "w-full gap-0.5 flex-wrap items-center -mt-0.5"
+                    ):
+                        for item in value:
+                            ui.label(str(item)).classes(
+                                "text-sm bg-slate-100 py-0.5 px-2 rounded border border-slate-200 inline-block mr-1 mb-1"
+                            )
+            # Special styling for Title
+            elif key == "title":
+                label_color = (
+                    "text-red-600" if is_mandatory and is_empty else "text-slate-900"
+                )
+                ui.label(_("Dataset Title")).classes(
+                    f"text-[10px] font-bold {label_color} ml-1 uppercase tracking-wider"
+                )
+                with ui.column().classes("w-full -mt-0.5 mb-1"):
+                    with ui.column().classes(
+                        "w-full gap-0 bg-white border border-slate-200 rounded-lg relative group shadow-sm p-2"
+                    ):
+                        # Lock indicator for title
+                        is_locked = key in ctx.agent.current_metadata.locked_fields
 
+                        async def toggle_lock_title(e, k=key):
+                            if k in ctx.agent.current_metadata.locked_fields:
+                                ctx.agent.current_metadata.locked_fields.remove(k)
+                            else:
+                                ctx.agent.current_metadata.locked_fields.append(k)
+                            ctx.agent.save_state()
+                            ctx.refresh("metadata")
+
+                        with (
+                            ui.button(
+                                icon="lock" if is_locked else "lock_open",
+                                on_click=toggle_lock_title,
+                            )
+                            .props("flat dense")
+                            .classes(
+                                f"absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity {'text-orange-600 opacity-100' if is_locked else 'text-slate-400'}"
+                            )
+                        ):
+                            ui.tooltip(_("Lock field from AI updates"))
+
+                        if is_empty:
+                            content = ui.label(_("Empty (click to add)")).classes(
+                                "text-lg font-bold text-slate-400 italic cursor-pointer m-0 p-0"
+                            )
+                        else:
                             content = ui.label(value).classes(
                                 "text-lg font-bold text-slate-900 cursor-pointer m-0 p-0"
                             )
-                            content.on("click", lambda: open_edit_dialog(ctx, key))
-                    continue
+                        content.on("click", lambda: open_edit_dialog(ctx, key))
+            # Fallback for other fields
+            else:
+                label_color = (
+                    "text-red-600" if is_mandatory and is_empty else "text-slate-500"
+                )
+                label_text = key.replace("_", " ").title()
+                label_class = (
+                    f"text-[10px] font-bold {label_color} ml-1 uppercase tracking-wider"
+                )
 
                 ui.label(label_text).classes(label_class)
 
-                if isinstance(value, list):
+                if is_empty:
+                    with ui.column().classes("w-full -mt-0.5"):
+                        with (
+                            ui.label(_("Empty (click to add)"))
+                            .classes(
+                                "text-sm text-slate-400 italic cursor-pointer bg-slate-50 border border-dashed border-slate-300 rounded px-3 py-2"
+                            )
+                            .on("click", lambda _e, k=key: open_edit_dialog(ctx, k))
+                        ):
+                            ui.tooltip(
+                                _("Click to add {field}").format(
+                                    field=key.replace("_", " ")
+                                )
+                            )
+                elif isinstance(value, list):
                     with ui.column().classes("w-full gap-0.5 -mt-0.5"):
                         for v_item in value:
                             create_expandable_text(str(v_item), key=key)
