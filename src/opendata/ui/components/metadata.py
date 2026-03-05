@@ -308,8 +308,8 @@ def metadata_preview_ui(ctx: AppContext):
                         )
 
                     for kw in value:
-                        ui.label(str(kw)).classes(
-                            "text-sm bg-slate-100 py-0.5 px-2 rounded border border-slate-200 inline-block mr-1 mb-1"
+                        ui.badge(str(kw), color="blue-1").classes(
+                            "text-blue-800 px-2 py-1 rounded-md cursor-help"
                         )
             elif key == "related_publications":
                 ui.label(key.replace("_", " ").title()).classes(
