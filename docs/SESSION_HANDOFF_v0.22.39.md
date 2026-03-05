@@ -399,3 +399,56 @@ pkill -f "python src/opendata/main.py"  # Clean up test process
 
 **Last Updated**: v0.22.39 (2026-03-04)  
 **Maintainer**: Add new lessons after each session
+
+---
+
+## 📝 Bug Fix Log: Issue #37 - Chat Instruction Disappears
+
+### Problem
+The welcome instruction in the chat window disappeared after the first interaction (e.g., after clicking Scan or AI Analyze). User expected it to stay until explicitly dismissed.
+
+### Root Cause
+1. **SessionState.reset()** was clearing ALL session state including `last_chat_len`, which is used for chat scroll positioning
+2. The welcome message visibility logic checked `if not ctx.agent.chat_history`, which became False after the first system message was added
+3. **No explicit dismiss mechanism** - welcome message should persist until user clicks a dismiss button
+
+### Solution
+**Three-part fix:**
+
+1. **Add `welcome_dismissed` flag to SessionState** (`src/opendata/ui/context.py:38`):
+   ```python
+   welcome_dismissed: bool = False
+   ```
+
+2. **Add dismiss button and update visibility logic** (`src/opendata/ui/components/chat.py:37-72`):
+   - Welcome card now has an **X button** in top-right corner
+   - Visibility controlled by `ctx.session.welcome_dismissed` flag
+   - Stays visible across all interactions until explicitly dismissed
+   - Resets when loading a new project (via `session.reset()`)
+
+3. **Add `dismiss_welcome()` handler** (`src/opendata/ui/components/chat.py:564-568`):
+   ```python
+   async def dismiss_welcome(ctx: AppContext):
+       """Dismiss the welcome message until next project load."""
+       ctx.session.welcome_dismissed = True
+       ctx.refresh("chat")
+   ```
+
+4. **Preserve `last_chat_len` during session reset** (`src/opendata/ui/context.py:40-49`):
+   - Maintains chat scroll position across project loads
+
+### Test Coverage
+Created `tests/unit/ui/test_chat_welcome_persistence.py` with 7 tests:
+- `test_welcome_shown_by_default`
+- `test_welcome_stays_after_scan`
+- `test_welcome_dismissed_by_user`
+- `test_welcome_stays_with_user_messages`
+- `test_session_reset_preserves_chat_len`
+- `test_session_reset_with_zero_chat_len`
+- `test_session_reset_clears_welcome_dismissed`
+
+### Verification
+```bash
+pytest tests/unit/ui/test_chat_welcome_persistence.py -xvs  # 7 passed
+pytest tests/ -x  # 175 passed, no regressions
+```

@@ -36,14 +36,18 @@ class SessionState:
     folder_stats: dict[str, dict[str, int]] = field(default_factory=dict)
     ai_stop_event: Optional[threading.Event] = None
     last_chat_len: int = 0
+    welcome_dismissed: bool = False
 
     def reset(self):
         """Resets session state to default values without replacing the object."""
         # Note: We use a temporary instance to get default values defined in dataclass.
         # This ensures we stay in sync with field definitions without manual duplication.
+        # Preserve last_chat_len to maintain chat scroll state
+        preserved_chat_len = self.last_chat_len
         defaults = SessionState().__dict__
         for key, value in defaults.items():
             setattr(self, key, value)
+        self.last_chat_len = preserved_chat_len
 
 
 @dataclass

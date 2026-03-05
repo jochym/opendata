@@ -35,25 +35,36 @@ def chat_messages_ui(ctx: AppContext):
         }
     """)
     with ui.column().classes("w-full gap-4 p-4"):
-        if not ctx.agent.chat_history:
-            with ui.column().classes(
-                "w-full items-center justify-center p-8 opacity-70 bg-blue-50 rounded-lg border border-blue-100"
+        # Show welcome message until explicitly dismissed by user
+        if not ctx.session.welcome_dismissed:
+            with ui.card().classes(
+                "w-full relative p-6 bg-blue-50 rounded-lg border border-blue-100 shadow-sm"
             ):
-                ui.icon("auto_awesome", size="lg", color="blue-500")
-                ui.label(_("Welcome to OpenData Agent!")).classes(
-                    "text-lg font-bold text-blue-800"
-                )
-                ui.markdown(
-                    _(
-                        "I will help you prepare metadata for your research project.\n\n"
-                        "**To get started:**\n"
-                        "1. **Select project directory** and click **Open**.\n"
-                        "2. Click **Scan** to index your files.\n"
-                        "3. **Select significant files** in the **Significant Files** section below to provide context for the AI.\n"
-                        "4. You can adjust file exclusions in the **Protocols** tab at any time.\n"
-                        "5. Click **AI Analyze** to generate draft metadata."
+                # Dismiss button (top-right corner)
+                with ui.row().classes("absolute top-2 right-2"):
+                    ui.button(
+                        icon="close",
+                        on_click=lambda: dismiss_welcome(ctx),
+                    ).props("flat dense round color=blue-300 size=sm").classes(
+                        "hover:bg-blue-100"
                     )
-                ).classes("text-sm text-blue-900 text-center")
+
+                with ui.column().classes("w-full items-center justify-center gap-3"):
+                    ui.icon("auto_awesome", size="lg", color="blue-500")
+                    ui.label(_("Welcome to OpenData Agent!")).classes(
+                        "text-lg font-bold text-blue-800"
+                    )
+                    ui.markdown(
+                        _(
+                            "I will help you prepare metadata for your research project.\n\n"
+                            "**To get started:**\n"
+                            "1. **Select project directory** and click **Open**.\n"
+                            "2. Click **Scan** to index your files.\n"
+                            "3. **Select significant files** in the **Significant Files** section below to provide context for the AI.\n"
+                            "4. You can adjust file exclusions in the **Protocols** tab at any time.\n"
+                            "5. Click **AI Analyze** to generate draft metadata."
+                        )
+                    ).classes("text-sm text-blue-900 text-center")
 
         for i, (role, text) in enumerate(ctx.agent.chat_history):
             if role == "user":
@@ -554,6 +565,12 @@ async def handle_clear_chat(ctx: AppContext):
     ctx.agent.clear_chat_history()
     ctx.refresh("chat")
     ui.notify(_("Chat history cleared"))
+
+
+async def dismiss_welcome(ctx: AppContext):
+    """Dismiss the welcome message until next project load."""
+    ctx.session.welcome_dismissed = True
+    ctx.refresh("chat")
 
 
 async def handle_cancel_scan(ctx: AppContext):

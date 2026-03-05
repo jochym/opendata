@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.40] - 2026-03-05
+### Fixed
+- **Welcome Message Persistence**: Welcome instruction in chat now stays visible until explicitly dismissed with X button, instead of disappearing after first system interaction (scan/AI analysis).
+- **Session State Management**: Added `welcome_dismissed` flag to session state that resets when loading new projects, ensuring welcome message appears for each new project.
+
 ## [0.22.39] - 2026-03-04
 ### Added
 - **AI Progress Messages**: Detailed real-time status updates in the progress modal (e.g., "Sending prompt...", "Waiting for reply...", "Parsing response...").

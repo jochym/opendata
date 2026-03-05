@@ -273,3 +273,39 @@ pytest -m local_only
 - `docs/AI_TESTING_GUIDE.md` - AI testing instructions
 - `docs/OPENAI_TESTING_COMPLETE.md` - OpenAI endpoint configuration
 
+---
+
+## Systematic Debugging & Issue Handling (CRITICAL)
+
+**ALWAYS follow these rules when working on GitHub issues or fixing bugs:**
+
+### 1. Branch Strategy (IRON RULE)
+- **NEVER work directly on `main`**
+- **ALWAYS create a branch**: `git checkout -b fix/issue-<number>-short-description`
+- **ALWAYS create a PR** and merge via pull request (not direct push)
+- See full workflow in `docs/DEBUGGING_AND_ISSUE_HANDLING.md`
+
+### 2. Session Setup
+Before starting work:
+```bash
+git checkout main && git pull origin main
+git checkout -b fix/issue-<number>
+pkill -9 -f "python src/opendata/main.py"
+python src/opendata/main.py --host 127.0.0.1 --port 8891 --no-browser --headless &
+```
+
+### 3. Systematic Debugging
+1. **Verify assumptions** - Never assume, always verify (process running, files saved, models load)
+2. **Isolate the problem layer** - UI → State → Persistence → Model
+3. **One change at a time** - Make ONE fix, test immediately, verify, then continue
+4. **Document as you go** - Note symptoms, root cause, and solution
+
+### 4. Testing Requirements
+- **Every bug fix MUST include a test** that reproduces the bug (fails before fix, passes after)
+- Tests must verify **CORRECT behavior**, not current implementation
+- All existing tests must pass: `pytest`
+
+### 5. Complete Reference
+For comprehensive debugging patterns, bug investigation checklists, and issue handling workflows:
+- **See**: `docs/DEBUGGING_AND_ISSUE_HANDLING.md`
+
