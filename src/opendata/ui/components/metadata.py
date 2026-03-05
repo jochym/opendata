@@ -531,14 +531,6 @@ def metadata_preview_ui(ctx: AppContext):
                     with ui.column().classes("w-full -mt-0.5"):
                         create_expandable_text(str(value), key=key)
 
-                if isinstance(value, list):
-                    with ui.column().classes("w-full gap-0.5 -mt-0.5"):
-                        for v_item in value:
-                            create_expandable_text(str(v_item), key=key)
-                else:
-                    with ui.column().classes("w-full -mt-0.5"):
-                        create_expandable_text(str(value), key=key)
-
 
 async def open_edit_dialog(ctx: AppContext, key: str):
     val = getattr(ctx.agent.current_metadata, key)
