@@ -1,8 +1,9 @@
+import unittest.mock
+
 import pytest
-from pathlib import Path
-from unittest.mock import MagicMock
+
 from opendata.agents.project_agent import ProjectAnalysisAgent
-from opendata.models import Metadata, ProjectFingerprint
+from opendata.models import ProjectFingerprint
 from opendata.workspace import WorkspaceManager
 
 
@@ -75,3 +76,89 @@ def test_agent_generate_ai_prompt(agent, tmp_path):
     prompt = agent.generate_ai_prompt()
     assert "CURRENT METADATA DRAFT" in prompt
     assert "RODBUK" in prompt
+
+
+def test_bug_command_creates_pending_report_dict(agent, tmp_path):
+    """Bug command must store a pending_bug_report dict for the UI dialog."""
+    project_path = tmp_path / "my_project"
+    project_path.mkdir()
+    agent.load_project(project_path)
+
+    agent._handle_bug_command("/bug application crashes on startup")
+
+    report = agent._pending_bug_report
+    assert report is not None
+    assert isinstance(report, dict)
+    # Title must include the user's description
+    assert "application crashes on startup" in report["title"]
+    # User description is stored separately for the editable text field
+    assert "application crashes on startup" in report["description"]
+    # Auto-generated context section is present
+    assert "System Info" in report["system_body"]
+    # YAML file path is in extra_files
+    assert len(report["extra_files"]) == 1
+
+
+def test_handle_bug_command_saves_yaml_report(agent, tmp_path):
+    """Bug command must still save a local YAML diagnostic report."""
+    project_path = tmp_path / "my_project"
+    project_path.mkdir()
+    agent.load_project(project_path)
+
+    agent._handle_bug_command("/bug something went wrong")
+
+    bug_files = list(agent.wm.bug_reports_dir.glob("bug_report_*.yaml"))
+    assert len(bug_files) == 1
+
+
+def test_handle_bug_command_yaml_path_in_extra_files(agent, tmp_path):
+    """The auto-saved YAML report path must appear in extra_files."""
+    project_path = tmp_path / "my_project"
+    project_path.mkdir()
+    agent.load_project(project_path)
+
+    agent._handle_bug_command("/bug yaml attachment test")
+
+    bug_files = list(agent.wm.bug_reports_dir.glob("bug_report_*.yaml"))
+    assert len(bug_files) == 1
+    yaml_path = str(bug_files[0])
+    assert yaml_path in agent._pending_bug_report["extra_files"]
+
+
+def test_handle_bug_command_no_description(agent, tmp_path):
+    """Bug command without description must still populate pending_bug_report."""
+    project_path = tmp_path / "my_project"
+    project_path.mkdir()
+    agent.load_project(project_path)
+
+    agent._handle_bug_command("/bug")
+
+    assert agent._pending_bug_report is not None
+    assert agent._pending_bug_report["title"].startswith("Bug:")
+
+
+def test_submit_bug_via_github_api_calls_correct_endpoint(agent):
+    """_submit_bug_via_github_api must POST to the correct GitHub API endpoint."""
+    fake_issue_url = "https://github.com/jochym/opendata/issues/999"
+    mock_response = unittest.mock.MagicMock()
+    mock_response.read.return_value = (
+        f'{{"html_url": "{fake_issue_url}"}}'.encode()
+    )
+    mock_response.__enter__ = lambda s: s
+    mock_response.__exit__ = unittest.mock.MagicMock(return_value=False)
+
+    with unittest.mock.patch("urllib.request.urlopen", return_value=mock_response):
+        result = agent._submit_bug_via_github_api("Test title", "Test body", "token")
+
+    assert result == fake_issue_url
+
+
+def test_submit_bug_via_github_api_returns_none_on_failure(agent):
+    """_submit_bug_via_github_api must return None when the network call fails."""
+    with unittest.mock.patch(
+        "urllib.request.urlopen", side_effect=OSError("network error")
+    ):
+        result = agent._submit_bug_via_github_api("title", "body", "token")
+
+    assert result is None
+

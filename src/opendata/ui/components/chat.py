@@ -9,12 +9,11 @@ from nicegui import ui
 
 from opendata.i18n.translator import _
 from opendata.ui.components.file_picker import LocalFilePicker
+from opendata.ui.components.files_dialog import render_file_selection_summary
 from opendata.ui.components.inventory_logic import (
     load_inventory_background,
-    build_folder_index,
 )
 from opendata.ui.components.metadata import metadata_preview_ui
-from opendata.ui.components.files_dialog import render_file_selection_summary
 from opendata.ui.context import AppContext
 from opendata.ui.state import ScanState
 
@@ -544,6 +543,13 @@ async def handle_user_msg_from_code(ctx: AppContext, text: str, mode: str = "met
             mode=mode,
             stop_event=ctx.session.ai_stop_event,
         )
+        # If the /bug command generated a pending bug report, open the dialog
+        bug_report = getattr(ctx.agent, "_pending_bug_report", None)
+        if isinstance(bug_report, dict):
+            ctx.agent._pending_bug_report = None
+            from opendata.ui.components.bug_report_dialog import show_bug_report_dialog
+
+            show_bug_report_dialog(ctx, bug_report)
     except asyncio.CancelledError:
         logger.info("AI interaction cancelled by user.")
         ctx.agent.chat_history.append(
