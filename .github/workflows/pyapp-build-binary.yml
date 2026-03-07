@@ -16,6 +16,8 @@ on:
         required: true
         type: string
     secrets:
+      GITHUB_BUG_REPORT_TOKEN:
+        required: false
       GOOGLE_CLIENT_ID:
         required: false
       GOOGLE_CLIENT_SECRET:
@@ -71,6 +73,32 @@ jobs:
           ls -la dist/
           echo "✅ Using wheel: ${{ inputs.wheel_file }}"
       
+      - name: Embed GitHub Bug Report Token (optional)
+        shell: bash
+        env:
+          GITHUB_BUG_REPORT_TOKEN: ${{ secrets.GITHUB_BUG_REPORT_TOKEN }}
+        run: |
+          if [ -n "$GITHUB_BUG_REPORT_TOKEN" ]; then
+            echo "Embedding GitHub token for bug reports..."
+            export EMBEDDED_GITHUB_TOKEN="$GITHUB_BUG_REPORT_TOKEN"
+            echo "✅ Token embedded"
+          else
+            echo "⚠️  No GitHub token provided - bug reports will require manual file sharing"
+          fi
+
+      # STEP 1.5: Embed GitHub bug report token (optional)
+      - name: Embed GitHub Bug Report Token
+        shell: bash
+        env:
+          GITHUB_BUG_REPORT_TOKEN: ${{ secrets.GITHUB_BUG_REPORT_TOKEN }}
+        run: |
+          if [ -n "$GITHUB_BUG_REPORT_TOKEN" ]; then
+            echo "✅ Embedding GitHub bug report token..."
+            export EMBEDDED_GITHUB_TOKEN="$GITHUB_BUG_REPORT_TOKEN"
+          else
+            echo "⚠️  No GitHub token - bug reports will require manual file sharing"
+          fi
+
       # STEP 2: Build pyApp from wheel
       - name: Build with PyApp
         shell: bash

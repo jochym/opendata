@@ -45,6 +45,7 @@ class UserSettings(BaseModel):
     ai_provider: Literal["google", "openai", "genai"] = "google"
     google_model: str = "gemini-3-flash-preview"  # Default Google model
     openai_api_key: str | None = None
+    github_bug_report_token: str | None = None
     openai_base_url: str = "https://api.openai.com/v1"
     openai_model: str = "gpt-3.5-turbo"
     workspace_path: str = str(Path.home() / "OpenDataWorkspace")
