@@ -17,18 +17,28 @@ def render_settings_tab(ctx: AppContext):
                 with ui.card().classes(
                     "w-full bg-blue-50 p-4 border border-blue-200 shadow-none"
                 ):
-                    with ui.row().classes("items-center gap-4"):
-                        ui.icon("smart_toy", size="lg").classes("text-blue-600")
-                        with ui.column().classes("gap-0"):
-                            ui.label(_("Active AI Connection")).classes(
-                                "text-xs font-bold text-blue-800 uppercase tracking-wider"
-                            )
-                            ui.label(f"{info['provider']}").classes(
-                                "text-lg font-bold text-slate-800"
-                            )
-                            ui.label(info["account"]).classes(
-                                "text-sm text-slate-600 font-mono"
-                            )
+                    with ui.row().classes("items-center justify-between gap-4"):
+                        with ui.row().classes("items-center gap-4"):
+                            ui.icon("smart_toy", size="lg").classes("text-blue-600")
+                            with ui.column().classes("gap-0"):
+                                ui.label(_("Active AI Connection")).classes(
+                                    "text-xs font-bold text-blue-800 uppercase tracking-wider"
+                                )
+                                ui.label(f"{info['provider']}").classes(
+                                    "text-lg font-bold text-slate-800"
+                                )
+                                ui.label(info["account"]).classes(
+                                    "text-sm text-slate-600 font-mono"
+                                )
+                        # Logout button with frame and spacing
+                        ui.button(
+                            _("Logout"),
+                            icon="logout",
+                            on_click=lambda: confirm_logout(ctx),
+                            color="red",
+                        ).props("outline dense").classes("ml-4").tooltip(
+                            _("Logout from AI")
+                        )
 
             # Model Selection
             with ui.column().classes("gap-1"):
@@ -84,18 +94,38 @@ def render_settings_tab(ctx: AppContext):
 
             ui.separator()
 
-            # Auth
-            if ctx.settings.ai_consent_granted:
-                with ui.row().classes("w-full items-center justify-between"):
-                    ui.label(_("AI Session")).classes(
-                        "text-sm font-bold text-slate-600"
+            # GitHub Bug Report Token
+            with ui.column().classes("gap-1"):
+                ui.label(_("GitHub Bug Report Token")).classes(
+                    "text-sm font-bold text-slate-600"
+                )
+                github_token_input = ui.input(
+                    label=_("Token (optional)"),
+                    password=True,
+                    placeholder="ghp_...",
+                    value=ctx.settings.github_bug_report_token or "",
+                ).classes("w-full")
+                ui.markdown(
+                    _(
+                        "**Enable automatic bug reports to GitHub.**\n\n"
+                        "Contact the application author to obtain the bug report token.\n"
+                        "Paste it above to enable automatic submission."
                     )
-                    ui.button(
-                        _("Logout from AI"),
-                        icon="logout",
-                        on_click=lambda: confirm_logout(ctx),
-                        color="red",
-                    ).props("flat")
+                ).classes("text-xs text-slate-500")
+
+                async def save_github_token():
+                    ctx.settings.github_bug_report_token = github_token_input.value
+                    ctx.wm.save_yaml(ctx.settings, "settings.yaml")
+                    ui.notify(
+                        _("GitHub token saved!")
+                        if github_token_input.value
+                        else _("GitHub token cleared"),
+                        type="positive" if github_token_input.value else "info",
+                    )
+
+                ui.button(
+                    _("Save GitHub Token"), icon="save", on_click=save_github_token
+                ).props("outline color=primary").classes("w-full")
 
             ui.separator()
 

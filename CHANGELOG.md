@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.42] - 2026-03-07
+### Added
+- **GitHub Bug Reporting (#50)**: Integrated a direct bug reporting system via the `/bug` command.
+  - Supports automatic submission to GitHub using a personal access token (configurable in Settings).
+  - Includes an issue type selector with 6 standard GitHub categories (Bug, Enhancement, Documentation, Question, Feature, Performance) with corresponding emojis.
+  - Automatically attaches diagnostic YAML files to the report.
+  - Allows users to attach additional files to the bug report.
+- **UI Enhancements**:
+  - Resized and refined the bug report dialog for better visibility and usability (650px wide, 85vh tall).
+  - Improved the description field height (8 rows) to prevent cut-off text.
+  - Refined the "Active AI Connection" card in Settings with a framed, spaced Logout button.
+  - Removed redundant "AI Session" line from the bottom of the Settings tab.
+  - Synchronized "above/below" instructions across all input forms for consistency.
+
 ## [0.22.41] - 2026-03-05
 ### Fixed
 - **Non-editable Metadata Fields (#48)**: Fixed critical bug where empty metadata fields were not visible or editable in the UI.

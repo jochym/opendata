@@ -147,3 +147,11 @@ This document serves as a historical log of completed development phases for the
   - **Robust Data Handling:** Added automatic Pydantic validation and normalization for complex metadata fields, preventing crashes from structured AI responses.
   - **Stability & Reliability:** Wrapped all background tasks in `try...finally` blocks with explicit `asyncio.CancelledError` handling to ensure consistent UI state and spinner resets.
 
+- **Phase 22 GitHub-Integrated Bug Reporting [COMPLETE]:**
+  - **Automated Issue Creation:** Implemented a direct connection to GitHub's REST API for seamless bug reporting via the `/bug` command.
+  - **Issue Classification:** Added a categorized issue type selector (Bug, Enhancement, etc.) with automated emoji prefixing for GitHub organization.
+  - **Diagnostic Bundling:** Automated the collection and attachment of system info, chat history, and metadata drafts (as YAML) to every report.
+  - **Configurable Authentication:** Integrated a secure token management system in Settings, allowing users to provide their own GitHub tokens.
+  - **UI/UX Refinement:** Designed a robust, scrollable, and responsive bug report dialog with an 8-row description field and full-width instruction cards.
+  - **Settings Cleanup:** Relocated AI Logout to the active connection card and removed redundant session information for a cleaner interface.
+

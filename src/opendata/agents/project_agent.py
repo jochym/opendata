@@ -1,34 +1,40 @@
-import yaml
-import re
-import platform
-import sys
 import datetime
+import json
 import logging
-import threading
-import asyncio
-from typing import List, Optional, Dict, Any, Tuple, Callable
+import platform
+import re
+import sys
+import urllib.request
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
+
+import yaml
+
+from opendata.agents.engine import AnalysisEngine
+from opendata.agents.parsing import extract_metadata_from_ai_response
+from opendata.agents.persistence import ProjectStateManager
+from opendata.agents.scanner import ScannerService
+from opendata.extractors.base import ExtractorRegistry
+from opendata.i18n.translator import _
 from opendata.models import (
-    Metadata,
-    ProjectFingerprint,
     AIAnalysis,
-    PersonOrOrg,
     Contact,
     FileSuggestion,
+    Metadata,
+    PersonOrOrg,
+    ProjectFingerprint,
 )
-from opendata.i18n.translator import _
-
-from opendata.extractors.base import ExtractorRegistry
+from opendata.utils import FullTextReader, PromptManager, format_size, scan_project_lazy
 from opendata.workspace import WorkspaceManager
-from opendata.utils import scan_project_lazy, PromptManager, FullTextReader, format_size
-from opendata.agents.parsing import extract_metadata_from_ai_response
-from opendata.agents.tools import handle_external_tools
-from opendata.agents.scanner import ScannerService
-from opendata.agents.persistence import ProjectStateManager
-from opendata.agents.engine import AnalysisEngine
-
 
 logger = logging.getLogger("opendata.agents.project_agent")
+
+# Bug reporting: env-var names and GitHub repo slug.
+# Set OPENDATA_BUG_REPORT_TOKEN to a fine-grained PAT with issues:write on this
+# repo to enable account-free direct submission via the GitHub REST API.
+_GITHUB_BUG_REPORT_REPO = "jochym/opendata"
+_GITHUB_BUG_REPORT_TOKEN_ENV = "OPENDATA_BUG_REPORT_TOKEN"
 
 
 class ProjectAnalysisAgent:
@@ -52,13 +58,14 @@ class ProjectAnalysisAgent:
         if registry is None:
             self._setup_extractors()
         self.prompt_manager = prompt_manager or PromptManager()
-        self.project_id: Optional[str] = None
+        self.project_id: str | None = None
 
-        self.current_fingerprint: Optional[ProjectFingerprint] = None
+        self.current_fingerprint: ProjectFingerprint | None = None
         self.current_metadata = Metadata()
-        self.current_analysis: Optional[AIAnalysis] = None
-        self.chat_history: List[Tuple[str, str]] = []  # (Role, Message)
+        self.current_analysis: AIAnalysis | None = None
+        self.chat_history: list[tuple[str, str]] = []  # (Role, Message)
         self.heuristics_run = False
+        self._pending_bug_report: dict | None = None
 
         # Specialized services
         self.scanner = ScannerService(wm)
@@ -66,15 +73,15 @@ class ProjectAnalysisAgent:
         self.engine = AnalysisEngine(self.prompt_manager)
 
     def _setup_extractors(self):
-        from opendata.extractors.latex import LatexExtractor
-        from opendata.extractors.docx import DocxExtractor
-        from opendata.extractors.medical import DicomExtractor
         from opendata.extractors.citations import BibtexExtractor
+        from opendata.extractors.docx import DocxExtractor
         from opendata.extractors.hierarchical import Hdf5Extractor
+        from opendata.extractors.latex import LatexExtractor
+        from opendata.extractors.medical import DicomExtractor
         from opendata.extractors.physics import (
-            VaspExtractor,
-            LatticeDynamicsExtractor,
             ColumnarDataExtractor,
+            LatticeDynamicsExtractor,
+            VaspExtractor,
         )
 
         self.registry.register(LatexExtractor())
@@ -182,7 +189,7 @@ class ProjectAnalysisAgent:
         self.current_fingerprint = None
         self.project_id = None
 
-    def _get_effective_field(self) -> Optional[str]:
+    def _get_effective_field(self) -> str | None:
         """Gets the user-selected field protocol from project config.
 
         NO HEURISTICS - Returns ONLY what user explicitly selected.
@@ -211,8 +218,8 @@ class ProjectAnalysisAgent:
     def refresh_inventory(
         self,
         project_dir: Path,
-        progress_callback: Optional[Callable[[str, str, str], None]] = None,
-        stop_event: Optional[Any] = None,
+        progress_callback: Callable[[str, str, str], None] | None = None,
+        stop_event: Any | None = None,
         force: bool = False,
     ) -> str:
         """
@@ -254,8 +261,6 @@ class ProjectAnalysisAgent:
         #    science_branches_mnisw is for RODBUK repository classification only
         #    Field protocol is stored in project_config.json
 
-        from opendata.utils import format_size
-
         total_size = self.current_fingerprint.total_size_bytes
 
         self.save_state()
@@ -290,7 +295,7 @@ class ProjectAnalysisAgent:
             self.current_fingerprint.significant_files.append(path)
 
         # Update or create suggestion
-        from opendata.models import FileSuggestion, AIAnalysis
+        from opendata.models import AIAnalysis
 
         category_labels = {
             "main_article": "Main article/paper",
@@ -380,7 +385,7 @@ class ProjectAnalysisAgent:
                     break
 
         # 4. Store categories in analysis for context injection
-        from opendata.models import FileSuggestion, AIAnalysis
+        from opendata.models import AIAnalysis
 
         category_labels = {
             "main_article": "Main article/paper",
@@ -393,8 +398,10 @@ class ProjectAnalysisAgent:
         file_suggestions = []
         for sel in valid_selections:
             category = sel.get("category", "other")
-            reason = category_labels.get(category, category)
-            file_suggestions.append(FileSuggestion(path=sel["path"], reason=reason))
+            reason = str(category_labels.get(category, category))
+            file_suggestions.append(
+                FileSuggestion(path=str(sel["path"]), reason=reason)
+            )
 
         # Create or update analysis object
         if not self.current_analysis:
@@ -421,8 +428,8 @@ class ProjectAnalysisAgent:
     def run_ai_analysis_phase(
         self,
         ai_service: Any,
-        progress_callback: Optional[Callable[[str, str, str], None]] = None,
-        stop_event: Optional[Any] = None,
+        progress_callback: Callable[[str, str, str], None] | None = None,
+        stop_event: Any | None = None,
     ) -> str:
         """
         Phase 3: Runs the AI analysis loop to refine metadata.
@@ -498,9 +505,9 @@ class ProjectAnalysisAgent:
         user_text: str,
         ai_service: Any,
         skip_user_append: bool = False,
-        on_update: Optional[Callable[[], None]] = None,
+        on_update: Callable[[], None] | None = None,
         mode: str = "metadata",
-        stop_event: Optional[Any] = None,
+        stop_event: Any | None = None,
     ) -> str:
         """Main iterative loop delegated to AnalysisEngine."""
         if not skip_user_append:
@@ -689,8 +696,8 @@ class ProjectAnalysisAgent:
     def analyze_full_text(
         self,
         ai_service: Any,
-        extra_files: Optional[List[Path]] = None,
-        on_update: Optional[Callable[[], None]] = None,
+        extra_files: list[Path] | None = None,
+        on_update: Callable[[], None] | None = None,
     ) -> str:
         """Executes the One-Shot Full Text Extraction."""
         if not self.current_fingerprint:
@@ -758,7 +765,7 @@ class ProjectAnalysisAgent:
         return clean_msg
 
     def submit_analysis_answers(
-        self, answers: Dict[str, Any], on_update: Optional[Callable[[], None]] = None
+        self, answers: dict[str, Any], on_update: Callable[[], None] | None = None
     ) -> str:
         """
         Updates metadata based on form answers and clears current analysis.
@@ -830,7 +837,7 @@ class ProjectAnalysisAgent:
             human_answers.append(f"- **{label}**: {val_str}")
 
         self.chat_history.append(
-            ("user", f"Updated fields via form:\n\n" + "\n".join(human_answers))
+            ("user", "Updated fields via form:\n\n" + "\n".join(human_answers))
         )
         msg = "Thank you! I've updated the metadata with your choices."
         self.chat_history.append(("agent", msg))
@@ -848,21 +855,80 @@ class ProjectAnalysisAgent:
             mode, self.current_metadata, self.current_fingerprint, effective
         )
 
+    def _submit_bug_via_github_api(
+        self, title: str, body: str, token: str, labels: list[str] | None = None
+    ) -> str | None:
+        """Submit a bug report directly to GitHub Issues via the REST API.
+
+        Uses only stdlib so no extra dependency is needed.
+        Returns the created issue URL on success, or None on failure.
+
+        Args:
+            title: Issue title
+            body: Issue body/description
+            token: GitHub PAT with issues:write scope
+            labels: List of label names to apply (default: ["bug"])
+        """
+        if labels is None:
+            labels = ["bug"]
+
+        payload = json.dumps({"title": title, "body": body, "labels": labels}).encode(
+            "utf-8"
+        )
+        req = urllib.request.Request(
+            f"https://api.github.com/repos/{_GITHUB_BUG_REPORT_REPO}/issues",
+            data=payload,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+                "Accept": "application/vnd.github.v3+json",
+                "User-Agent": "opendata-tool-bug-reporter",
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=10) as response:
+                result = json.loads(response.read().decode("utf-8"))
+                issue_url = result.get("html_url")
+                if not issue_url:
+                    logger.warning("GitHub API response missing html_url: %s", result)
+                return issue_url
+        except Exception as e:
+            logger.warning("GitHub API bug submission failed: %s", e)
+            return None
+
     def _handle_bug_command(self, user_text: str) -> str:
-        """Generates a diagnostic report for debugging."""
-        description = user_text[4:].strip() or "No description provided."
+        """Saves a diagnostic YAML report and signals the UI to open the bug dialog."""
+        description = user_text[4:].strip() or _("No description provided.")
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         report_name = f"bug_report_{timestamp}.yaml"
         report_path = self.wm.bug_reports_dir / report_name
+
+        os_name = platform.system()
+        os_release = platform.release()
+        python_ver = sys.version.split()[0]
+        try:
+            version_file = Path(__file__).parent.parent / "VERSION"
+            app_version = version_file.read_text(encoding="utf-8").strip()
+        except (OSError, UnicodeDecodeError):
+            app_version = "unknown"
+
+        file_count = (
+            self.current_fingerprint.file_count if self.current_fingerprint else 0
+        )
+        extensions = (
+            self.current_fingerprint.extensions if self.current_fingerprint else []
+        )
 
         report_data = {
             "timestamp": timestamp,
             "user_description": description,
             "system_info": {
-                "os": platform.system(),
-                "os_release": platform.release(),
+                "os": os_name,
+                "os_release": os_release,
                 "python_version": sys.version,
                 "platform": platform.platform(),
+                "app_version": app_version,
             },
             "project_context": {
                 "project_id": self.project_id,
@@ -871,15 +937,11 @@ class ProjectAnalysisAgent:
                 else "Unknown",
                 "metadata": self.current_metadata.model_dump(exclude_unset=True),
                 "fingerprint_summary": {
-                    "file_count": self.current_fingerprint.file_count
-                    if self.current_fingerprint
-                    else 0,
+                    "file_count": file_count,
                     "total_size": self.current_fingerprint.total_size_bytes
                     if self.current_fingerprint
                     else 0,
-                    "extensions": self.current_fingerprint.extensions
-                    if self.current_fingerprint
-                    else [],
+                    "extensions": extensions,
                 },
             },
             "recent_history": self.chat_history[-20:] if self.chat_history else [],
@@ -888,7 +950,35 @@ class ProjectAnalysisAgent:
         with open(report_path, "w", encoding="utf-8") as f:
             yaml.dump(report_data, f, allow_unicode=True, sort_keys=False)
 
-        msg = f"🐞 **Bug report generated!**\n\nDiagnostic data has been saved to:\n`{report_path}`\n\nPlease share this file with the developers."
+        # Build the auto-generated context section (system info, project stats, chat).
+        # This is injected into the final issue body by the dialog at submit time.
+        recent_chat = self.chat_history[-5:] if self.chat_history else []
+        chat_lines = "\n".join(
+            f"**{role}:** {text[:200]}" for role, text in recent_chat
+        )
+        system_body = (
+            f"## System Info\n"
+            f"- **OS:** {os_name} {os_release}\n"
+            f"- **Python:** {python_ver}\n"
+            f"- **App Version:** {app_version}\n\n"
+            f"## Project Info\n"
+            f"- **File Count:** {file_count}\n"
+            f"- **Extensions:** {', '.join(str(e) for e in extensions[:20])}\n\n"
+            f"## Recent Conversation\n```\n{chat_lines}\n```"
+        )
+
+        # Signal the UI layer to open the bug-report dialog.
+        self._pending_bug_report = {
+            "title": f"Bug: {description[:80]}",
+            "description": description,
+            "system_body": system_body,
+            "extra_files": [str(report_path)],
+        }
+
+        msg = (
+            f"🐞 **{_('Opening bug report form...')}**\n\n"
+            f"{_('Diagnostic YAML saved to:')}\n`{report_path}`"
+        )
         self.chat_history.append(("agent", msg))
         self.save_state()
         return msg
