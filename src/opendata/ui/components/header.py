@@ -201,7 +201,9 @@ async def handle_manage_projects(ctx: AppContext):
                         )  # Hidden from visual, visible to screen readers
 
                     with ui.column().classes("flex-1"):
-                        ui.label(p.get("title", _("Untitled"))[:50]).classes("font-bold")
+                        ui.label(p.get("title", _("Untitled"))[:50]).classes(
+                            "font-bold"
+                        )
                         # Only show ellipsis if path is actually truncated
                         path_label = (
                             f"{path_display[:60]}..."
@@ -272,3 +274,39 @@ async def handle_manage_projects(ctx: AppContext):
             ui.button(_("Close"), on_click=manage_dialog.close).props("flat")
 
     manage_dialog.open()
+
+
+async def handle_bug_report(ctx: AppContext):
+    """Shows the bug report dialog."""
+    # Generate a minimal bug report with system info in a background thread
+    await asyncio.to_thread(ctx.agent._handle_bug_command, "/bug")
+
+    # The _handle_bug_command returns a string, but we need the pending bug report
+    # Check if the agent stored the pending bug report
+    pending_report = getattr(ctx.agent, "_pending_bug_report", None)
+    if isinstance(pending_report, dict):
+        ctx.agent._pending_bug_report = None
+        from opendata.ui.components.bug_report_dialog import show_bug_report_dialog
+
+        show_bug_report_dialog(ctx, pending_report)
+    else:
+        # Fallback: create a basic bug report manually
+        from opendata.utils import get_app_version
+        import platform
+        import sys
+
+        bug_report = {
+            "title": _("Bug Report"),
+            "description": "",
+            "system_body": (
+                f"## System Info\n"
+                f"- **OS:** {platform.system()} {platform.release()}\n"
+                f"- **Python:** {sys.version.split()[0]}\n"
+                f"- **App Version:** {get_app_version()}\n"
+            ),
+            "extra_files": [],
+        }
+
+        from opendata.ui.components.bug_report_dialog import show_bug_report_dialog
+
+        show_bug_report_dialog(ctx, bug_report)
