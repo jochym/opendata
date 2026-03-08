@@ -179,6 +179,19 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080, enable_api: bool = False
                 UIState.package_tab = package_tab
                 UIState.preview_tab = preview_tab
 
+            # Bug report button (Right-aligned, styled red for distinction)
+            from opendata.ui.components.header import handle_bug_report
+
+            with (
+                ui.button(icon="bug_report", on_click=lambda: handle_bug_report(ctx))
+                .props("flat dense color=red")
+                .classes("q-ml-md text-red-400 hover:text-red-200") as bug_btn
+            ):
+                ui.tooltip(_("Report a Bug"))
+                bug_btn.bind_visibility_from(
+                    ctx.session, "is_project_loading", backward=lambda x: not x
+                )
+
         container = ui.column().classes("w-full p-0 max-w-none mx-0 h-full")
         with container:
             if not settings.ai_consent_granted:

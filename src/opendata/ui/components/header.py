@@ -104,18 +104,6 @@ def header_content_ui(ctx: AppContext):
                     ctx.session, "is_project_loading", backward=lambda x: not x
                 )
 
-            # Bug report button (always visible)
-            with (
-                ui.button(icon="bug_report", on_click=lambda: handle_bug_report(ctx))
-                .props("flat dense")
-                .classes("text-xs") as bug_btn
-            ):
-                ui.tooltip(_("Report a Bug"))
-                # Button visible when not loading
-                bug_btn.bind_visibility_from(
-                    ctx.session, "is_project_loading", backward=lambda x: not x
-                )
-
 
 async def handle_load_project(ctx: AppContext, path: str):
     if not path:
