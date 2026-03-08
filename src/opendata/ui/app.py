@@ -161,36 +161,39 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080, enable_api: bool = False
             ctx.register_refreshable("header", header_content_ui)
             header_content_ui(ctx)
 
-            with ui.tabs().classes("bg-slate-800") as main_tabs:
-                analysis_tab = ui.tab(_("Analysis"), icon="analytics")
-                protocols_tab = ui.tab(_("Protocols"), icon="rule")
-                package_tab = ui.tab(_("Package"), icon="inventory_2")
-                preview_tab = ui.tab(_("Preview"), icon="visibility")
-                settings_tab = ui.tab(_("Settings"), icon="settings")
+            with ui.row().classes("items-center no-wrap gap-6"):
+                with ui.tabs().classes("bg-slate-800") as main_tabs:
+                    analysis_tab = ui.tab(_("Analysis"), icon="analytics")
+                    protocols_tab = ui.tab(_("Protocols"), icon="rule")
+                    package_tab = ui.tab(_("Package"), icon="inventory_2")
+                    preview_tab = ui.tab(_("Preview"), icon="visibility")
+                    settings_tab = ui.tab(_("Settings"), icon="settings")
 
-                ctx.main_tabs = main_tabs
-                ctx.analysis_tab = analysis_tab
-                ctx.package_tab = package_tab
-                ctx.preview_tab = preview_tab
+                    ctx.main_tabs = main_tabs
+                    ctx.analysis_tab = analysis_tab
+                    ctx.package_tab = package_tab
+                    ctx.preview_tab = preview_tab
 
-                # Sync to UIState for global access in callbacks
-                UIState.main_tabs = main_tabs
-                UIState.analysis_tab = analysis_tab
-                UIState.package_tab = package_tab
-                UIState.preview_tab = preview_tab
+                    # Sync to UIState for global access in callbacks
+                    UIState.main_tabs = main_tabs
+                    UIState.analysis_tab = analysis_tab
+                    UIState.package_tab = package_tab
+                    UIState.preview_tab = preview_tab
 
-            # Bug report button (Right-aligned, styled red for distinction)
-            from opendata.ui.components.header import handle_bug_report
+                # Bug report button (Right-aligned with navigation)
+                from opendata.ui.components.header import handle_bug_report
 
-            with (
-                ui.button(icon="bug_report", on_click=lambda: handle_bug_report(ctx))
-                .props("flat dense color=red")
-                .classes("q-ml-md text-red-400 hover:text-red-200") as bug_btn
-            ):
-                ui.tooltip(_("Report a Bug"))
-                bug_btn.bind_visibility_from(
-                    ctx.session, "is_project_loading", backward=lambda x: not x
-                )
+                with (
+                    ui.button(
+                        icon="bug_report", on_click=lambda: handle_bug_report(ctx)
+                    )
+                    .props("flat dense color=red")
+                    .classes("text-red-400 hover:text-red-200") as bug_btn
+                ):
+                    ui.tooltip(_("Report a Bug"))
+                    bug_btn.bind_visibility_from(
+                        ctx.session, "is_project_loading", backward=lambda x: not x
+                    )
 
         container = ui.column().classes("w-full p-0 max-w-none mx-0 h-full")
         with container:
