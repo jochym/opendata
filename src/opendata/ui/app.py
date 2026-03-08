@@ -161,7 +161,7 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080, enable_api: bool = False
             ctx.register_refreshable("header", header_content_ui)
             header_content_ui(ctx)
 
-            with ui.row().classes("items-center no-wrap gap-6"):
+            with ui.row().classes("items-center no-wrap gap-8"):
                 with ui.tabs().classes("bg-slate-800") as main_tabs:
                     analysis_tab = ui.tab(_("Analysis"), icon="analytics")
                     protocols_tab = ui.tab(_("Protocols"), icon="rule")
@@ -185,10 +185,14 @@ def start_ui(host: str = "127.0.0.1", port: int = 8080, enable_api: bool = False
 
                 with (
                     ui.button(
-                        icon="bug_report", on_click=lambda: handle_bug_report(ctx)
+                        _("Report Bug"),
+                        icon="bug_report",
+                        on_click=lambda: handle_bug_report(ctx),
                     )
                     .props("flat dense color=red")
-                    .classes("text-red-400 hover:text-red-200") as bug_btn
+                    .classes(
+                        "text-red-400 hover:text-red-200 uppercase text-xs font-bold"
+                    ) as bug_btn
                 ):
                     ui.tooltip(_("Report a Bug"))
                     bug_btn.bind_visibility_from(
