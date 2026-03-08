@@ -276,7 +276,14 @@ async def handle_manage_projects(ctx: AppContext):
 
                                 ui.button(_("Delete"), on_click=confirm, color="red")
 
-        confirm_dialog.open()
+                        confirm_dialog.open()
+
+                    ui.button(icon="delete", on_click=do_delete).props(
+                        "flat color=red dense"
+                    ).tooltip(_("Delete this project permanently"))
+
+        with ui.row().classes("w-full justify-end mt-4"):
+            ui.button(_("Close"), on_click=manage_dialog.close).props("flat")
 
     manage_dialog.open()
 
