@@ -290,8 +290,8 @@ async def handle_manage_projects(ctx: AppContext):
 
 async def handle_bug_report(ctx: AppContext):
     """Shows the bug report dialog."""
-    # Generate a minimal bug report with system info
-    bug_report = ctx.agent._handle_bug_command("/bug")
+    # Generate a minimal bug report with system info in a background thread
+    await asyncio.to_thread(ctx.agent._handle_bug_command, "/bug")
 
     # The _handle_bug_command returns a string, but we need the pending bug report
     # Check if the agent stored the pending bug report
