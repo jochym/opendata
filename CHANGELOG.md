@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.43] - 2026-03-08
+### Added
+- **Top-Bar Bug Reporting (#52)**: Added a prominent "Report Bug" button to the header top bar for easier discovery.
+  - Positioned to the far right for clean navigation.
+  - Distinctive red styling for quick access.
+  - Automatically triggers the full bug reporting flow with system info.
+- **Improved Dialog Stability**:
+  - Refined the "Manage Projects" dialog structure and fixed structural regressions.
+  - Enhanced background thread handling for bug report generation to avoid UI freezes.
+- **Testing Infrastructure**:
+  - Added comprehensive unit tests for the header bug report button.
+  - Improved UI test coverage for bug reporting fallback paths.
+
 ## [0.22.42] - 2026-03-07
 ### Added
 - **GitHub Bug Reporting (#50)**: Integrated a direct bug reporting system via the `/bug` command.
