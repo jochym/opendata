@@ -48,6 +48,7 @@ requires-python = ">=3.11"
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
+    "pytest-asyncio",
     "ruff>=0.1.0",
     "mypy>=1.0.0",
 ]
@@ -79,6 +80,8 @@ where = ["src"]
 pythonpath = ["src"]
 testpaths = ["tests"]
 python_files = "test_*.py"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 
 # Markers for test categorization
 markers = [

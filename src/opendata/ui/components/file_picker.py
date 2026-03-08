@@ -1,10 +1,27 @@
 import logging
+import os
+import string
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 from nicegui import ui
 from opendata.i18n.translator import _
 
 logger = logging.getLogger("opendata.ui.file_picker")
+
+
+def get_drives():
+    """Returns a list of available drive letters on Windows."""
+    if os.name != "nt":
+        return []
+    import ctypes
+
+    bitmask = ctypes.windll.kernel32.GetLogicalDrives()
+    drives = []
+    for letter in string.ascii_uppercase:
+        if bitmask & 1:
+            drives.append(f"{letter}:\\")
+        bitmask >>= 1
+    return drives
 
 
 class LocalFilePicker(ui.dialog):
@@ -51,26 +68,53 @@ class LocalFilePicker(ui.dialog):
             # Directory List
             with ui.scroll_area().classes("flex-grow w-full bg-white"):
                 self.list_container = ui.column().classes("w-full gap-0")
-                self._update_list()
 
             # Footer
             with ui.row().classes(
                 "w-full justify-end p-3 gap-2 shrink-0 border-t bg-slate-50"
             ):
                 ui.button(_("Cancel"), on_click=self.close).props("flat")
-                ui.button(
+                self.submit_button = ui.button(
                     _("Select Current"), on_click=lambda: self.submit(str(self.path))
                 ).props("elevated color=primary")
+
+            self._update_list()
 
     def _update_list(self):
         try:
             self.list_container.clear()
+
+            # Handle Windows "This PC" view
+            if self.path is None:
+                self.path_label.text = _("This PC")
+                self.submit_button.disable()
+                with self.list_container:
+                    for d in get_drives():
+
+                        def make_click_handler(drive_letter):
+                            return lambda _: self._handle_click(
+                                {"path": Path(drive_letter), "type": "dir"}
+                            )
+
+                        with ui.item(on_click=make_click_handler(d)).classes(
+                            "w-full hover:bg-blue-50 cursor-pointer"
+                        ):
+                            with ui.item_section().props("side"):
+                                ui.icon("storage", color="primary")
+                            with ui.item_section():
+                                ui.item_label(d)
+                return
+
             self.path_label.text = str(self.path)
+            self.submit_button.enable()
 
             rows = []
             # Up navigation
             if self.path.parent != self.path:
                 rows.append({"name": "..", "type": "dir", "path": self.path.parent})
+            elif os.name == "nt":
+                # Already at root on Windows - offer "This PC" view
+                rows.append({"name": "..", "type": "dir", "path": None})
 
             # List directory content
             if self.path.exists() and self.path.is_dir():
@@ -111,9 +155,12 @@ class LocalFilePicker(ui.dialog):
                         icon = "folder" if row["type"] == "dir" else "insert_drive_file"
                         color = "orange" if row["type"] == "dir" else "slate"
 
-                        with ui.item(
-                            on_click=lambda r=row: self._handle_click(r)
-                        ).classes("w-full hover:bg-blue-50 cursor-pointer"):
+                        def make_row_click_handler(r):
+                            return lambda _: self._handle_click(r)
+
+                        with ui.item(on_click=make_row_click_handler(row)).classes(
+                            "w-full hover:bg-blue-50 cursor-pointer"
+                        ):
                             with ui.item_section().props("side"):
                                 ui.icon(icon, color=color)
                             with ui.item_section():
@@ -124,8 +171,14 @@ class LocalFilePicker(ui.dialog):
                 ui.label(_("Error reading directory")).classes("p-4 text-red-500")
 
     def _handle_click(self, row):
-        # row["path"] is already a Path object
+        # row["path"] can be None (Drives view) or Path object
         new_path = row["path"]
+
+        if new_path is None:
+            self.path = None
+            self._update_list()
+            return
+
         if new_path.is_dir():
             self.path = new_path.resolve()
             self._update_list()

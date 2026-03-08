@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from pathlib import Path
 from nicegui import ui
 from opendata.i18n.translator import _
@@ -327,8 +328,8 @@ async def toggle_folder(ctx: AppContext, folder_path: str, current_state: str):
     pid = ctx.agent.project_id
     manifest = ctx.pkg_mgr.get_manifest(pid)
     inventory = ctx.session.inventory_cache
-
-    folder_prefix = folder_path + "/"
+    sep = os.sep
+    folder_prefix = folder_path + sep
     target_files = []
 
     for item in inventory:
