@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.44] - 2026-03-08
+### Fixed
+- **Windows Path Compatibility (#41, #42)**:
+  - Fixed directory picker on Windows to support drive letters (e.g., `C:\`, `D:\`).
+  - Added "This PC" view in the file picker to navigate between different drives.
+  - Fixed folder selection in the Packaging tab on Windows by correctly handling backslash path separators.
+
 ## [0.22.43] - 2026-03-08
 ### Added
 - **Top-Bar Bug Reporting (#52)**: Added a prominent "Report Bug" button to the header top bar for easier discovery.
