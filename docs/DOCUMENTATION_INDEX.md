@@ -1,4 +1,5 @@
 # OpenData Tool - Documentation Index
+**Version:** 0.22.44 (2026-03-12)
 
 ## 📖 User Documentation
 

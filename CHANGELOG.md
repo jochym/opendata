@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.22.44] - 2026-03-08
+## [0.22.44] - 2026-03-12
 ### Fixed
 - **Windows Path Compatibility (#41, #42)**:
   - Fixed directory picker on Windows to support drive letters (e.g., `C:\`, `D:\`).
