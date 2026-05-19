@@ -179,12 +179,23 @@ def extract_metadata_from_ai_response(
         analysis_data = None
 
         if "METADATA" in data:
-            updates = data["METADATA"]
-            if not isinstance(updates, dict):
-                updates = {}
-
+            updates = data["METADATA"] if isinstance(data["METADATA"], dict) else {}
         if "ANALYSIS" in data:
             analysis_data = data["ANALYSIS"]
+
+        if not updates and "METADATA" not in data:
+            for key, value in data.items():
+                if not isinstance(key, str):
+                    continue
+                if key.strip().upper() == "METADATA":
+                    updates = value if isinstance(value, dict) else {}
+                    break
+
+        if analysis_data is None and "ANALYSIS" not in data:
+            for key, value in data.items():
+                if isinstance(key, str) and key.strip().upper() == "ANALYSIS":
+                    analysis_data = value
+                    break
 
         # If no explicit sections found, treat the whole thing as metadata
         if not updates and not analysis_data:
