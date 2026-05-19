@@ -31,3 +31,18 @@ def test_parsing_handles_metadata_null():
     ai_response = "METADATA:\nMETADATA: null"
     msg, analysis, updated = extract_metadata_from_ai_response(ai_response, current)
     assert msg is not None
+
+
+def test_parsing_handles_lowercase_metadata_key():
+    """Test behavior: Parser should accept lowercase root keys from AI YAML output."""
+    current = Metadata()
+    ai_response = """
+METADATA:
+ANALYSIS:
+  summary: lowercase metadata key
+metadata:
+  title: "FeGe metadata title"
+"""
+    _, analysis, updated = extract_metadata_from_ai_response(ai_response, current)
+    assert analysis is not None
+    assert updated.title == "FeGe metadata title"

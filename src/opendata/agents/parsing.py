@@ -178,13 +178,14 @@ def extract_metadata_from_ai_response(
         updates = {}
         analysis_data = None
 
-        if "METADATA" in data:
-            updates = data["METADATA"]
-            if not isinstance(updates, dict):
-                updates = {}
-
-        if "ANALYSIS" in data:
-            analysis_data = data["ANALYSIS"]
+        for key, value in data.items():
+            if not isinstance(key, str):
+                continue
+            normalized_key = key.strip().upper()
+            if normalized_key == "METADATA" and not updates:
+                updates = value if isinstance(value, dict) else {}
+            elif normalized_key == "ANALYSIS" and analysis_data is None:
+                analysis_data = value
 
         # If no explicit sections found, treat the whole thing as metadata
         if not updates and not analysis_data:
